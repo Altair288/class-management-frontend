@@ -2,10 +2,12 @@
 
 import React, { useState } from "react";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 
 type UserType = "STUDENT" | "TEACHER" | "PARENT";
 
 export default function AuthPage() {
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
@@ -24,14 +26,12 @@ export default function AuthPage() {
     try {
       await axios.post("/api/users/login", loginForm);
       setMessage("登录成功！");
-      // 这里可以存储用户信息到 localStorage 或跳转页面
+      // 跳转到 dashboard 页面
+      router.push("/dashboard");
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
-        if (axios.isAxiosError(err) && err.response?.data) {
-          setMessage(err.response.data);
-        } else {
-          setMessage("登录失败");
-        }
+        const msg = err.response?.data?.message || err.response?.data || "登录失败";
+        setMessage(msg);
       } else {
         setMessage("登录失败");
       }

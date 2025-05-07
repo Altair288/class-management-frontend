@@ -1,16 +1,13 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
-  reactStrictMode: true,
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/:path*",
-        destination: "http://localhost:8080/api/:path*",
+        source: '/api/:path*',
+        destination: 'http://localhost:8080/api/:path*', // 代理到后端
       },
     ];
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
