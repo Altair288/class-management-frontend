@@ -24,7 +24,10 @@ export default function AuthPage() {
     setLoading(true);
     setMessage("");
     try {
-      await axios.post("/api/users/login", loginForm);
+      await axios.post(
+        "/api/users/login",
+        new URLSearchParams(loginForm),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded"}} );
       setMessage("登录成功！");
       // 跳转到 dashboard 页面
       router.push("/dashboard");
