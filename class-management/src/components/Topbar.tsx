@@ -1,11 +1,26 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import MenuIcon from "@mui/icons-material/Menu";
 import InputBase from "@mui/material/InputBase";
-import Avatar from "@mui/material/Avatar";
+
+interface UserInfo {
+  id: number;
+  username: string;
+  userType: string;
+}
 
 export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
+  const [user, setUser] = useState<UserInfo | null>(null);
+
+  useEffect(() => {
+    axios.get("/api/users/current")
+      .then(res => setUser(res.data))
+      .catch(() => setUser(null));
+  }, []);
+
   return (
     <Box
       sx={{
@@ -39,14 +54,28 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             width: 200,
             fontSize: 15,
           }}
-          startAdornment={<img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="search" style={{ width: 16, height: 16, marginRight: 10 }} />}
+          startAdornment={
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"
+              alt="search"
+              style={{ width: 16, height: 16, marginRight: 10 }}
+            />
+          }
         />
       </Box>
-      <Box sx={{ display: "relative", alignItems: "center", gap: 2 }}>
-        <Avatar src="https://randomuser.me/api/portraits/women/44.jpg" sx={{ width: 36, height: 36 }} />
-        <Box>
-          <Typography fontWeight={600} fontSize={15}>Erika Collins</Typography>
-          <Typography fontSize={12} color="text.secondary">Super Admin</Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <img
+          src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"
+          alt="user"
+          style={{ width: 36, height: 36, borderRadius: "50%", marginRight: 10 }}
+        />
+        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <Typography fontWeight={600} fontSize={15}>
+            {user ? user.username : "未登录"}
+          </Typography>
+          <Typography fontSize={12} color="text.secondary">
+            {user ? user.userType : ""}
+          </Typography>
         </Box>
       </Box>
     </Box>

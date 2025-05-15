@@ -44,7 +44,7 @@ export default function AuthPage() {
     studentId: ""
   });
   const [message, setMessage] = useState("");
-  // const [adminTrick, setAdminTrick] = useState(0);
+  const [adminTrick, setAdminTrick] = useState(0);
 
   // 登录
   const handleLogin = async (e: React.FormEvent) => {

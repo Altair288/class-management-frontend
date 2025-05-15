@@ -54,7 +54,7 @@ const menu = [
         key: "auth",
         children: [
           { text: "登录", href: "/login", key: "login" },
-          { text: "注册", href: "/", key: "register" },
+          { text: "注册", href: "/login", key: "register" },
         ],
       },
       {
@@ -124,10 +124,11 @@ export default function Sidebar({ open }: { open: boolean }) {
         position: "fixed",
         left: 0,
         top: 0,
-        transition: "width 0.2s",
+        transition: "width 0.4s cubic-bezier(0.77, 0, 0.175, 1)",
         zIndex: 1100,
         display: "flex",
         flexDirection: "column",
+        boxShadow: collapsed ? 1 : 3,
       }}
     >
       {/* Logo & Collapse Button */}
