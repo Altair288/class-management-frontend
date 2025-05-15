@@ -10,6 +10,8 @@ import CssBaseline from "@mui/material/CssBaseline";
 import theme from "@/themes/theme";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+// import Particles from "react-tsparticles";
+// import { loadFull } from "tsparticles";
 
 type UserType = "STUDENT" | "TEACHER" | "PARENT" | "ADMIN";
 
@@ -42,7 +44,7 @@ export default function AuthPage() {
     studentId: ""
   });
   const [message, setMessage] = useState("");
-  const [adminTrick, setAdminTrick] = useState(0);
+  // const [adminTrick, setAdminTrick] = useState(0);
 
   // 登录
   const handleLogin = async (e: React.FormEvent) => {
@@ -123,7 +125,7 @@ export default function AuthPage() {
         <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
           <Box width={400}>
             <Box display="flex" alignItems="center" justifyContent="center" mb={4} onClick={handleLogoClick} sx={{ cursor: "pointer" }}>
-              <img src="/logo.svg" alt="logo" width={40} />
+              <img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="logo" width={40} />
               <Typography variant="h4" fontWeight={700} color="primary" ml={1}>ClassAble</Typography>
             </Box>
             <Card sx={{ borderRadius: 3, boxShadow: 6 }}>
@@ -250,21 +252,54 @@ export default function AuthPage() {
         <Box
           flex={1}
           sx={{
-            bgcolor: "#f5f6fd",
+            position: "relative",
             display: { xs: "none", md: "flex" },
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             px: 8,
+            overflow: "hidden",
+            minHeight: "100vh",
           }}
         >
-          <img src="/logo.svg" alt="logo" width={60} />
-          <Typography variant="h4" color="primary" fontWeight={700} mt={2}>
-            ClassAble
-          </Typography>
-          <Typography color="text.secondary" mt={2} fontSize={18} align="center" maxWidth={400}>
-            平台用于无缝数据管理和用户洞察，助力学校高效运营，解锁实时分析与灵活功能。
-          </Typography>
+          {/* 背景图片并虚化 */}
+            <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              zIndex: 0,
+              backgroundImage: `
+              linear-gradient(to right, rgba(255, 255, 255, 1) 0%, rgba(245,246,253,0.7) 30%, rgba(245,246,253,0.2) 70%, rgba(245,246,253,0) 100%),
+              url('http://arch.altair288.eu.org:8888/i/2025/05/15/e71lug.jpg')
+              `,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              filter: "blur(1px)",
+              opacity: 0.4,
+              margin: "0px", // Add negative margin to counteract the blur boundar
+            }}
+            />
+          {/* 内容区加zIndex提升，避免被背景遮盖 */}
+          <Box
+            sx={{
+              position: "relative",
+              zIndex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="logo" width={60} />
+            <Typography variant="h4" color="primary" fontWeight={700} mt={2}>
+              ClassAble
+            </Typography>
+            <Typography color="text.secondary" mt={2} fontSize={18} align="center" maxWidth={400}>
+              平台用于无缝数据管理和用户洞察，助力学校高效运营，解锁实时分析与灵活功能。
+            </Typography>
+          </Box>
         </Box>
       </Box>
     </ThemeProvider>

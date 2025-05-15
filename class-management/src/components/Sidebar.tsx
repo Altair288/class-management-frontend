@@ -6,7 +6,6 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Collapse from "@mui/material/Collapse";
-import Divider from "@mui/material/Divider";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import ExpandLess from "@mui/icons-material/ExpandLess";
@@ -18,6 +17,7 @@ import MenuBookIcon from "@mui/icons-material/MenuBook";
 import LayersIcon from "@mui/icons-material/Layers";
 import Link from "next/link";
 import Image from "next/image";
+// import Divider from "@mui/material/Divider";
 
 const menu = [
   {
@@ -99,10 +99,12 @@ const menu = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ open }: { open: boolean }) {
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
   const [collapsed, setCollapsed] = useState(false);
   const [selected, setSelected] = useState("dashboard");
+  if (!open) return null;
+  
 
   const handleToggle = (key: string) => {
     setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -166,7 +168,7 @@ export default function Sidebar() {
           </svg>
         </Box>
       </Box>
-      <Divider />
+      {/* <Divider /> */}
       <Box sx={{ flex: 1, overflowY: "auto", mt: 1 }}>
         {menu.map((section) => (
           <Box key={section.section} sx={{ mb: 1 }}>
