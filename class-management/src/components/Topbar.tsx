@@ -5,6 +5,11 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import MenuIcon from "@mui/icons-material/Menu";
 import InputBase from "@mui/material/InputBase";
+import Avatar from "@mui/material/Avatar";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import LogoutIcon from "@mui/icons-material/Logout";
+import { useRouter } from "next/navigation";
 
 interface UserInfo {
   id: number;
@@ -14,12 +19,32 @@ interface UserInfo {
 
 export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const [user, setUser] = useState<UserInfo | null>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     axios.get("/api/users/current")
       .then(res => setUser(res.data))
       .catch(() => setUser(null));
   }, []);
+
+  const handleAvatarClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  // 登出功能
+  const handleLogout = async () => {
+    try {
+      await axios.post("/api/users/logout");
+    } catch {}
+    setUser(null);
+    handleClose();
+    router.push("/login");
+  };
 
   return (
     <Box
@@ -64,12 +89,14 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
         />
       </Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <img
-          src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"
-          alt="user"
-          style={{ width: 36, height: 36, borderRadius: "50%", marginRight: 10 }}
-        />
-        <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <IconButton onClick={handleAvatarClick} sx={{ p: 0 }}>
+          <Avatar
+            src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"
+            alt="user"
+            sx={{ width: 36, height: 36 }}
+          />
+        </IconButton>
+        <Box sx={{ display: { xs: "none", sm: "flex" }, flexDirection: "column", justifyContent: "center" }}>
           <Typography fontWeight={600} fontSize={15}>
             {user ? user.username : "未登录"}
           </Typography>
@@ -77,6 +104,20 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             {user ? user.userType : ""}
           </Typography>
         </Box>
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleClose}
+          PaperProps={{
+            sx: { mt: 1.5, minWidth: 240, borderRadius: 3, boxShadow: 3 },
+          }}
+        >
+          {/* ...其它菜单项... */}
+          <MenuItem onClick={handleLogout}>
+            <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
+            Logout
+          </MenuItem>
+        </Menu>
       </Box>
     </Box>
   );

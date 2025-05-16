@@ -271,7 +271,12 @@ export default function AuthPage() {
               height: "100%",
               zIndex: 0,
               backgroundImage: `
-              linear-gradient(to right, rgba(255, 255, 255, 1) 0%, rgba(245,246,253,0.7) 30%, rgba(245,246,253,0.2) 70%, rgba(245,246,253,0) 100%),
+              linear-gradient(
+                to right, 
+                rgba(255, 255, 255, 1) 0%, 
+                rgba(245,246,253,0.7) 20%, 
+                rgba(245,246,253,0.2) 50%, 
+                rgba(245,246,253,0) 100%),
               url('http://arch.altair288.eu.org:8888/i/2025/05/15/e71lug.jpg')
               `,
               backgroundSize: "cover",
