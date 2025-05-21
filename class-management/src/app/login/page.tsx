@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box, Button, Card, CardContent, Typography, TextField, Tabs, Tab,
   CircularProgress, Alert, Stack
@@ -10,6 +10,9 @@ import CssBaseline from "@mui/material/CssBaseline";
 import theme from "@/themes/theme";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+
 // import Particles from "react-tsparticles";
 // import { loadFull } from "tsparticles";
 
@@ -44,7 +47,14 @@ export default function AuthPage() {
     studentId: ""
   });
   const [message, setMessage] = useState("");
-  const [adminTrick, setAdminTrick] = useState(0);
+  const [classList, setClassList] = useState<{ id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    // 获取班级列表
+    axios.get("/api/users/classes")
+      .then(res => setClassList(res.data))
+      .catch(() => setClassList([]));
+  }, []);
 
   // 登录
   const handleLogin = async (e: React.FormEvent) => {
@@ -105,18 +115,16 @@ export default function AuthPage() {
   };
 
   // 隐藏管理员入口：连续点击logo 5次
+  let adminTrick = 0;
   const handleLogoClick = () => {
-    setAdminTrick((v) => {
-      if (v >= 4) {
-        setMessage("已切换为管理员登录");
-        setLoginForm({ username: "", password: "" });
-        setIsLogin(true);
-        return 0;
-      }
-      return v + 1;
-    });
+    adminTrick++;
+    if (adminTrick >= 5) {
+      setMessage("已切换为管理员登录");
+      setLoginForm({ username: "", password: "" });
+      setIsLogin(true);
+      adminTrick = 0;
+    }
   };
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -199,7 +207,21 @@ export default function AuthPage() {
                           <TextField label="密码" type="password" value={studentForm.password} onChange={e => setStudentForm(f => ({ ...f, password: e.target.value }))} fullWidth required />
                           <TextField label="手机号" value={studentForm.phone} onChange={e => setStudentForm(f => ({ ...f, phone: e.target.value }))} fullWidth />
                           <TextField label="邮箱" value={studentForm.email} onChange={e => setStudentForm(f => ({ ...f, email: e.target.value }))} fullWidth />
-                          <TextField label="班级ID" value={studentForm.classId} onChange={e => setStudentForm(f => ({ ...f, classId: e.target.value }))} fullWidth />
+                          {/* 班级下拉选择 */}
+                          <Select
+                            value={studentForm.classId}
+                            onChange={e => setStudentForm(f => ({ ...f, classId: e.target.value }))}
+                            displayEmpty
+                            fullWidth
+                            required
+                          >
+                            <MenuItem value="">
+                              <em>请选择班级</em>
+                            </MenuItem>
+                            {classList.map(cls => (
+                              <MenuItem key={cls.id} value={cls.id}>{cls.name}</MenuItem>
+                            ))}
+                          </Select>
                         </Stack>
                       )}
                       {registerTab === "TEACHER" && (
