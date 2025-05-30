@@ -35,12 +35,12 @@ const menu = [
     section: "元素",
     items: [
       {
-        text: "组件（测试）",
+        text: "请假管理 组件（Testing）",
         icon: <FolderOpenIcon />,
         key: "components",
         children: [
-          { text: "按钮", href: "#", key: "button" },
-          { text: "表单", href: "#", key: "form" },
+          { text: "班级请假查询", href: "#", key: "button" },
+          { text: "班级请假审批", href: "#", key: "form" },
         ],
       },
     ],
@@ -69,7 +69,7 @@ const menu = [
     section: "其他",
     items: [
       {
-        text: "站位格",
+        text: "任教班级管理",
         icon: <MenuBookIcon />,
         href: "#",
         key: "changelog",

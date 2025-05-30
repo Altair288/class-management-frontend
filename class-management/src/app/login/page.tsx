@@ -12,9 +12,7 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-
-// import Particles from "react-tsparticles";
-// import { loadFull } from "tsparticles";
+// import FluidBackground from "@/components/FluidBackground";
 
 type UserType = "STUDENT" | "TEACHER" | "PARENT" | "ADMIN";
 
@@ -130,7 +128,8 @@ export default function AuthPage() {
       <CssBaseline />
       <Box sx={{ minHeight: "100vh", display: "flex" }}>
         {/* 左侧表单 */}
-        <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center">
+        <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center" sx={{ position: "relative", overflow: "hidden" }}>
+          {/* <FluidBackground /> */}
           <Box width={400}>
             <Box display="flex" alignItems="center" justifyContent="center" mb={4} onClick={handleLogoClick} sx={{ cursor: "pointer" }}>
               <img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="logo" width={40} />
