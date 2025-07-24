@@ -1,4 +1,7 @@
-import { useState } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import List from "@mui/material/List";
@@ -10,18 +13,17 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
-import LockOpenIcon from "@mui/icons-material/LockOpen";
+import ClassOutlinedIcon from '@mui/icons-material/ClassOutlined';
 import DescriptionIcon from "@mui/icons-material/Description";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import LayersIcon from "@mui/icons-material/Layers";
 import Link from "next/link";
 import Image from "next/image";
-// import Divider from "@mui/material/Divider";
 
 const menu = [
   {
-    section: "管理",
+    section: "班级事务",
     items: [
       {
         text: "仪表盘",
@@ -29,80 +31,89 @@ const menu = [
         href: "/admin/dashboard",
         key: "dashboard",
       },
-    ],
-  },
-  {
-    section: "元素",
-    items: [
       {
-        text: "请假管理 组件（Testing）",
+        text: "班级管理",
+        icon: <ClassOutlinedIcon />,
+        key: "credits",
+        children: [
+          { text: "班级列表", href: "/admin/class", key: "class-list" },
+          { text: "创建班级", href: "/admin/class/create", key: "class-create" },
+        ],
+      },
+      {
+        text: "德育学分管理",
+        icon: <LayersIcon />,
+        href: "/admin/credits",
+        key: "credits",
+      },
+      {
+        text: "请假管理",
         icon: <FolderOpenIcon />,
-        key: "components",
+        key: "leave",
         children: [
-          { text: "班级请假查询", href: "#", key: "button" },
-          { text: "班级请假审批", href: "#", key: "form" },
-        ],
-      },
-    ],
-  },
-  {
-    section: "页面",
-    items: [
-      {
-        text: "认证（测试）",
-        icon: <LockOpenIcon />,
-        key: "auth",
-        children: [
-          { text: "登录", href: "/login", key: "login" },
-          { text: "注册", href: "/login", key: "register" },
+          { text: "请假申请列表", href: "/admin/leave/apply", key: "leave-apply" },
+          { text: "请假审批", href: "/admin/leave/approve", key: "leave-approve" },
         ],
       },
       {
-        text: "站位格",
-        icon: <LayersIcon />,
-        href: "#",
-        key: "sample",
-      },
-    ],
-  },
-  {
-    section: "其他",
-    items: [
-      {
-        text: "任教班级管理",
+        text: "成绩管理",
         icon: <MenuBookIcon />,
-        href: "#",
-        key: "changelog",
+        href: "/admin/grades",
+        key: "grades",
       },
       {
-        text: "站位格",
+        text: "班级通知",
         icon: <DescriptionIcon />,
-        href: "#",
-        key: "docs",
+        href: "/admin/notice",
+        key: "notice",
       },
+    ],
+  },
+  {
+    section: "系统管理",
+    items: [
       {
-        text: "站位格",
+        text: "用户管理",
         icon: <SupportAgentIcon />,
-        href: "#",
-        key: "support",
-      },
-      {
-        text: "菜单（测试）",
-        icon: <LayersIcon />,
-        key: "levels",
-        children: [
-          { text: "一级菜单", href: "#", key: "level1" },
-          { text: "二级菜单", href: "#", key: "level2" },
-        ],
+        href: "/admin/users",
+        key: "users",
       },
     ],
   },
 ];
 
 export default function Sidebar({ open }: { open: boolean }) {
+  const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
   const [collapsed, setCollapsed] = useState(false);
-  const [selected, setSelected] = useState("dashboard");
+  
+  // 根据当前路径设置选中项
+  const [selected, setSelected] = useState<string>(() => {
+    const match = menu.flatMap(section => section.items)
+      .find(item => {
+        if (item.href === pathname) return true;
+        if (item.children) {
+          return item.children.some(child => child.href === pathname);
+        }
+        return false;
+      });
+    return match?.key || "dashboard";
+  });
+
+  // 路径变化时更新选中项
+  useEffect(() => {
+    const match = menu.flatMap(section => section.items)
+      .find(item => {
+        if (item.href === pathname) return true;
+        if (item.children) {
+          return item.children.some(child => child.href === pathname);
+        }
+        return false;
+      });
+    if (match) setSelected(match.key);
+  }, [pathname]);
+
+  // 如果侧边栏关闭则不渲染
   if (!open) return null;
   
 
