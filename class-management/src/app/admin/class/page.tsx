@@ -10,10 +10,16 @@ import {
   Grid,
 } from "@mui/material";
 
+type ClassInfo = {
+  id: number;
+  name: string;
+  teacherName: string | null;
+  createdAt: string | null;
+  studentCount?: number;
+};
+
 export default function ClassManagePage() {
-  const [classList, setClassList] = useState<
-    { id: number; name: string; teacherName: string | null; createdAt: string }[]
-  >([]);
+  const [classList, setClassList] = useState<ClassInfo[]>([]);
   const [stats, setStats] = useState({
     totalClasses: 0,
     totalStudents: 0,
@@ -22,21 +28,30 @@ export default function ClassManagePage() {
   });
 
   useEffect(() => {
-    // 获取班级列表
-    axios.get("/api/class/all").then((res) => {
-      setClassList(res.data);
-    });
-    // 获取统计数据
+    // 获取班级详细信息和班级人数
     Promise.all([
+      axios.get("/api/class/all"),
+      axios.get("/api/class/student-count"),
       axios.get("/api/class/count"),
       axios.get("/api/users/student/count"),
       axios.get("/api/users/teacher/count"),
-    ]).then(([classCount, studentCount, teacherCount]) => {
+    ]).then(([allRes, countRes, classCount, studentCount, teacherCount]) => {
+      // studentCount接口返回的是 {classId, className, studentCount}
+      const studentCountMap: Record<number, number> = {};
+      countRes.data.forEach((item: { classId: number; studentCount: number }) => {
+        studentCountMap[item.classId] = item.studentCount;
+      });
+      // 合并 studentCount 到 classList
+      const merged = allRes.data.map((cls: ClassInfo) => ({
+        ...cls,
+        studentCount: studentCountMap[cls.id] ?? 0,
+      }));
+      setClassList(merged);
       setStats({
         totalClasses: classCount.data,
         totalStudents: studentCount.data,
         totalTeachers: teacherCount.data,
-        pendingRequests: 0, // 如果有待处理请求的接口，这里也可以获取
+        pendingRequests: 0,
       });
     });
   }, []);
@@ -107,9 +122,9 @@ export default function ClassManagePage() {
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {classList.map((cls) => (
-            <Card 
+            <Card
               key={cls.id}
-              sx={{ 
+              sx={{
                 width: '100%',
                 borderRadius: 2,
                 boxShadow: 2,
@@ -128,6 +143,9 @@ export default function ClassManagePage() {
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         ID: {cls.id}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        班级人数: {cls.studentCount ?? 0}
                       </Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary" mt={1}>

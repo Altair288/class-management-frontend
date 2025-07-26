@@ -34,7 +34,7 @@ const menu = [
       {
         text: "班级管理",
         icon: <ClassOutlinedIcon />,
-        key: "credits",
+        key: "class-manage",
         children: [
           { text: "班级列表", href: "/admin/class", key: "class-list" },
           { text: "创建班级", href: "/admin/class/create", key: "class-create" },
@@ -82,47 +82,62 @@ const menu = [
   },
 ];
 
+// 递归查找当前选中的菜单项key和父级key
+type MenuChild = {
+  text: string;
+  href: string;
+  key: string;
+};
+
+type MenuItem = {
+  text: string;
+  icon?: React.ReactNode;
+  href?: string;
+  key: string;
+  children?: MenuChild[];
+};
+
+type MenuSection = {
+  section: string;
+  items: MenuItem[];
+};
+
+function findSelectedKeys(
+  menu: MenuSection[],
+  pathname: string
+): { selectedKey: string; parentKey: string | null } {
+  for (const section of menu) {
+    for (const item of section.items) {
+      if (item.href === pathname) return { selectedKey: item.key, parentKey: null };
+      if (item.children) {
+        const child = item.children.find(child => child.href === pathname);
+        if (child) return { selectedKey: child.key, parentKey: item.key };
+      }
+    }
+  }
+  return { selectedKey: "dashboard", parentKey: null };
+}
+
 export default function Sidebar({ open }: { open: boolean }) {
   const pathname = usePathname();
-  const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
   const [collapsed, setCollapsed] = useState(false);
-  
-  // 根据当前路径设置选中项
-  const [selected, setSelected] = useState<string>(() => {
-    const match = menu.flatMap(section => section.items)
-      .find(item => {
-        if (item.href === pathname) return true;
-        if (item.children) {
-          return item.children.some(child => child.href === pathname);
-        }
-        return false;
-      });
-    return match?.key || "dashboard";
-  });
+  const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
 
-  // 路径变化时更新选中项
+  // 选中项和父级项
+  const { selectedKey, parentKey } = findSelectedKeys(menu, pathname);
+
+  // 自动展开当前父菜单
   useEffect(() => {
-    const match = menu.flatMap(section => section.items)
-      .find(item => {
-        if (item.href === pathname) return true;
-        if (item.children) {
-          return item.children.some(child => child.href === pathname);
-        }
-        return false;
-      });
-    if (match) setSelected(match.key);
-  }, [pathname]);
+    if (parentKey) {
+      setOpenMenus((prev) => ({ ...prev, [parentKey]: true }));
+    }
+  }, [parentKey]);
 
   // 如果侧边栏关闭则不渲染
   if (!open) return null;
-  
 
   const handleToggle = (key: string) => {
     setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const handleSelect = (key: string) => {
-    setSelected(key);
   };
 
   return (
@@ -180,7 +195,6 @@ export default function Sidebar({ open }: { open: boolean }) {
           </svg>
         </Box>
       </Box>
-      {/* <Divider /> */}
       <Box sx={{ flex: 1, overflowY: "auto", mt: 1 }}>
         {menu.map((section) => (
           <Box key={section.section} sx={{ mb: 1 }}>
@@ -204,20 +218,20 @@ export default function Sidebar({ open }: { open: boolean }) {
               {section.items.map((item) => {
                 const hasChildren = !!item.children;
                 const isOpen = openMenus[item.key];
-                const isSelected = selected === item.key;
+                // 父菜单高亮：自己被选中或有子菜单被选中
+                const isSelected = selectedKey === item.key || parentKey === item.key;
                 return (
                   <Box key={item.key}>
                     {item.href ? (
                       <Link href={item.href} passHref legacyBehavior>
                         <ListItemButton
-                          selected={isSelected}
-                          onClick={() => handleSelect(item.key)}
+                          selected={selectedKey === item.key}
                           sx={{
                             mx: 1,
                             my: 0.5,
                             borderRadius: 2,
                             minHeight: 44,
-                            ...(isSelected && {
+                            ...(selectedKey === item.key && {
                               bgcolor: "primary.50",
                               color: "primary.main",
                               boxShadow: "0 0 0 2px #e3e8ff",
@@ -227,7 +241,7 @@ export default function Sidebar({ open }: { open: boolean }) {
                           <ListItemIcon
                             sx={{
                               minWidth: 36,
-                              color: isSelected ? "primary.main" : "#888",
+                              color: selectedKey === item.key ? "primary.main" : "#888",
                               justifyContent: "center",
                             }}
                           >
@@ -237,7 +251,7 @@ export default function Sidebar({ open }: { open: boolean }) {
                             <ListItemText
                               primary={item.text}
                               primaryTypographyProps={{
-                                fontWeight: isSelected ? 700 : 500,
+                                fontWeight: selectedKey === item.key ? 700 : 500,
                               }}
                             />
                           )}
@@ -248,7 +262,7 @@ export default function Sidebar({ open }: { open: boolean }) {
                         onClick={() =>
                           hasChildren
                             ? handleToggle(item.key)
-                            : handleSelect(item.key)
+                            : undefined
                         }
                         selected={isSelected}
                         sx={{
@@ -293,14 +307,13 @@ export default function Sidebar({ open }: { open: boolean }) {
                           {item.children!.map((child) => (
                             <Link href={child.href} passHref legacyBehavior key={child.key}>
                               <ListItemButton
-                                selected={selected === child.key}
-                                onClick={() => handleSelect(child.key)}
+                                selected={selectedKey === child.key}
                                 sx={{
                                   mx: 1,
                                   my: 0.5,
                                   borderRadius: 2,
                                   minHeight: 36,
-                                  ...(selected === child.key && {
+                                  ...(selectedKey === child.key && {
                                     bgcolor: "primary.50",
                                     color: "primary.main",
                                     boxShadow: "0 0 0 2px #e3e8ff",
@@ -310,7 +323,7 @@ export default function Sidebar({ open }: { open: boolean }) {
                                 <ListItemText
                                   primary={child.text}
                                   primaryTypographyProps={{
-                                    fontWeight: selected === child.key ? 700 : 500,
+                                    fontWeight: selectedKey === child.key ? 700 : 500,
                                     fontSize: 14,
                                   }}
                                 />
