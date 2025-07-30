@@ -13,6 +13,7 @@ import {
 type ClassInfo = {
   id: number;
   name: string;
+  grade: string;
   teacherName: string | null;
   createdAt: string | null;
   studentCount?: number;
@@ -120,48 +121,61 @@ export default function ClassManagePage() {
         <Typography variant="h6" fontWeight={600} mb={3}>
           班级列表
         </Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {classList.map((cls) => (
             <Card
               key={cls.id}
               sx={{
                 width: '100%',
-                borderRadius: 2,
-                boxShadow: 2,
-                '&:hover': {
-                  boxShadow: 4,
-                  cursor: 'pointer'
-                }
+                borderRadius: 4,
+                boxShadow: 1,
+                px: { xs: 2, md: 4 },
+                py: { xs: 2, md: 3 },
+                bgcolor: "#fff",
+                minHeight: 160,
+                display: "flex",
+                alignItems: "center",
               }}
             >
-              <CardContent sx={{ p: 3 }}>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Box flex={1}>
-                    <Box display="flex" alignItems="center" gap={2}>
-                      <Typography variant="h6" fontWeight={600}>
-                        {cls.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        ID: {cls.id}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        班级人数: {cls.studentCount ?? 0}
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary" mt={1}>
-                      班主任: {cls.teacherName || "未分配"}
+              <Box sx={{ width: "100%" }}>
+                <Box sx={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
+                  <Typography variant="h5" fontWeight={700}>
+                    {cls.name}
+                  </Typography>
+                  <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    年级：{cls.grade}
+                  </Typography>
+                </Box>
+                <Typography variant="body1" color="text.secondary" mt={1} mb={2}>
+                  班主任：{cls.teacherName || "未分配"}
+                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 6, mt: 2 }}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      ID
+                    </Typography>
+                    <Typography variant="h6" fontWeight={600}>
+                      {cls.id}
                     </Typography>
                   </Box>
-                  <Box textAlign="right">
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      班级人数
+                    </Typography>
+                    <Typography variant="h6" fontWeight={700}>
+                      {cls.studentCount ?? 0}人
+                    </Typography>
+                  </Box>
+                  <Box>
                     <Typography variant="body2" color="text.secondary">
                       创建时间
                     </Typography>
-                    <Typography variant="body2">
-                      {cls.createdAt ? new Date(cls.createdAt).toLocaleString() : ""}
+                    <Typography variant="h6" fontWeight={600}>
+                      {cls.createdAt ? cls.createdAt.slice(0, 10) : "--"}
                     </Typography>
                   </Box>
                 </Box>
-              </CardContent>
+              </Box>
             </Card>
           ))}
         </Box>
