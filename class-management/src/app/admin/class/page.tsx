@@ -1,5 +1,3 @@
-// page.tsx 修正版：修复固定卡片不遮住顶部导航 & 返回原位置
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -21,6 +19,13 @@ import {
   Button,
   Paper,
   Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Pagination,
+  MenuItem,
+  Select,
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { motion, AnimatePresence } from "framer-motion";
@@ -45,7 +50,7 @@ export default function ClassManagePage() {
     pendingRequests: 0,
   });
   const [members, setMembers] = useState<Record<number, Student[]>>({});
-  // const [studentOptions, setStudentOptions] = useState<Student[]>([]);
+  const [studentOptions, setStudentOptions] = useState<Student[]>([]);
   const [addStudent, setAddStudent] = useState<Student | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [focusClass, setFocusClass] = useState<ClassInfo | null>(null);
@@ -57,6 +62,33 @@ export default function ClassManagePage() {
   const [studentNoResult, setStudentNoResult] = useState<Student | null>(null);
   const [studentNoLoading, setStudentNoLoading] = useState(false);
   const [studentNoError, setStudentNoError] = useState("");
+
+  // 分页相关
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+
+  // 移除成员相关
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<Student | null>(null);
+  const [removeConfirm, setRemoveConfirm] = useState("");
+
+  // 组件顶层
+  const [pageMap, setPageMap] = useState<Record<number, number>>({});
+  const [pageSizeMap, setPageSizeMap] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+  if (!focusClass) return;
+  const updateRect = () => {
+    const container = document.querySelector("#class-list-container");
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      setContainerRect({ left: rect.left, width: rect.width });
+    }
+  };
+  window.addEventListener("resize", updateRect);
+  updateRect();
+  return () => window.removeEventListener("resize", updateRect);
+}, [focusClass]);
 
   useEffect(() => {
     Promise.all([
@@ -87,6 +119,7 @@ export default function ClassManagePage() {
     axios
       .get("/api/users/student/all")
       .then((res) => setStudentOptions(res.data));
+      
   }, []);
 
   const handleExpand = async (cls: ClassInfo) => {
@@ -190,7 +223,8 @@ export default function ClassManagePage() {
     await axios.post(`/api/class/${classId}/import-students`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    await refreshAllOpenedMembers();
+    const res = await axios.get(`/api/class/${classId}/members`);
+    setMembers((prev) => ({ ...prev, [classId]: res.data }));
     setExcelFile(null);
     // 刷新班级人数和学生总数
     Promise.all([
@@ -240,185 +274,283 @@ export default function ClassManagePage() {
     setStudentNoLoading(false);
   };
 
-  const renderClassCard = (cls: ClassInfo, isFocus: boolean) => (
-    <Card
-      sx={{
-        width: "100%",
-        borderRadius: 4,
-        boxShadow: 1,
-        px: { xs: 2, md: 4 },
-        py: { xs: 2, md: 3 },
-        bgcolor: "#fff",
-        minHeight: 160,
-        display: "flex",
-        alignItems: "center",
-        mb: 2,
-      }}
-    >
-      <Box sx={{ width: "100%" }}>
-        <Box sx={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
-          <Typography variant="h5" fontWeight={700}>
-            {cls.name}
+  // 新增：移除成员
+  const handleRemoveStudent = (stu: Student) => {
+    setRemoveTarget(stu);
+    setRemoveDialogOpen(true);
+    setRemoveConfirm("");
+  };
+  const confirmRemoveStudent = async (classId: number) => {
+    if (!removeTarget) return;
+    await axios.post(`/api/class/${classId}/remove-student`, { studentId: removeTarget.id });
+    setRemoveDialogOpen(false);
+    setRemoveTarget(null);
+    setRemoveConfirm("");
+    await refreshAllOpenedMembers();
+    // 可选：刷新统计
+  };
+
+  // 获取当前班级分页
+  const getPage = (classId: number) => pageMap[classId] || 1;
+  const getPageSize = (classId: number) => pageSizeMap[classId] || 15;
+
+  // 修改页码
+  const handlePageChange = (classId: number, val: number) => {
+    setPageMap((prev) => ({ ...prev, [classId]: val }));
+  };
+  // 修改每页条数
+  const handlePageSizeChange = (classId: number, val: number) => {
+    setPageSizeMap((prev) => ({ ...prev, [classId]: val }));
+    setPageMap((prev) => ({ ...prev, [classId]: 1 })); // 切换条数时重置页码
+  };
+
+  const renderClassCard = (cls: ClassInfo, isFocus: boolean) => {
+    const memberList = members[cls.id] || [];
+    const page = getPage(cls.id);
+    const pageSize = getPageSize(cls.id);
+    const pagedMembers = memberList.slice((page - 1) * pageSize, page * pageSize);
+
+    return (
+      <Card
+        sx={{
+          width: "100%",
+          borderRadius: 4,
+          boxShadow: 1,
+          px: { xs: 2, md: 4 },
+          py: { xs: 2, md: 3 },
+          bgcolor: "#fff",
+          minHeight: 160,
+          display: "flex",
+          alignItems: "center",
+          mb: 2,
+        }}
+      >
+        <Box sx={{ width: "100%" }}>
+          <Box sx={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
+            <Typography variant="h5" fontWeight={700}>
+              {cls.name}
+            </Typography>
+            <Typography
+              variant="subtitle1"
+              color="text.secondary"
+              sx={{ fontWeight: 500 }}
+            >
+              年级：{cls.grade}
+            </Typography>
+          </Box>
+          <Typography variant="body1" color="text.secondary" mt={1} mb={2}>
+            班主任：{cls.teacherName || "未分配"}
           </Typography>
-          <Typography
-            variant="subtitle1"
-            color="text.secondary"
-            sx={{ fontWeight: 500 }}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 6, mt: 2 }}>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                ID
+              </Typography>
+              <Typography variant="h6" fontWeight={600}>
+                {cls.id}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                班级人数
+              </Typography>
+              <Typography variant="h6" fontWeight={700}>
+                {cls.studentCount ?? 0}人
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                创建时间
+              </Typography>
+              <Typography variant="h6" fontWeight={600}>
+                {cls.createdAt ? cls.createdAt.slice(0, 10) : "--"}
+              </Typography>
+            </Box>
+            <Box sx={{ ml: "auto" }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => handleExpand(cls)}
+              >
+                {focusClass && focusClass.id === cls.id ? "收起成员" : "查看成员"}
+              </Button>
+            </Box>
+          </Box>
+          <Collapse
+            in={isFocus ? showMemberTable : false}
+            timeout="auto"
+            unmountOnExit
           >
-            年级：{cls.grade}
-          </Typography>
-        </Box>
-        <Typography variant="body1" color="text.secondary" mt={1} mb={2}>
-          班主任：{cls.teacherName || "未分配"}
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 6, mt: 2 }}>
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              ID
-            </Typography>
-            <Typography variant="h6" fontWeight={600}>
-              {cls.id}
-            </Typography>
-          </Box>
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              班级人数
-            </Typography>
-            <Typography variant="h6" fontWeight={700}>
-              {cls.studentCount ?? 0}人
-            </Typography>
-          </Box>
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              创建时间
-            </Typography>
-            <Typography variant="h6" fontWeight={600}>
-              {cls.createdAt ? cls.createdAt.slice(0, 10) : "--"}
-            </Typography>
-          </Box>
-          <Box sx={{ ml: "auto" }}>
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={() => handleExpand(cls)}
-            >
-              {focusClass && focusClass.id === cls.id ? "收起成员" : "查看成员"}
-            </Button>
-          </Box>
-        </Box>
-        <Collapse
-          in={isFocus ? showMemberTable : false}
-          timeout="auto"
-          unmountOnExit
-        >
-          <Paper sx={{ mt: 3, p: 2, borderRadius: 2, bgcolor: "#ffffffff" }}>
-            <Typography variant="subtitle1" fontWeight={600} mb={2}>
-              班级成员
-            </Typography>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>学号</TableCell>
-                  <TableCell>姓名</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {(members[cls.id] || []).map((stu) => (
-                  <TableRow key={stu.id}>
-                    <TableCell>{stu.studentNo}</TableCell>
-                    <TableCell>{stu.name}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <Box
-              mt={4}
-              mb={2}
-              p={2}
-              border="1px solid #e0e0e0"
-              borderRadius={2}
-            >
-              <Typography fontWeight={600} mb={1}>
-                单独新增成员（学号）
+            <Paper sx={{ mt: 3, p: 2, borderRadius: 2, bgcolor: "#fff" }}>
+              <Typography variant="subtitle1" fontWeight={600} mb={2}>
+                班级成员
               </Typography>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <TextField
-                  label="输入学号"
-                  value={studentNoInput}
-                  onChange={e => setStudentNoInput(e.target.value.trim())}
+              <Box sx={{ maxHeight: "calc(100vh - 690px)", overflow: "auto" }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>学号</TableCell>
+                      <TableCell>姓名</TableCell>
+                      <TableCell>操作</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {pagedMembers.map((stu) => (
+                      <TableRow key={stu.id}>
+                        <TableCell>{stu.studentNo}</TableCell>
+                        <TableCell>{stu.name}</TableCell>
+                        <TableCell>
+                          <Button
+                            color="error"
+                            size="small"
+                            onClick={() => handleRemoveStudent(stu)}
+                          >
+                            移除
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Box>
+              {/* 分页选择 */}
+              <Stack direction="row" alignItems="center" spacing={2} mt={1}>
+                <Typography>每页显示</Typography>
+                <Select
                   size="small"
-                  sx={{ minWidth: 180 }}
-                  error={!!studentNoError}
-                  helperText={studentNoError}
-                  disabled={studentNoLoading}
-                  onKeyDown={e => {
-                    if (e.key === "Enter") handleStudentNoSearch();
-                  }}
-                />
-                <Button
-                  variant="outlined"
-                  onClick={handleStudentNoSearch}
-                  disabled={!studentNoInput}
+                  value={pageSize}
+                  onChange={e => handlePageSizeChange(cls.id, Number(e.target.value))}
+                  sx={{ width: 80 }}
                 >
-                  查询
-                </Button>
-                <TextField
-                  label="学生姓名"
-                  value={studentNoResult?.name || ""}
+                  {[5, 15, 30, 45, 100].map(size => (
+                    <MenuItem key={size} value={size}>{size}</MenuItem>
+                  ))}
+                </Select>
+                <Typography>条</Typography>
+                <Box flex={1} />
+                <Pagination
+                  count={Math.ceil(memberList.length / pageSize) || 1}
+                  page={page}
+                  onChange={(_, val) => handlePageChange(cls.id, val)}
+                  color="primary"
                   size="small"
-                  sx={{ minWidth: 120 }}
-                  disabled
                 />
-                <Button
-                  variant="contained"
-                  onClick={() => handleAddStudent(cls.id, studentNoResult)}
-                  disabled={!studentNoResult}
-                >
-                  添加
-                </Button>
               </Stack>
-            </Box>
-            <Box mt={2} p={2} border="1px solid #e0e0e0" borderRadius={2}>
-              <Typography fontWeight={600} mb={1}>
-                批量添加成员（Excel导入）
-              </Typography>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Button
-                  variant="outlined"
-                  component="label"
-                  startIcon={<UploadFileIcon />}
-                >
-                  选择Excel文件
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    hidden
-                    onChange={(e) => handleExcelChange(e, cls.id)}
+              <Box
+                mt={2}
+                mb={2}
+                p={2}
+                border="1px solid #e0e0e0"
+                borderRadius={2}
+              >
+                <Typography fontWeight={600} mb={1}>
+                  单独新增成员（学号）
+                </Typography>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <TextField
+                    label="输入学号"
+                    value={studentNoInput}
+                    onChange={e => setStudentNoInput(e.target.value.trim())}
+                    size="small"
+                    sx={{ minWidth: 180 }}
+                    error={!!studentNoError}
+                    helperText={studentNoError}
+                    disabled={studentNoLoading}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") handleStudentNoSearch();
+                    }}
                   />
-                </Button>
-                {excelFile && (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    display="inline"
+                  <Button
+                    variant="outlined"
+                    onClick={handleStudentNoSearch}
+                    disabled={!studentNoInput}
                   >
-                    {excelFile.name}
-                  </Typography>
-                )}
+                    查询
+                  </Button>
+                  <TextField
+                    label="学生姓名"
+                    value={studentNoResult?.name || ""}
+                    size="small"
+                    sx={{ minWidth: 120 }}
+                    disabled
+                  />
+                  <Button
+                    variant="contained"
+                    onClick={() => handleAddStudent(cls.id, studentNoResult)}
+                    disabled={!studentNoResult}
+                  >
+                    添加
+                  </Button>
+                </Stack>
+              </Box>
+              <Box mt={2} p={2} border="1px solid #e0e0e0" borderRadius={2}>
+                <Typography fontWeight={600} mb={1}>
+                  批量添加成员（Excel导入）
+                </Typography>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={<UploadFileIcon />}
+                  >
+                    选择Excel文件
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      hidden
+                      onChange={(e) => handleExcelChange(e, cls.id)}
+                    />
+                  </Button>
+                  {excelFile && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      display="inline"
+                    >
+                      {excelFile.name}
+                    </Typography>
+                  )}
+                  <Button
+                    variant="contained"
+                    onClick={() => handleBatchImport(cls.id)}
+                    disabled={!excelFile}
+                  >
+                    导入
+                  </Button>
+                </Stack>
+              </Box>
+            </Paper>
+            {/* 移除成员确认对话框 */}
+            <Dialog open={removeDialogOpen} onClose={() => setRemoveDialogOpen(false)}>
+              <DialogTitle>确认移除成员</DialogTitle>
+              <DialogContent>
+                <Typography mb={2}>
+                  确认要移除学生 <b>{removeTarget?.name}</b>（学号：{removeTarget?.studentNo}）吗？<br />
+                  请在下方输入“确认删除”以继续操作。
+                </Typography>
+                <TextField
+                  label="请输入：确认删除"
+                  value={removeConfirm}
+                  onChange={e => setRemoveConfirm(e.target.value)}
+                  fullWidth
+                />
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setRemoveDialogOpen(false)}>取消</Button>
                 <Button
-                  variant="contained"
-                  onClick={() => handleBatchImport(cls.id)}
-                  disabled={!excelFile}
+                  color="error"
+                  disabled={removeConfirm !== "确认删除"}
+                  onClick={() => confirmRemoveStudent(cls.id)}
                 >
-                  导入
+                  确认移除
                 </Button>
-              </Stack>
-            </Box>
-          </Paper>
-        </Collapse>
-      </Box>
-    </Card>
-  );
+              </DialogActions>
+            </Dialog>
+          </Collapse>
+        </Box>
+      </Card>
+    );
+  };
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f5f7fa" }}>
