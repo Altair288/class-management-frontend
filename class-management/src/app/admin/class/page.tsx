@@ -15,7 +15,7 @@ import {
   TableCell,
   TableBody,
   TextField,
-  Autocomplete,
+  // Autocomplete,
   Button,
   Paper,
   Stack,
@@ -26,6 +26,10 @@ import {
   Pagination,
   MenuItem,
   Select,
+  Chip,
+  // FormControl,
+  // InputLabel,
+  TableSortLabel,
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,7 +43,7 @@ type ClassInfo = {
   studentCount?: number;
 };
 
-type Student = { id: number; name: string; studentNo: string };
+type Student = { id: number; name: string; studentNo: string; phone?: string | null; email?: string | null };
 
 export default function ClassManagePage() {
   const [classList, setClassList] = useState<ClassInfo[]>([]);
@@ -76,19 +80,28 @@ export default function ClassManagePage() {
   const [pageMap, setPageMap] = useState<Record<number, number>>({});
   const [pageSizeMap, setPageSizeMap] = useState<Record<number, number>>({});
 
+  // 新增：未分班学生相关状态
+  const [unassignedStudents, setUnassignedStudents] = useState<Student[]>([]);
+  const [unassignedCount, setUnassignedCount] = useState(0);
+
+  // 排序/筛选/列宽
+  const [sortMap, setSortMap] = useState<Record<number, { by: "studentNo" | "name"; order: "asc" | "desc" }>>({});
+  const [filterMap, setFilterMap] = useState<Record<number, string>>({});
+  const [widthMode, setWidthMode] = useState<"compact" | "normal" | "wide">("normal");
+
   useEffect(() => {
-  if (!focusClass) return;
-  const updateRect = () => {
-    const container = document.querySelector("#class-list-container");
-    if (container) {
-      const rect = container.getBoundingClientRect();
-      setContainerRect({ left: rect.left, width: rect.width });
-    }
-  };
-  window.addEventListener("resize", updateRect);
-  updateRect();
-  return () => window.removeEventListener("resize", updateRect);
-}, [focusClass]);
+    if (!focusClass) return;
+    const updateRect = () => {
+      const container = document.querySelector("#class-list-container");
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        setContainerRect({ left: rect.left, width: rect.width });
+      }
+    };
+    window.addEventListener("resize", updateRect);
+    updateRect();
+    return () => window.removeEventListener("resize", updateRect);
+  }, [focusClass]);
 
   useEffect(() => {
     Promise.all([
@@ -97,29 +110,40 @@ export default function ClassManagePage() {
       axios.get("/api/class/count"),
       axios.get("/api/users/student/count"),
       axios.get("/api/users/teacher/count"),
-    ]).then(([allRes, countRes, classCount, studentCount, teacherCount]) => {
-      const studentCountMap: Record<number, number> = {};
-      countRes.data.forEach(
-        (item: { classId: number; studentCount: number }) => {
-          studentCountMap[item.classId] = item.studentCount;
-        }
-      );
-      const merged = allRes.data.map((cls: ClassInfo) => ({
-        ...cls,
-        studentCount: studentCountMap[cls.id] ?? 0,
-      }));
-      setClassList(merged);
-      setStats({
-        totalClasses: classCount.data,
-        totalStudents: studentCount.data,
-        totalTeachers: teacherCount.data,
-        pendingRequests: 0,
-      });
-    });
-    axios
-      .get("/api/users/student/all")
-      .then((res) => setStudentOptions(res.data));
-      
+      axios.get("/api/class/unassigned/members"), // 新增
+      axios.get("/api/class/unassigned/count"), // 新增
+    ]).then(
+      ([
+        allRes,
+        countRes,
+        classCount,
+        studentCount,
+        teacherCount,
+        unassignedRes,
+        unassignedCountRes,
+      ]) => {
+        const studentCountMap: Record<number, number> = {};
+        countRes.data.forEach(
+          (item: { classId: number; studentCount: number }) => {
+            studentCountMap[item.classId] = item.studentCount;
+          }
+        );
+        const merged = allRes.data.map((cls: ClassInfo) => ({
+          ...cls,
+          studentCount: studentCountMap[cls.id] ?? 0,
+        }));
+        setClassList(merged);
+        setStats({
+          totalClasses: classCount.data,
+          totalStudents: studentCount.data,
+          totalTeachers: teacherCount.data,
+          pendingRequests: unassignedCountRes.data, // 用未分班数量作为待处理申请
+        });
+        setUnassignedStudents(unassignedRes.data);
+        setUnassignedCount(unassignedCountRes.data);
+      }
+    );
+    axios.get("/api/users/student/all").then((res) => setStudentOptions(res.data));
   }, []);
 
   const handleExpand = async (cls: ClassInfo) => {
@@ -175,8 +199,14 @@ export default function ClassManagePage() {
     const stu = student ?? addStudent;
     if (!stu) return;
     await axios.post(`/api/class/${classId}/add-student`, { studentId: stu.id });
-    // 刷新所有已展开班级的成员
-    await refreshAllOpenedMembers();
+
+    // 立即拉取该班级成员并更新人数显示
+    const r = await axios.get(`/api/class/${classId}/members`);
+    setMembers(prev => ({ ...prev, [classId]: r.data }));
+    const newCount = r.data.length;
+    setClassList(prev => prev.map(c => (c.id === classId ? { ...c, studentCount: newCount } : c)));
+    setFocusClass(fc => (fc && fc.id === classId ? { ...fc, studentCount: newCount } : fc));
+
     setStudentNoInput("");
     setStudentNoResult(null);
     setAddStudent(null);
@@ -224,8 +254,12 @@ export default function ClassManagePage() {
       headers: { "Content-Type": "multipart/form-data" },
     });
     const res = await axios.get(`/api/class/${classId}/members`);
-    setMembers((prev) => ({ ...prev, [classId]: res.data }));
+    setMembers(prev => ({ ...prev, [classId]: res.data }));
+    const newCount = res.data.length;
+    setClassList(prev => prev.map(c => (c.id === classId ? { ...c, studentCount: newCount } : c)));
+    setFocusClass(fc => (fc && fc.id === classId ? { ...fc, studentCount: newCount } : fc));
     setExcelFile(null);
+
     // 刷新班级人数和学生总数
     Promise.all([
       axios.get("/api/class/student-count"),
@@ -262,7 +296,9 @@ export default function ClassManagePage() {
     if (!studentNoInput) return;
     setStudentNoLoading(true);
     try {
-      const res = await axios.get(`/api/users/student/by-no?studentNo=${studentNoInput}`);
+      const res = await axios.get(
+        `/api/users/student/by-no?studentNo=${studentNoInput}`
+      );
       if (res.data && res.data.id) {
         setStudentNoResult(res.data);
       } else {
@@ -286,8 +322,44 @@ export default function ClassManagePage() {
     setRemoveDialogOpen(false);
     setRemoveTarget(null);
     setRemoveConfirm("");
-    await refreshAllOpenedMembers();
-    // 可选：刷新统计
+
+    // 即刻拉取该班级成员并更新人数
+    const r = await axios.get(`/api/class/${classId}/members`);
+    setMembers(prev => ({ ...prev, [classId]: r.data }));
+    const newCount = r.data.length;
+    setClassList(prev => prev.map(c => (c.id === classId ? { ...c, studentCount: newCount } : c)));
+    setFocusClass(fc => (fc && fc.id === classId ? { ...fc, studentCount: newCount } : fc));
+
+    // 刷新未分班学生和统计数据
+    const [unassignedRes, unassignedCountRes, countRes, studentCount] = await Promise.all([
+      axios.get("/api/class/unassigned/members"),
+      axios.get("/api/class/unassigned/count"),
+      axios.get("/api/class/student-count"),
+      axios.get("/api/users/student/count"),
+    ]);
+
+    setUnassignedStudents(unassignedRes.data);
+    setUnassignedCount(unassignedCountRes.data);
+
+    // 更新班级人数统计
+    const studentCountMap: Record<number, number> = {};
+    countRes.data.forEach(
+      (item: { classId: number; studentCount: number }) => {
+        studentCountMap[item.classId] = item.studentCount;
+      }
+    );
+    setClassList((prev) =>
+      prev.map((cls) =>
+        studentCountMap[cls.id] !== undefined
+          ? { ...cls, studentCount: studentCountMap[cls.id] }
+          : cls
+      )
+    );
+    setStats((prev) => ({
+      ...prev,
+      totalStudents: studentCount.data,
+      pendingRequests: unassignedCountRes.data,
+    }));
   };
 
   // 获取当前班级分页
@@ -304,11 +376,55 @@ export default function ClassManagePage() {
     setPageMap((prev) => ({ ...prev, [classId]: 1 })); // 切换条数时重置页码
   };
 
+  // 排序/筛选工具函数
+  const getSort = (classId: number) => sortMap[classId] || { by: "studentNo", order: "asc" as const };
+  const getFilter = (classId: number) => filterMap[classId] || "";
+  const handleSort = (classId: number, by: "studentNo" | "name") => {
+    setSortMap(prev => {
+      const cur = prev[classId] || { by, order: "asc" as const };
+      const nextOrder = cur.by === by ? (cur.order === "asc" ? "desc" : "asc") : "asc";
+      return { ...prev, [classId]: { by, order: nextOrder } };
+    });
+  };
+  const handleFilterChange = (classId: number, val: string) => {
+    setFilterMap(prev => ({ ...prev, [classId]: val }));
+    setPageMap(prev => ({ ...prev, [classId]: 1 })); // 变更筛选时回到第1页
+  };
+
   const renderClassCard = (cls: ClassInfo, isFocus: boolean) => {
     const memberList = members[cls.id] || [];
+
+    // 应用筛选（新增：支持按手机、邮箱筛选）
+    const filterText = getFilter(cls.id).toLowerCase().trim();
+    let visibleList = filterText
+      ? memberList.filter(stu =>
+          stu.studentNo.toLowerCase().includes(filterText) ||
+          stu.name.toLowerCase().includes(filterText) ||
+          (stu.phone || "").toLowerCase().includes(filterText) ||
+          (stu.email || "").toLowerCase().includes(filterText)
+        )
+      : memberList;
+
+    // 应用排序
+    const { by, order } = getSort(cls.id);
+    visibleList = [...visibleList].sort((a, b) => {
+      const av = by === "studentNo" ? a.studentNo : a.name;
+      const bv = by === "studentNo" ? b.studentNo : b.name;
+      return order === "asc" ? av.localeCompare(bv, "zh-Hans-CN") : bv.localeCompare(av, "zh-Hans-CN");
+    });
+
+    // 分页
     const page = getPage(cls.id);
     const pageSize = getPageSize(cls.id);
-    const pagedMembers = memberList.slice((page - 1) * pageSize, page * pageSize);
+    const pagedMembers = visibleList.slice((page - 1) * pageSize, page * pageSize);
+
+    // 列宽（新增：为手机、邮箱增加列宽）
+    const widthMap = {
+      compact: { no: 120, name: 140, phone: 140, email: 200, actions: 110 },
+      normal:  { no: 160, name: 180, phone: 160, email: 240, actions: 120 },
+      wide:    { no: 220, name: 240, phone: 200, email: 300, actions: 140 },
+    } as const;
+    const cw = widthMap[widthMode];
 
     return (
       <Card
@@ -382,29 +498,77 @@ export default function ClassManagePage() {
             unmountOnExit
           >
             <Paper sx={{ mt: 3, p: 2, borderRadius: 2, bgcolor: "#fff" }}>
-              <Typography variant="subtitle1" fontWeight={600} mb={2}>
+              <Typography variant="subtitle1" fontWeight={600} mb={1}>
                 班级成员
               </Typography>
+
+              {/* 工具栏：筛选 + 列宽模式 */}
+              {/* <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1 }}>
+                <TextField
+                  size="small"
+                  placeholder="筛选学号或姓名"
+                  value={getFilter(cls.id)}
+                  onChange={e => handleFilterChange(cls.id, e.target.value)}
+                  sx={{ width: 240 }}
+                />
+                <Box flex={1} />
+                <Typography variant="body2" color="text.secondary">列宽</Typography>
+                <Select
+                  size="small"
+                  value={widthMode}
+                  onChange={e => setWidthMode(e.target.value as "compact" | "normal" | "wide")}
+                  sx={{ width: 110 }}
+                >
+                  <MenuItem value="compact">紧凑</MenuItem>
+                  <MenuItem value="normal">标准</MenuItem>
+                  <MenuItem value="wide">宽松</MenuItem>
+                </Select>
+              </Stack> */}
+
               <Box sx={{ maxHeight: "calc(100vh - 690px)", overflow: "auto" }}>
-                <Table stickyHeader size="small">
+                <Table stickyHeader size="small" sx={{ tableLayout: "fixed" }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell>学号</TableCell>
-                      <TableCell>姓名</TableCell>
-                      <TableCell>操作</TableCell>
+                      <TableCell sx={{ width: cw.no, minWidth: cw.no }}>
+                        <TableSortLabel
+                          active={by === "studentNo"}
+                          direction={by === "studentNo" ? order : "asc"}
+                          onClick={() => handleSort(cls.id, "studentNo")}
+                        >
+                          学号
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell sx={{ width: cw.name, minWidth: cw.name }}>
+                        <TableSortLabel
+                          active={by === "name"}
+                          direction={by === "name" ? order : "asc"}
+                          onClick={() => handleSort(cls.id, "name")}
+                        >
+                          姓名
+                        </TableSortLabel>
+                      </TableCell>
+                      {/* 新增：手机、邮箱表头（此处无需排序，如需排序可按需扩展） */}
+                      <TableCell sx={{ width: cw.phone, minWidth: cw.phone }}>
+                        手机
+                      </TableCell>
+                      <TableCell sx={{ width: cw.email, minWidth: cw.email }}>
+                        邮箱
+                      </TableCell>
+                      <TableCell sx={{ width: cw.actions, minWidth: cw.actions }}>
+                        操作
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {pagedMembers.map((stu) => (
+                    {pagedMembers.map(stu => (
                       <TableRow key={stu.id}>
                         <TableCell>{stu.studentNo}</TableCell>
                         <TableCell>{stu.name}</TableCell>
+                        {/* 新增：手机、邮箱数据渲染，为空时显示 - */}
+                        <TableCell>{stu.phone || "-"}</TableCell>
+                        <TableCell>{stu.email || "-"}</TableCell>
                         <TableCell>
-                          <Button
-                            color="error"
-                            size="small"
-                            onClick={() => handleRemoveStudent(stu)}
-                          >
+                          <Button color="error" size="small" onClick={() => handleRemoveStudent(stu)}>
                             移除
                           </Button>
                         </TableCell>
@@ -413,7 +577,8 @@ export default function ClassManagePage() {
                   </TableBody>
                 </Table>
               </Box>
-              {/* 分页选择 */}
+
+              {/* 分页 + 每页条数 */}
               <Stack direction="row" alignItems="center" spacing={2} mt={1}>
                 <Typography>每页显示</Typography>
                 <Select
@@ -429,13 +594,14 @@ export default function ClassManagePage() {
                 <Typography>条</Typography>
                 <Box flex={1} />
                 <Pagination
-                  count={Math.ceil(memberList.length / pageSize) || 1}
+                  count={Math.max(1, Math.ceil(visibleList.length / pageSize))}
                   page={page}
                   onChange={(_, val) => handlePageChange(cls.id, val)}
                   color="primary"
                   size="small"
                 />
               </Stack>
+
               <Box
                 mt={2}
                 mb={2}
@@ -450,13 +616,13 @@ export default function ClassManagePage() {
                   <TextField
                     label="输入学号"
                     value={studentNoInput}
-                    onChange={e => setStudentNoInput(e.target.value.trim())}
+                    onChange={(e) => setStudentNoInput(e.target.value.trim())}
                     size="small"
                     sx={{ minWidth: 180 }}
                     error={!!studentNoError}
                     helperText={studentNoError}
                     disabled={studentNoLoading}
-                    onKeyDown={e => {
+                    onKeyDown={(e) => {
                       if (e.key === "Enter") handleStudentNoSearch();
                     }}
                   />
@@ -525,13 +691,16 @@ export default function ClassManagePage() {
               <DialogTitle>确认移除成员</DialogTitle>
               <DialogContent>
                 <Typography mb={2}>
-                  确认要移除学生 <b>{removeTarget?.name}</b>（学号：{removeTarget?.studentNo}）吗？<br />
-                  请在下方输入“确认删除”以继续操作。
+                  确认要将学生 <b>{removeTarget?.name}</b>（学号：{removeTarget?.studentNo}）从当前班级移除吗？<br />
+                  <Typography variant="body2" color="text.secondary" mt={1}>
+                    注意：学生将被转移到&quot;未分班&quot;状态，不会被删除。
+                  </Typography>
+                  请在下方输入&quot;确认移除&quot;以继续操作。
                 </Typography>
                 <TextField
-                  label="请输入：确认删除"
+                  label="请输入：确认移除"
                   value={removeConfirm}
-                  onChange={e => setRemoveConfirm(e.target.value)}
+                  onChange={(e) => setRemoveConfirm(e.target.value)}
                   fullWidth
                 />
               </DialogContent>
@@ -539,7 +708,7 @@ export default function ClassManagePage() {
                 <Button onClick={() => setRemoveDialogOpen(false)}>取消</Button>
                 <Button
                   color="error"
-                  disabled={removeConfirm !== "确认删除"}
+                  disabled={removeConfirm !== "确认移除"}
                   onClick={() => confirmRemoveStudent(cls.id)}
                 >
                   确认移除
@@ -598,7 +767,7 @@ export default function ClassManagePage() {
           <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">
-                待处理申请
+                未分班学生
               </Typography>
               <Typography variant="h5" fontWeight={600} mt={1}>
                 {stats.pendingRequests}
@@ -668,6 +837,40 @@ export default function ClassManagePage() {
             </Box>
           )}
         </AnimatePresence>
+      </Box>
+      {/* 新增未分班学生展示区域 */}
+      <Box mt={4} mb={4}>
+        <Typography variant="h6" fontWeight={600} mb={3}>
+          未分班学生 ({unassignedCount}人)
+        </Typography>
+        {unassignedCount > 0 ? (
+          <Card sx={{ borderRadius: 3, p: 2, bgcolor: "#fff3e0" }}>
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              以下学生尚未分配到班级，可通过&quot;添加成员&quot;功能将其分配到对应班级：
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {unassignedStudents.slice(0, 10).map((stu) => (
+                <Chip
+                  key={stu.id}
+                  label={`${stu.name}（${stu.studentNo}）`}
+                  variant="outlined"
+                  size="small"
+                />
+              ))}
+              {unassignedCount > 10 && (
+                <Chip
+                  label={`还有 ${unassignedCount - 10} 人...`}
+                  variant="outlined"
+                  size="small"
+                />
+              )}
+            </Box>
+          </Card>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            所有学生均已分配到班级
+          </Typography>
+        )}
       </Box>
     </Box>
   );
