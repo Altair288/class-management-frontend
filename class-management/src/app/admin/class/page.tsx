@@ -7,7 +7,6 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
   Collapse,
   Table,
   TableHead,
@@ -32,6 +31,12 @@ import {
   TableSortLabel,
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import {
+  Group as GroupIcon,
+  School as SchoolIcon,
+  Person as PersonIcon,
+  Warning as WarningIcon,
+} from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
 
 type ClassInfo = {
@@ -726,56 +731,311 @@ export default function ClassManagePage() {
       <Typography variant="h4" fontWeight={700} mb={4} color="primary">
         班级管理
       </Typography>
-      <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary">
-                班级总数
-              </Typography>
-              <Typography variant="h5" fontWeight={600} mt={1}>
-                {stats.totalClasses}
-              </Typography>
+      
+      {/* 统计卡片 - 修改为一行显示 */}
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 2, 
+        mb: 3,
+        flexWrap: { xs: 'wrap', md: 'nowrap' } // 移动端允许换行，桌面端强制一行
+      }}>
+        {/* 班级总数 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0 * 0.1 }}
+          style={{ flex: 1, minWidth: '200px' }}
+        >
+          <Card 
+            sx={{ 
+              height: '100%',
+              borderRadius: 1,
+              border: '1px solid #e0e0e0',
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                transition: 'box-shadow 0.2s'
+              }
+            }}
+          >
+            <CardContent sx={{ p: 3 }}> {/* 减少内边距 */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 40, // 减小图标容器尺寸
+                    height: 40,
+                    borderRadius: 1.5,
+                    backgroundColor: '#e8f5e8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <SchoolIcon sx={{ color: '#28a745', fontSize: 20 }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: '#6c757d', 
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      mb: 0.5
+                    }}
+                  >
+                    班级总数
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                    <Typography 
+                      variant="h4" 
+                      sx={{ 
+                        color: '#212529', 
+                        fontWeight: 700,
+                        fontSize: '1.75rem',
+                        lineHeight: 1
+                      }}
+                    >
+                      {stats.totalClasses}
+                    </Typography>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#6c757d',
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      个
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
             </CardContent>
           </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary">
-                学生总数
-              </Typography>
-              <Typography variant="h5" fontWeight={600} mt={1}>
-                {stats.totalStudents}
-              </Typography>
+        </motion.div>
+
+        {/* 学生总数 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1 * 0.1 }}
+          style={{ flex: 1, minWidth: '200px' }}
+        >
+          <Card 
+            sx={{ 
+              height: '100%',
+              borderRadius: 1,
+              border: '1px solid #e0e0e0',
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                transition: 'box-shadow 0.2s'
+              }
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    backgroundColor: '#e3f2fd',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <GroupIcon sx={{ color: '#007bff', fontSize: 20 }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: '#6c757d', 
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      mb: 0.5
+                    }}
+                  >
+                    学生总数
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                    <Typography 
+                      variant="h4" 
+                      sx={{ 
+                        color: '#212529', 
+                        fontWeight: 700,
+                        fontSize: '1.75rem',
+                        lineHeight: 1
+                      }}
+                    >
+                      {stats.totalStudents}
+                    </Typography>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#6c757d',
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      人
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
             </CardContent>
           </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary">
-                教师总数
-              </Typography>
-              <Typography variant="h5" fontWeight={600} mt={1}>
-                {stats.totalTeachers}
-              </Typography>
+        </motion.div>
+
+        {/* 教师总数 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2 * 0.1 }}
+          style={{ flex: 1, minWidth: '200px' }}
+        >
+          <Card 
+            sx={{ 
+              height: '100%',
+              borderRadius: 1,
+              border: '1px solid #e0e0e0',
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                transition: 'box-shadow 0.2s'
+              }
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    backgroundColor: '#fff3cd',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <PersonIcon sx={{ color: '#ffc107', fontSize: 20 }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: '#6c757d', 
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      mb: 0.5
+                    }}
+                  >
+                    教师总数
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                    <Typography 
+                      variant="h4" 
+                      sx={{ 
+                        color: '#212529', 
+                        fontWeight: 700,
+                        fontSize: '1.75rem',
+                        lineHeight: 1
+                      }}
+                    >
+                      {stats.totalTeachers}
+                    </Typography>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#6c757d',
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      人
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
             </CardContent>
           </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary">
-                未分班学生
-              </Typography>
-              <Typography variant="h5" fontWeight={600} mt={1}>
-                {stats.pendingRequests}
-              </Typography>
+        </motion.div>
+
+        {/* 未分班学生 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 3 * 0.1 }}
+          style={{ flex: 1, minWidth: '200px' }}
+        >
+          <Card 
+            sx={{ 
+              height: '100%',
+              borderRadius: 1,
+              border: '1px solid #e0e0e0',
+              boxShadow: 'none',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                transition: 'box-shadow 0.2s'
+              }
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    backgroundColor: '#ffebee',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <WarningIcon sx={{ color: '#dc3545', fontSize: 20 }} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: '#6c757d', 
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      mb: 0.5
+                    }}
+                  >
+                    未分班学生
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                    <Typography 
+                      variant="h4" 
+                      sx={{ 
+                        color: '#212529', 
+                        fontWeight: 700,
+                        fontSize: '1.75rem',
+                        lineHeight: 1
+                      }}
+                    >
+                      {stats.pendingRequests}
+                    </Typography>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: '#6c757d',
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      人
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </motion.div>
+      </Box>
+      
       <Box mt={4}>
         <Typography variant="h6" fontWeight={600} mb={3}>
           班级列表
