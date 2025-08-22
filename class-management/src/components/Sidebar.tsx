@@ -10,16 +10,15 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Collapse from "@mui/material/Collapse";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import ClassOutlinedIcon from '@mui/icons-material/ClassOutlined';
-import DescriptionIcon from "@mui/icons-material/Description";
-import SupportAgentIcon from "@mui/icons-material/SupportAgent";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
-import LayersIcon from "@mui/icons-material/Layers";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import PersonIcon from "@mui/icons-material/Person";
+import ScoreIcon from "@mui/icons-material/Score";
+import NotificationsIcon from "@mui/icons-material/Notifications";
+import SupervisorAccountIcon from "@mui/icons-material/SupervisorAccount";
 import Link from "next/link";
-import Image from "next/image";
 
 const menu = [
   {
@@ -42,13 +41,13 @@ const menu = [
       },
       {
         text: "德育学分管理",
-        icon: <LayersIcon />,
+        icon: <AssignmentIcon />,
         href: "/admin/credits",
         key: "credits",
       },
       {
         text: "请假管理",
-        icon: <FolderOpenIcon />,
+        icon: <PersonIcon />,
         key: "leave",
         children: [
           { text: "请假申请列表", href: "/admin/leave/apply", key: "leave-apply" },
@@ -57,13 +56,13 @@ const menu = [
       },
       {
         text: "成绩管理",
-        icon: <MenuBookIcon />,
+        icon: <ScoreIcon />,
         href: "/admin/grades",
         key: "grades",
       },
       {
         text: "班级通知",
-        icon: <DescriptionIcon />,
+        icon: <NotificationsIcon />,
         href: "/admin/notice",
         key: "notice",
       },
@@ -74,7 +73,7 @@ const menu = [
     items: [
       {
         text: "用户管理",
-        icon: <SupportAgentIcon />,
+        icon: <SupervisorAccountIcon />,
         href: "/admin/users",
         key: "users",
       },
@@ -159,19 +158,33 @@ export default function Sidebar({ open }: { open: boolean }) {
     >
       {/* Logo & Collapse Button */}
       <Box sx={{ display: "flex", alignItems: "center", px: 2, pt: 3, pb: 2 }}>
-        <Image src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="SaasAble" width={32} height={32} />
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            backgroundColor: "#007bff",
+            borderRadius: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Typography sx={{ color: "white", fontSize: "0.875rem", fontWeight: 700 }}>
+            CM
+          </Typography>
+        </Box>
         {!collapsed && (
           <Typography
             variant="h6"
             sx={{
               fontWeight: 700,
-              color: "primary.main",
+              color: "#212529",
               ml: 1,
-              letterSpacing: 1,
+              letterSpacing: 0.5,
               flex: 1,
             }}
           >
-            学生管理系统
+            班级管理系统
           </Typography>
         )}
         <Box
