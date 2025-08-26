@@ -40,12 +40,6 @@ const menu = [
         ],
       },
       {
-        text: "德育学分管理",
-        icon: <AssignmentIcon />,
-        href: "/admin/credits",
-        key: "credits",
-      },
-      {
         text: "请假管理",
         icon: <PersonIcon />,
         key: "leave",
@@ -53,6 +47,12 @@ const menu = [
           { text: "请假申请列表", href: "/admin/leave/apply", key: "leave-apply" },
           { text: "请假审批", href: "/admin/leave/approve", key: "leave-approve" },
         ],
+      },
+      {
+        text: "德育学分管理",
+        icon: <AssignmentIcon />,
+        href: "/admin/credits",
+        key: "credits",
       },
       {
         text: "成绩管理",

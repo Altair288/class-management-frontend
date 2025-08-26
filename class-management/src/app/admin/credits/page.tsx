@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   Box,
   Card,
@@ -10,7 +11,8 @@ import {
   Tabs,
   Tab,
   Alert,
-  Divider,
+  Chip,
+  //Divider,
 } from "@mui/material";
 import {
   Settings as SettingsIcon,
@@ -41,14 +43,42 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-// 模拟数据
-const creditCategories = [
-  { id: 1, name: "德育", code: "DE", description: "思想品德与道德修养", color: "#1565c0" },
-  { id: 2, name: "智育", code: "ZH", description: "学业成绩与知识掌握", color: "#6a1b9a" },
-  { id: 3, name: "体育", code: "TI", description: "身体素质与健康状况", color: "#2e7d32" },
-  { id: 4, name: "美育", code: "ME", description: "艺术修养与审美能力", color: "#ef6c00" },
-  { id: 5, name: "劳育", code: "LA", description: "劳动技能与实践能力", color: "#ad1457" },
-];
+// 学分类别颜色映射
+const categoryColors: { [key: string]: string } = {
+  "德": "#1565c0",
+  "智": "#6a1b9a", 
+  "体": "#2e7d32",
+  "美": "#ef6c00",
+  "劳": "#ad1457",
+};
+
+// 根据类别名称获取颜色
+const getCategoryColor = (itemName: string): string => {
+  // 尝试直接匹配
+  if (categoryColors[itemName]) {
+    return categoryColors[itemName];
+  }
+  
+  // 如果没有直接匹配，尝试匹配第一个字符
+  const firstChar = itemName.charAt(0);
+  if (categoryColors[firstChar]) {
+    return categoryColors[firstChar];
+  }
+  
+  // 默认颜色
+  return "#1565c0";
+};
+
+// 学分类别接口类型
+interface CreditCategory {
+  id: number;
+  category: string;
+  itemName: string;
+  initialScore: number;
+  maxScore: number;
+  description: string;
+  enabled: boolean;
+}
 
 const statsData = [
   { label: "在校学生", value: 1248, unit: "人", trend: "+5.2%", color: "#1976d2", bgColor: "#e3f2fd" },
@@ -59,6 +89,29 @@ const statsData = [
 
 export default function CreditsPage() {
   const [tabValue, setTabValue] = useState(0);
+
+  // 新增：从后端获取在校学生数量
+  const [studentCountApi, setStudentCountApi] = useState(0);
+  
+  // 新增：从后端获取学分类别数据
+  const [creditCategories, setCreditCategories] = useState<CreditCategory[]>([]);
+  
+  useEffect(() => {
+    // 获取学生数量
+    axios.get("/api/users/student/count").then(res => {
+      setStudentCountApi(Number(res.data) || 0);
+    }).catch(() => {
+      // 可选：错误处理或保留默认0
+    });
+
+    // 获取学分类别数据
+    axios.get("/api/credits/items").then(res => {
+      setCreditCategories(res.data || []);
+    }).catch(() => {
+      // 错误处理：保持空数组
+      setCreditCategories([]);
+    });
+  }, []);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -126,7 +179,8 @@ export default function CreditsPage() {
                             lineHeight: 1
                           }}
                         >
-                          {stat.value}
+                          {/* 修改：在校学生使用后端返回的数量 */}
+                          {stat.label === "在校学生" ? studentCountApi : stat.value}
                         </Typography>
                         <Typography 
                           variant="body2" 
@@ -177,64 +231,86 @@ export default function CreditsPage() {
             </Box>
             
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
-              {creditCategories.map((category) => (
-                <Box
-                  key={category.id}
-                  sx={{
-                    p: 3,
-                    borderRadius: 1,
-                    border: '1px solid #e9ecef',
-                    backgroundColor: '#fff',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      borderColor: category.color,
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    },
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 1,
-                        backgroundColor: category.color,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Typography 
-                        sx={{ 
-                          color: 'white', 
-                          fontSize: '0.875rem',
-                          fontWeight: 700
+              {creditCategories.map((category, index) => {
+                const categoryColor = getCategoryColor(category.itemName);
+                const categoryCode = category.itemName.charAt(0).toUpperCase();
+                
+                return (
+                  <Box
+                    key={`${category.itemName}-${index}`}
+                    sx={{
+                      p: 3,
+                      borderRadius: 2.5,
+                      border: '1px solid #e9ecef',
+                      backgroundColor: '#fff',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        borderColor: categoryColor,
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 1,
+                          backgroundColor: categoryColor,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
                       >
-                        {category.code}
+                        <Typography 
+                          sx={{ 
+                            color: 'white', 
+                            fontSize: '0.875rem',
+                            fontWeight: 700
+                          }}
+                        >
+                          {categoryCode}
+                        </Typography>
+                      </Box>
+                      <Typography 
+                        variant="h6" 
+                        sx={{ color: '#212529', fontWeight: 600 }}
+                      >
+                        {category.itemName}
                       </Typography>
                     </Box>
                     <Typography 
-                      variant="h6" 
-                      sx={{ color: '#212529', fontWeight: 600 }}
+                      variant="body2" 
+                      sx={{ 
+                        color: '#6c757d',
+                        fontSize: '0.875rem',
+                        lineHeight: 1.5,
+                        mb: 2
+                      }}
                     >
-                      {category.name}
+                      {category.description}
                     </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      <Chip
+                        label={`基础分: ${category.initialScore}`}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        sx={{ fontSize: '0.75rem' }}
+                      />
+                      <Chip
+                        label={`上限: ${category.maxScore}`}
+                        size="small"
+                        color="secondary"
+                        variant="outlined"
+                        sx={{ fontSize: '0.75rem' }}
+                      />
+                    </Box>
                   </Box>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      color: '#6c757d',
-                      fontSize: '0.875rem',
-                      lineHeight: 1.5
-                    }}
-                  >
-                    {category.description}
-                  </Typography>
-                </Box>
-              ))}
+                );
+              })}
             </Box>
           </CardContent>
         </Card>
