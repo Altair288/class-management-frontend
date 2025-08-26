@@ -173,6 +173,13 @@ const theme = createTheme({
         },
       },
     },
+    MuiSnackbarContent: {
+      styleOverrides: {
+        root: {
+          borderRadius: 50,
+        },
+      },
+    },
   },
   shadows: [
     "none",
