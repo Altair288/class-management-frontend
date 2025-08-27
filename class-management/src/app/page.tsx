@@ -9,7 +9,7 @@ export default function HomePage() {
 
   useEffect(() => {
     // 自动重定向到管理后台
-    router.push("/admin/dashboard");
+    router.push("/login");
   }, [router]);
 
   return (

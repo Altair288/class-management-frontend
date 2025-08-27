@@ -99,8 +99,8 @@ export default function CreditsConfigPage() {
 
   const [loading, setLoading] = useState(false);
   // 成功提示
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMsg, setSnackbarMsg] = useState("");
+  // const [snackbarOpen, setSnackbarOpen] = useState(false);
+  // const [snackbarMsg, setSnackbarMsg] = useState("");
 
   // 新增：统一系统消息框
   const [toast, setToast] = useState<{
@@ -169,11 +169,12 @@ export default function CreditsConfigPage() {
       itemForm.initialScore > 100 ||
       itemForm.maxScore < 0 ||
       itemForm.maxScore > 100
-    )
-      return;
+    ) return;
+
     setLoading(true);
     try {
-      await axios.post(`/api/credits/items/${currentItem.id}`, {
+      const savedId = currentItem.id; // 记录当前主项目ID，避免后续刷新造成引用变化
+      await axios.post(`/api/credits/items/${savedId}`, {
         category: activeCategory,
         itemName: itemForm.itemName,
         initialScore: itemForm.initialScore,
@@ -183,10 +184,35 @@ export default function CreditsConfigPage() {
       });
       await ensureItemAndLoad(activeCategory);
       openToast("保存成功", "success");
+
+      // 新增：弹出“是否应用新规则”对话框
+      setApplyTargetId(savedId);
+      setApplyDialogOpen(true);
     } catch (e) {
       openToast(getErrMsg(e), "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 新增：应用规则对话框状态
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [applyTargetId, setApplyTargetId] = useState<number | null>(null);
+  const [applyLoading, setApplyLoading] = useState(false);
+
+  // 新增：应用规则（reset 或 clamp）
+  const handleApplyRule = async (mode: "reset" | "clamp") => {
+    if (!applyTargetId) return;
+    try {
+      setApplyLoading(true);
+      const res = await axios.post(`/api/credits/items/${applyTargetId}/apply`, { mode });
+      const { affected, mode: m } = res.data || {};
+      openToast(`已应用（${m === "clamp" ? "按上限调整" : "重置"}），影响 ${affected ?? 0} 条记录`, "success");
+      setApplyDialogOpen(false);
+    } catch (e) {
+      openToast(getErrMsg(e), "error");
+    } finally {
+      setApplyLoading(false);
     }
   };
 
@@ -238,8 +264,7 @@ export default function CreditsConfigPage() {
       subForm.initialScore > 100 ||
       subForm.maxScore < 0 ||
       subForm.maxScore > 100
-    )
-      return;
+    ) return;
     setLoading(true);
     try {
       if (editingSub) {
@@ -296,6 +321,7 @@ export default function CreditsConfigPage() {
               component={Link}
               href="/admin/credits"
               sx={{
+                ml: 0.5,
                 mr: 2,
                 backgroundColor: "rgba(255,255,255,0.2)",
                 color: "white",
@@ -409,8 +435,8 @@ export default function CreditsConfigPage() {
                     itemForm.initialScore < 0 || itemForm.initialScore > 100
                       ? "范围 0 ~ 100"
                       : itemForm.initialScore > itemForm.maxScore
-                      ? "不能大于最大分值"
-                      : ""
+                        ? "不能大于最大分值"
+                        : ""
                   }
                 />
                 <TextField
@@ -434,8 +460,8 @@ export default function CreditsConfigPage() {
                     itemForm.maxScore < 0 || itemForm.maxScore > 100
                       ? "范围 0 ~ 100"
                       : itemForm.initialScore > itemForm.maxScore
-                      ? "需不小于初始分值"
-                      : ""
+                        ? "需不小于初始分值"
+                        : ""
                   }
                 />
               </Box>
@@ -484,11 +510,11 @@ export default function CreditsConfigPage() {
             </Paper>
 
             {/* 子项目管理区域 */}
-            <Paper sx={{ 
-                borderRadius: 2.5,
-                backgroundColor: "#e3f2fd",
-                borderBottom: "1px solid #bbdefb",
-              }}
+            <Paper sx={{
+              borderRadius: 2.5,
+              backgroundColor: "#e3f2fd",
+              borderBottom: "1px solid #bbdefb",
+            }}
             >
               <Box
                 sx={{
@@ -540,12 +566,12 @@ export default function CreditsConfigPage() {
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ fontWeight: 600 }}>子项目名称</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>权重</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>初始分</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>最大分</TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>状态</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>操作</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 600 }}>子项目名称</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 600 }}>权重</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 600 }}>初始分</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 600 }}>最大分</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 600 }}>状态</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 600 }}>操作</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -553,24 +579,39 @@ export default function CreditsConfigPage() {
                         <TableRow
                           key={subitem.id}
                           hover
-                          sx={{
-                            "&:hover": { backgroundColor: "#f5f5f5" },
-                          }}
+                          sx={{ "&:hover": { backgroundColor: "#f5f5f5" } }}
                         >
-                          <TableCell>
-                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                          {/* 子项目名称 */}
+                          <TableCell align="center">
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                gap: 1,
+                              }}
+                            >
                               <Chip
                                 label={index + 1}
                                 size="small"
                                 color="primary"
                                 variant="outlined"
-                                sx={{ mr: 1, minWidth: 24, height: 20 }}
+                                sx={{ minWidth: 24, height: 20 }}
                               />
                               {subitem.subitemName}
                             </Box>
                           </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+
+                          {/* 权重 */}
+                          <TableCell align="center">
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                gap: 1,
+                              }}
+                            >
                               {Number(subitem.weight).toFixed(2)}
                               <Box
                                 sx={{
@@ -592,9 +633,11 @@ export default function CreditsConfigPage() {
                               </Box>
                             </Box>
                           </TableCell>
-                          <TableCell>{subitem.initialScore}</TableCell>
-                          <TableCell>{subitem.maxScore}</TableCell>
-                          <TableCell>
+
+                          {/* 初始分/最大分/状态 */}
+                          <TableCell align="center">{subitem.initialScore}</TableCell>
+                          <TableCell align="center">{subitem.maxScore}</TableCell>
+                          <TableCell align="center">
                             <Chip
                               label={subitem.enabled ? "启用" : "停用"}
                               size="small"
@@ -602,27 +645,31 @@ export default function CreditsConfigPage() {
                               variant="outlined"
                             />
                           </TableCell>
-                          <TableCell align="right">
-                            <IconButton
-                              size="small"
-                              onClick={() => openEditSubDialog(subitem)}
-                              sx={{ color: "#1976d2" }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDeleteSub(subitem.id)}
-                              sx={{ color: "#d32f2f" }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
+
+                          {/* 操作 */}
+                          <TableCell align="center">
+                            <Box sx={{ display: "inline-flex", gap: 1 }}>
+                              <IconButton
+                                size="small"
+                                onClick={() => openEditSubDialog(subitem)}
+                                sx={{ color: "#1976d2" }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDeleteSub(subitem.id)}
+                                sx={{ color: "#d32f2f" }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
                           </TableCell>
                         </TableRow>
                       ))}
                       {subitems.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={6} sx={{ textAlign: "center", py: 3 }}>
+                          <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                             <Typography variant="body2" sx={{ color: "#757575" }}>
                               暂无子项目配置，点击右上角添加子项目按钮开始配置
                             </Typography>
@@ -697,8 +744,8 @@ export default function CreditsConfigPage() {
                   subForm.initialScore < 0 || subForm.initialScore > 100
                     ? "范围 0 ~ 100"
                     : subForm.initialScore > subForm.maxScore
-                    ? "不能大于最大分值"
-                    : ""
+                      ? "不能大于最大分值"
+                      : ""
                 }
               />
               <TextField
@@ -722,8 +769,8 @@ export default function CreditsConfigPage() {
                   subForm.maxScore < 0 || subForm.maxScore > 100
                     ? "范围 0 ~ 100"
                     : subForm.initialScore > subForm.maxScore
-                    ? "需不小于初始分值"
-                    : ""
+                      ? "需不小于初始分值"
+                      : ""
                 }
               />
             </Box>
@@ -768,6 +815,45 @@ export default function CreditsConfigPage() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* 新增：应用规则确认对话框 */}
+        <Dialog
+          open={applyDialogOpen}
+          onClose={() => setApplyDialogOpen(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>将新规则应用到已有学生？</DialogTitle>
+          <DialogContent dividers>
+            <Typography variant="body2" color="text.secondary">
+              你刚保存了「{activeCategory}育」主项目配置。是否将新规则应用到当前所有学生的该项目分数？
+            </Typography>
+            <Box mt={1.5}>
+              <Typography variant="body2" sx={{ mb: 0.5 }}>选项说明：</Typography>
+              <ul style={{ margin: 0, paddingInlineStart: 18 }}>
+                <li><b>应用并重置</b>：将分数重置为初始分值，再按最大分值封顶。</li>
+                <li><b>仅按上限调整</b>：只压到最大分值，对其他分数不变。</li>
+                <li><b>暂不应用</b>：学生分数保持不变，稍后可再次保存后再应用。</li>
+              </ul>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 2, py: 1 }}>
+            <Button onClick={() => setApplyDialogOpen(false)} disabled={applyLoading}>
+              暂不应用
+            </Button>
+            <Button onClick={() => handleApplyRule("clamp")} disabled={applyLoading}>
+              仅按上限调整
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => handleApplyRule("reset")}
+              disabled={applyLoading}
+            >
+              应用并重置
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         {/* 成功提示 */}
         <Snackbar
           anchorOrigin={{ vertical: "bottom", horizontal: "right" }}

@@ -1,3 +1,5 @@
+// 创建班级时提交后显示成功提示。
+
 "use client";
 
 import { useEffect, useState } from "react";

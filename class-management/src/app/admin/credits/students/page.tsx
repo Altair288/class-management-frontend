@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Card,
@@ -11,10 +11,8 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
-  Paper,
   IconButton,
   Chip,
   Dialog,
@@ -27,7 +25,7 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
+  CircularProgress,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -42,7 +40,7 @@ interface StudentCredit {
   id: number;
   studentId: string;
   studentName: string;
-  class: string;
+  className: string;
   avatar?: string;
   德: number;
   智: number;
@@ -53,61 +51,14 @@ interface StudentCredit {
   status: 'excellent' | 'good' | 'warning' | 'danger';
 }
 
+interface ClassInfo {
+  id: number;
+  name: string;
+  grade: string;
+}
+
 // 模拟数据
-const initialStudentCredits: StudentCredit[] = [
-  {
-    id: 1,
-    studentId: "2024001",
-    studentName: "张三",
-    class: "计算机2024-1班",
-    德: 85,
-    智: 92,
-    体: 78,
-    美: 88,
-    劳: 85,
-    total: 428,
-    status: 'excellent',
-  },
-  {
-    id: 2,
-    studentId: "2024002",
-    studentName: "李四",
-    class: "计算机2024-1班",
-    德: 75,
-    智: 88,
-    体: 82,
-    美: 76,
-    劳: 80,
-    total: 401,
-    status: 'good',
-  },
-  {
-    id: 3,
-    studentId: "2024003",
-    studentName: "王五",
-    class: "计算机2024-2班",
-    德: 60,
-    智: 70,
-    体: 65,
-    美: 58,
-    劳: 62,
-    total: 315,
-    status: 'warning',
-  },
-  {
-    id: 4,
-    studentId: "2024004",
-    studentName: "赵六",
-    class: "计算机2024-2班",
-    德: 45,
-    智: 55,
-    体: 50,
-    美: 48,
-    劳: 52,
-    total: 250,
-    status: 'danger',
-  },
-];
+const initialStudentCredits: StudentCredit[] = [];
 
 const statusConfig = {
   excellent: { label: '优秀', color: '#28a745', bgColor: '#d4edda', threshold: 400 },
@@ -126,23 +77,65 @@ const creditCategories = [
 
 export default function StudentsCreditsPage() {
   const [studentCredits, setStudentCredits] = useState<StudentCredit[]>(initialStudentCredits);
+  const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentCredit | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // 过滤数据
-  const filteredStudents = studentCredits.filter(student => {
-    const matchSearch = student.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       student.studentId.includes(searchTerm);
-    const matchClass = !classFilter || student.class === classFilter;
-    const matchStatus = !statusFilter || student.status === statusFilter;
-    return matchSearch && matchClass && matchStatus;
-  });
+  // 加载班级数据
+  const fetchClasses = useCallback(async () => {
+    try {
+      const response = await fetch('/api/class/simple');
+      if (response.ok) {
+        const data = await response.json();
+        setClasses(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch classes:', error);
+    }
+  }, []);
 
-  // 获取所有班级
-  const allClasses = Array.from(new Set(studentCredits.map(s => s.class)));
+  // 加载学生学分数据
+  const fetchStudentCredits = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('keyword', searchTerm);
+      if (classFilter) params.append('classId', classFilter);
+      if (statusFilter) params.append('status', statusFilter);
+      
+      const response = await fetch(`/api/credits/student-union-scores?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setStudentCredits(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch student credits:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, classFilter, statusFilter]);
+
+  // 初始加载
+  useEffect(() => {
+    fetchClasses();
+    fetchStudentCredits();
+  }, [fetchClasses, fetchStudentCredits]);
+
+  // 筛选条件变化时重新加载数据
+  useEffect(() => {
+    const delayedFetch = setTimeout(() => {
+      fetchStudentCredits();
+    }, 300); // 防抖
+
+    return () => clearTimeout(delayedFetch);
+  }, [fetchStudentCredits]);
+
+  // 过滤数据 - 现在主要用于统计显示，实际筛选在后端完成
+  const filteredStudents = studentCredits;
 
   const handleEditStudent = (student: StudentCredit) => {
     setEditingStudent(student);
@@ -281,176 +274,250 @@ export default function StudentsCreditsPage() {
           })}
         </Box>
 
-        {/* 搜索和过滤工具栏 */}
-        <Card sx={{ mb: 3, borderRadius: 1, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, color: '#212529', mb: 2 }}>
-              筛选条件
-            </Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
-              <TextField
-                placeholder="搜索学生姓名或学号"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#6c757d' }} />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1,
-                    backgroundColor: '#f8f9fa',
-                    '& fieldset': {
-                      borderColor: '#e9ecef',
+        {/* 搜索和筛选工具栏 - Google风格设计 */}
+        <Card sx={{ mb: 3, borderRadius: 3, border: '1px solid #dadce0', boxShadow: '0 1px 6px rgba(32,33,36,.28)' }}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              {/* 搜索框 */}
+              <Box sx={{ flex: '1 1 300px', minWidth: 200 }}>
+                <TextField
+                  fullWidth
+                  placeholder="搜索学生姓名或学号"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon sx={{ color: '#5f6368', fontSize: 20 }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '24px',
+                      backgroundColor: '#f8f9fa',
+                      fontSize: '14px',
+                      height: 44,
+                      '& fieldset': {
+                        borderColor: '#dadce0',
+                        borderWidth: 1,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: '#1976d2',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#1976d2',
+                        borderWidth: 2,
+                      },
                     },
-                    '&:hover fieldset': {
-                      borderColor: '#007bff',
+                    '& .MuiInputBase-input': {
+                      padding: '10px 16px 10px 0',
                     },
-                  },
-                }}
-              />
+                  }}
+                />
+              </Box>
               
-              <FormControl>
-                <InputLabel sx={{ fontSize: '0.875rem' }}>班级</InputLabel>
-                <Select
-                  value={classFilter}
-                  onChange={(e) => setClassFilter(e.target.value)}
-                  label="班级"
-                  sx={{
-                    borderRadius: 1,
-                    backgroundColor: '#f8f9fa',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#e9ecef',
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#007bff',
-                    },
-                  }}
-                >
-                  <MenuItem value="">全部班级</MenuItem>
-                  {allClasses.map(cls => (
-                    <MenuItem key={cls} value={cls}>{cls}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              {/* 筛选器 */}
+              <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <Select
+                    value={classFilter}
+                    onChange={(e) => setClassFilter(e.target.value)}
+                    displayEmpty
+                    sx={{
+                      borderRadius: '20px',
+                      height: 36,
+                      fontSize: '14px',
+                      backgroundColor: classFilter ? '#e8f0fe' : '#f8f9fa',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: classFilter ? '#1976d2' : '#dadce0',
+                        borderWidth: 1,
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#1976d2',
+                      },
+                      '& .MuiSelect-select': {
+                        padding: '8px 32px 8px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                      },
+                    }}
+                  >
+                    <MenuItem value="" sx={{ fontSize: '14px' }}>所有班级</MenuItem>
+                    {classes.map((cls) => (
+                      <MenuItem key={cls.id} value={cls.id.toString()} sx={{ fontSize: '14px' }}>
+                        {cls.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
 
-              <FormControl>
-                <InputLabel sx={{ fontSize: '0.875rem' }}>状态</InputLabel>
-                <Select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  label="状态"
-                  sx={{
-                    borderRadius: 1,
-                    backgroundColor: '#f8f9fa',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#e9ecef',
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#007bff',
-                    },
-                  }}
-                >
-                  <MenuItem value="">全部状态</MenuItem>
-                  {Object.entries(statusConfig).map(([key, config]) => (
-                    <MenuItem key={key} value={key}>{config.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                <FormControl size="small" sx={{ minWidth: 100 }}>
+                  <Select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    displayEmpty
+                    sx={{
+                      borderRadius: '20px',
+                      height: 36,
+                      fontSize: '14px',
+                      backgroundColor: statusFilter ? '#e8f0fe' : '#f8f9fa',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: statusFilter ? '#1976d2' : '#dadce0',
+                        borderWidth: 1,
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#1976d2',
+                      },
+                      '& .MuiSelect-select': {
+                        padding: '8px 32px 8px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                      },
+                    }}
+                  >
+                    <MenuItem value="" sx={{ fontSize: '14px' }}>所有状态</MenuItem>
+                    {Object.entries(statusConfig).map(([key, config]) => (
+                      <MenuItem key={key} value={key} sx={{ fontSize: '14px' }}>
+                        {config.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {/* 结果统计 */}
+                {(searchTerm || classFilter || statusFilter) && (
+                  <Typography variant="body2" sx={{ color: '#5f6368', fontSize: '14px', ml: 1 }}>
+                    {loading ? '搜索中...' : `找到 ${filteredStudents.length} 个结果`}
+                  </Typography>
+                )}
+              </Box>
             </Box>
           </CardContent>
         </Card>
 
         {/* 学生学分表格 */}
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              学生学分列表 ({filteredStudents.length}人)
-            </Typography>
+        <Card sx={{ borderRadius: 3, border: '1px solid #dadce0', boxShadow: '0 1px 6px rgba(32,33,36,.28)' }}>
+          <CardContent sx={{ p: 0 }}>
+            {/* 表格标题栏 */}
+            <Box sx={{ p: 3, borderBottom: '1px solid #dadce0' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#202124', mb: 0.5 }}>
+                    学生学分列表
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#5f6368', fontSize: '14px' }}>
+                    {loading ? '加载中...' : `共 ${filteredStudents.length} 名学生`}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
             
-            <TableContainer component={Paper} sx={{ mt: 2 }}>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                    <TableCell sx={{ fontWeight: 600 }}>学生</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>班级</TableCell>
-                    {creditCategories.map(category => (
-                      <TableCell key={category.key} sx={{ fontWeight: 600 }}>
-                        {category.name}
-                      </TableCell>
-                    ))}
-                    <TableCell sx={{ fontWeight: 600 }}>总分</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>状态</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>操作</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredStudents.map((student) => (
-                    <TableRow key={student.id} hover>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Avatar sx={{ bgcolor: 'primary.main' }}>
-                            {student.studentName[0]}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600}>
-                              {student.studentName}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {student.studentId}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>{student.class}</TableCell>
-                      {creditCategories.map(category => {
-                        const score = student[category.key as keyof StudentCredit] as number;
-                        return (
-                          <TableCell key={category.key}>
-                            <Box>
-                              <Typography variant="body2" fontWeight={600}>
-                                {score}分
-                              </Typography>
-                              <LinearProgress
-                                variant="determinate"
-                                value={score}
-                                sx={{
-                                  height: 4,
-                                  borderRadius: 2,
-                                  backgroundColor: '#e0e0e0',
-                                  '& .MuiLinearProgress-bar': {
-                                    backgroundColor: getProgressColor(score),
-                                  },
-                                }}
-                              />
-                            </Box>
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell>
-                        <Typography variant="h6" fontWeight={600}>
-                          {student.total}分
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        {getStatusChip(student.status)}
-                      </TableCell>
-                      <TableCell>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEditStudent(student)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </TableCell>
+            {/* 表格内容 */}
+            <Box sx={{ overflow: 'auto' }}>
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                  <CircularProgress size={32} />
+                </Box>
+              ) : (
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                      <TableCell sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>学生</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>班级</TableCell>
+                      {creditCategories.map(category => (
+                        <TableCell key={category.key} sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>
+                          {category.name}
+                        </TableCell>
+                      ))}
+                      <TableCell sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>总分</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>状态</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>操作</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                  </TableHead>
+                  <TableBody>
+                    {filteredStudents.map((student) => (
+                      <TableRow 
+                        key={student.id} 
+                        hover
+                        sx={{
+                          '&:hover': {
+                            backgroundColor: '#f8f9fa',
+                          },
+                          borderBottom: '1px solid #f0f0f0',
+                        }}
+                      >
+                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: '14px' }}>
+                              {student.studentName[0]}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight={600} sx={{ fontSize: '14px', color: '#202124' }}>
+                                {student.studentName}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: '#5f6368', fontSize: '12px' }}>
+                                {student.studentId}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0', fontSize: '14px', color: '#202124' }}>
+                          {student.className}
+                        </TableCell>
+                        {creditCategories.map(category => {
+                          const score = student[category.key as keyof StudentCredit] as number;
+                          return (
+                            <TableCell key={category.key} sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                              <Box>
+                                <Typography variant="body2" fontWeight={600} sx={{ fontSize: '14px', color: '#202124', mb: 0.5 }}>
+                                  {score}分
+                                </Typography>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={score}
+                                  sx={{
+                                    height: 3,
+                                    borderRadius: 2,
+                                    backgroundColor: '#e8eaed',
+                                    '& .MuiLinearProgress-bar': {
+                                      backgroundColor: getProgressColor(score),
+                                    },
+                                  }}
+                                />
+                              </Box>
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <Typography variant="h6" fontWeight={600} sx={{ fontSize: '16px', color: '#202124' }}>
+                            {student.total}分
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                          {getStatusChip(student.status)}
+                        </TableCell>
+                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEditStudent(student)}
+                            sx={{
+                              color: '#5f6368',
+                              '&:hover': {
+                                backgroundColor: '#f8f9fa',
+                                color: '#1976d2',
+                              },
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </Box>
           </CardContent>
         </Card>
 
