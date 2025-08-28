@@ -80,28 +80,38 @@ interface CreditCategory {
   enabled: boolean;
 }
 
-const statsData = [
-  { label: "在校学生", value: 1248, unit: "人", trend: "+5.2%", color: "#1976d2", bgColor: "#e3f2fd" },
-  { label: "预警学生", value: 23, unit: "人", trend: "-12.8%", color: "#d32f2f", bgColor: "#ffebee" },
-  { label: "优秀学生", value: 342, unit: "人", trend: "+8.4%", color: "#388e3c", bgColor: "#e8f5e8" },
-  { label: "平均总分", value: 432.8, unit: "分", trend: "+2.1%", color: "#f57c00", bgColor: "#fff3e0" },
-];
+// 仪表盘统计数据类型
+interface DashboardSummary {
+  countExcellent: number;
+  countGood: number;
+  totalClasses: number;
+  countWarning: number;
+  totalStudents: number;
+  avgTi: number;
+  countDanger: number;
+  avgTotal: number;
+  avgMei: number;
+  avgZhi: number;
+  avgLao: number;
+  avgDe: number;
+}
 
 export default function CreditsPage() {
   const [tabValue, setTabValue] = useState(0);
 
-  // 新增：从后端获取在校学生数量
-  const [studentCountApi, setStudentCountApi] = useState(0);
-  
-  // 新增：从后端获取学分类别数据
+  // 从后端获取学分类别数据
   const [creditCategories, setCreditCategories] = useState<CreditCategory[]>([]);
   
+  // 从后端获取仪表盘统计数据
+  const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
+  
   useEffect(() => {
-    // 获取学生数量
-    axios.get("/api/users/student/count").then(res => {
-      setStudentCountApi(Number(res.data) || 0);
+    // 获取仪表盘统计数据
+    axios.get("/api/credits/dashboard/summary").then(res => {
+      setDashboardSummary(res.data || null);
     }).catch(() => {
-      // 可选：错误处理或保留默认0
+      // 错误处理：保持 null
+      setDashboardSummary(null);
     });
 
     // 获取学分类别数据
@@ -112,6 +122,38 @@ export default function CreditsPage() {
       setCreditCategories([]);
     });
   }, []);
+
+  // 基于接口数据构建统计数据
+  const statsData = [
+    { 
+      label: "在校学生", 
+      value: dashboardSummary?.totalStudents || 0, 
+      unit: "人", 
+      color: "#1976d2", 
+      bgColor: "#e3f2fd" 
+    },
+    { 
+      label: "预警学生", 
+      value: dashboardSummary?.countWarning || 0, 
+      unit: "人", 
+      color: "#d32f2f", 
+      bgColor: "#ffebee" 
+    },
+    { 
+      label: "优秀学生", 
+      value: dashboardSummary?.countExcellent || 0, 
+      unit: "人", 
+      color: "#388e3c", 
+      bgColor: "#e8f5e8" 
+    },
+    { 
+      label: "平均总分", 
+      value: dashboardSummary ? Number(dashboardSummary.avgTotal.toFixed(1)) : 0, 
+      unit: "分", 
+      color: "#f57c00", 
+      bgColor: "#fff3e0" 
+    },
+  ];
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -179,8 +221,7 @@ export default function CreditsPage() {
                             lineHeight: 1
                           }}
                         >
-                          {/* 修改：在校学生使用后端返回的数量 */}
-                          {stat.label === "在校学生" ? studentCountApi : stat.value}
+                          {stat.value}
                         </Typography>
                         <Typography 
                           variant="body2" 
@@ -192,16 +233,6 @@ export default function CreditsPage() {
                           {stat.unit}
                         </Typography>
                       </Box>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          color: stat.trend.startsWith('+') ? '#28a745' : '#dc3545',
-                          fontSize: '0.75rem',
-                          fontWeight: 600
-                        }}
-                      >
-                        {stat.trend} 较上月
-                      </Typography>
                     </Box>
                     <Box 
                       sx={{ 

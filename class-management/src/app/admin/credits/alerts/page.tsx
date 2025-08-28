@@ -31,7 +31,6 @@ import {
   Save as SaveIcon,
   Notifications as NotificationsIcon,
   Email as EmailIcon,
-  Sms as SmsIcon,
   School as SchoolIcon,
   Person as PersonIcon,
 } from "@mui/icons-material";
@@ -351,20 +350,6 @@ export default function AlertsConfigPage() {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <EmailIcon />
                         <span>邮件通知</span>
-                      </Box>
-                    }
-                  />
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={notificationSettings.smsEnabled}
-                        onChange={(e) => handleNotificationSettingChange('smsEnabled', e.target.checked)}
-                      />
-                    }
-                    label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <SmsIcon />
-                        <span>短信通知</span>
                       </Box>
                     }
                   />
