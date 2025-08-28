@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Card,
@@ -8,6 +8,7 @@ import {
   Typography,
   Button,
   LinearProgress,
+  CircularProgress,
 } from "@mui/material";
 import {
   Group as GroupIcon,
@@ -20,89 +21,124 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 
-// 模拟数据
-const dashboardStats = [
-  {
-    title: "在校学生",
-    value: 1248,
-    unit: "人",
-    change: "+5.2%",
-    color: "#007bff",
-    icon: <GroupIcon />,
-    bgColor: "#e3f2fd",
-  },
-  {
-    title: "班级数量", 
-    value: 42,
-    unit: "个",
-    change: "+2",
-    color: "#28a745",
-    icon: <SchoolIcon />,
-    bgColor: "#e8f5e8",
-  },
-  {
-    title: "预警学生",
-    value: 23,
-    unit: "人", 
-    change: "-12.8%",
-    color: "#dc3545",
-    icon: <WarningIcon />,
-    bgColor: "#ffebee",
-  },
-  {
-    title: "优秀学生",
-    value: 342,
-    unit: "人",
-    change: "+8.4%", 
-    color: "#ffc107",
-    icon: <CheckCircleIcon />,
-    bgColor: "#fff8e1",
-  },
-];
+// 仪表盘汇总数据类型
+type DashboardSummary = {
+  countExcellent: number;
+  countGood: number;
+  totalClasses: number;
+  countWarning: number;
+  totalStudents: number;
+  avgTi: number;
+  countDanger: number;
+  avgTotal: number;
+  avgMei: number;
+  avgZhi: number;
+  avgLao: number;
+  avgDe: number;
+};
 
-const recentActivities = [
-  {
-    id: 1,
-    type: "学分预警",
-    content: "张三德育学分低于60分，已发送预警通知",
-    time: "2小时前",
-    status: "warning",
-  },
-  {
-    id: 2, 
-    type: "学分更新",
-    content: "计算机2024-1班学分数据已更新",
-    time: "4小时前", 
-    status: "success",
-  },
-  {
-    id: 3,
-    type: "系统通知",
-    content: "德育学分评估标准已更新",
-    time: "1天前",
-    status: "info",
-  },
-];
-
-const creditOverview = [
-  { category: "德育", total: 89.5, trend: "+2.3%" },
-  { category: "智育", total: 92.1, trend: "+1.8%" },
-  { category: "体育", total: 85.7, trend: "-0.5%" },
-  { category: "美育", total: 78.9, trend: "+3.2%" },
-  { category: "劳育", total: 83.4, trend: "+1.1%" },
-];
+type TopCard = {
+  title: string;
+  value: number;
+  unit: string;
+  color: string;
+  icon: React.ReactNode;
+  bgColor: string;
+};
 
 export default function AdminDashboard() {
   const [sidebarOpen] = useState(false);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // 拉取汇总数据
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/credits/dashboard/summary");
+        if (!res.ok) throw new Error("加载失败");
+        const data: DashboardSummary = await res.json();
+        setSummary(data);
+      } catch (e: unknown) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSummary();
+  }, []);
+
+  // 顶部统计卡数据（从接口映射）
+  const topCards: TopCard[] = useMemo(() => {
+    return [
+      {
+        title: "在校学生",
+        value: summary?.totalStudents ?? 0,
+        unit: "人",
+        color: "#1976d2",
+        icon: <GroupIcon />,
+        bgColor: "#e3f2fd",
+      },
+      {
+        title: "班级数量",
+        value: summary?.totalClasses ?? 0,
+        unit: "个",
+        color: "#2e7d32",
+        icon: <SchoolIcon />,
+        bgColor: "#e8f5e9",
+      },
+      {
+        title: "预警学生",
+        value: summary?.countWarning ?? 0,
+        unit: "人",
+        color: "#d32f2f",
+        icon: <WarningIcon />,
+        bgColor: "#ffebee",
+      },
+      {
+        title: "优秀学生",
+        value: summary?.countExcellent ?? 0,
+        unit: "人",
+        color: "#f9a825",
+        icon: <CheckCircleIcon />,
+        bgColor: "#fff8e1",
+      },
+    ];
+  }, [summary]);
+
+  const skeletonCards: TopCard[] = useMemo(
+    () =>
+      Array.from({ length: 4 }).map(() => ({
+        title: "",
+        value: 0,
+        unit: "",
+        color: "#ccc",
+        icon: <></>,
+        bgColor: "#f0f2f5",
+      })),
+    []
+  );
+
+  // 学分平均分概览
+  const creditOverview = useMemo(() => {
+    return [
+      { category: "德育", total: summary ? Number(summary.avgDe?.toFixed(1)) : 0 },
+      { category: "智育", total: summary ? Number(summary.avgZhi?.toFixed(1)) : 0 },
+      { category: "体育", total: summary ? Number(summary.avgTi?.toFixed(1)) : 0 },
+      { category: "美育", total: summary ? Number(summary.avgMei?.toFixed(1)) : 0 },
+      { category: "劳育", total: summary ? Number(summary.avgLao?.toFixed(1)) : 0 },
+    ];
+  }, [summary]);
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f5f7fa" }}>
+  <Box sx={{ minHeight: "100vh", bgcolor: "#f5f7fa" }}>
       <Sidebar open={sidebarOpen} />
       <Box
         sx={{
-          transition: "margin-left 0.2s",
-          ml: { xs: 0, md: sidebarOpen ? "240px" : 0 },
-          p: { xs: 2, md: 3 },
+      transition: "margin-left 0.2s",
+      ml: { xs: 0, md: sidebarOpen ? "240px" : 0 },
+      p: { xs: 1.5, md: 2 },
         }}
       >
         <motion.div
@@ -111,7 +147,7 @@ export default function AdminDashboard() {
           transition={{ duration: 0.5 }}
         >
           {/* 页面标题 */}
-          <Box sx={{ mb: 4 }}>
+          <Box sx={{ mb: 2 }}>
             <Typography variant="h4" sx={{ fontWeight: 700, color: "#212529", mb: 1 }}>
               系统概览
             </Typography>
@@ -121,8 +157,8 @@ export default function AdminDashboard() {
           </Box>
 
           {/* 统计卡片 */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 3, mb: 4 }}>
-            {dashboardStats.map((stat, index) => (
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 2, mb: 3 }}>
+            {(loading ? skeletonCards : topCards).map((stat, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
@@ -141,37 +177,27 @@ export default function AdminDashboard() {
                     }
                   }}
                 >
-                  <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <CardContent sx={{ p: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                       <Box
                         sx={{
                           width: 48,
                           height: 48,
                           borderRadius: 2,
-                          backgroundColor: stat.bgColor,
+                          backgroundColor: loading ? '#f0f2f5' : stat.bgColor,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                         }}
                       >
-                        <Box sx={{ color: stat.color, fontSize: 24 }}>
-                          {stat.icon}
-                        </Box>
+                        {loading ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <Box sx={{ color: stat.color, fontSize: 24 }}>
+                            {stat.icon}
+                          </Box>
+                        )}
                       </Box>
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          color: stat.change.startsWith('+') ? '#28a745' : '#dc3545',
-                          fontSize: '0.875rem',
-                          fontWeight: 600,
-                          backgroundColor: stat.change.startsWith('+') ? '#d4edda' : '#f8d7da',
-                          px: 1,
-                          py: 0.5,
-                          borderRadius: 1,
-                        }}
-                      >
-                        {stat.change}
-                      </Typography>
                     </Box>
                     <Typography 
                       variant="body2" 
@@ -179,10 +205,10 @@ export default function AdminDashboard() {
                         color: '#6c757d', 
                         fontSize: '0.875rem',
                         fontWeight: 500,
-                        mb: 1
+                        mb: 0.5
                       }}
                     >
-                      {stat.title}
+                      {loading ? '加载中' : stat.title}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
                       <Typography 
@@ -190,11 +216,11 @@ export default function AdminDashboard() {
                         sx={{ 
                           color: '#212529', 
                           fontWeight: 700,
-                          fontSize: '2.5rem',
+                          fontSize: '2rem',
                           lineHeight: 1
                         }}
                       >
-                        {stat.value}
+                        {loading ? '--' : stat.value}
                       </Typography>
                       <Typography 
                         variant="body2" 
@@ -203,7 +229,7 @@ export default function AdminDashboard() {
                           fontSize: '0.875rem'
                         }}
                       >
-                        {stat.unit}
+                        {loading ? '' : stat.unit}
                       </Typography>
                     </Box>
                   </CardContent>
@@ -213,10 +239,10 @@ export default function AdminDashboard() {
           </Box>
 
           {/* 主要内容区域 */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, gap: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, gap: 2 }}>
             {/* 学分概览 */}
             <Card sx={{ borderRadius: 1, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-              <CardContent sx={{ p: 3 }}>
+              <CardContent sx={{ p: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                   <Typography variant="h6" sx={{ fontWeight: 600, color: '#212529' }}>
                     学分概览
@@ -239,33 +265,21 @@ export default function AdminDashboard() {
                         <Typography variant="body2" sx={{ fontWeight: 500, color: '#212529' }}>
                           {item.category}
                         </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: '#212529' }}>
-                            {item.total}分
-                          </Typography>
-                          <Typography 
-                            variant="caption" 
-                            sx={{ 
-                              color: item.trend.startsWith('+') ? '#28a745' : '#dc3545',
-                              fontSize: '0.75rem',
-                              fontWeight: 600
-                            }}
-                          >
-                            {item.trend}
-                          </Typography>
-                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#212529' }}>
+                          {loading ? '--' : `${item.total}分`}
+                        </Typography>
                       </Box>
                       <LinearProgress
                         variant="determinate"
-                        value={item.total}
+                        value={Number.isFinite(item.total) ? item.total : 0}
                         sx={{
                           height: 6,
                           borderRadius: 3,
                           backgroundColor: '#e9ecef',
                           '& .MuiLinearProgress-bar': {
-                            backgroundColor: item.total >= 90 ? '#28a745' : 
-                                           item.total >= 80 ? '#007bff' :
-                                           item.total >= 70 ? '#ffc107' : '#dc3545',
+                            backgroundColor: item.total >= 90 ? '#2e7d32' : 
+                                           item.total >= 80 ? '#1976d2' :
+                                           item.total >= 70 ? '#f9a825' : '#d32f2f',
                             borderRadius: 3,
                           },
                         }}
@@ -278,13 +292,13 @@ export default function AdminDashboard() {
 
             {/* 最近活动 */}
             <Card sx={{ borderRadius: 1, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-              <CardContent sx={{ p: 3 }}>
+              <CardContent sx={{ p: 2 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, color: '#212529', mb: 3 }}>
                   最近活动
                 </Typography>
                 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {recentActivities.map((activity) => (
+                  {[{id:1,type:'学分预警',content:'系统已完成最新学分统计',time:'刚刚',status:'info'}].map((activity) => (
                     <Box 
                       key={activity.id}
                       sx={{ 
@@ -314,13 +328,13 @@ export default function AdminDashboard() {
           </Box>
 
           {/* 快速操作 */}
-          <Card sx={{ mt: 3, borderRadius: 1, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-            <CardContent sx={{ p: 3 }}>
+          <Card sx={{ mt: 2, borderRadius: 1, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+            <CardContent sx={{ p: 2 }}>
               <Typography variant="h6" sx={{ fontWeight: 600, color: '#212529', mb: 3 }}>
                 快速操作
               </Typography>
               
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 1.5 }}>
                 <Button
                   component={Link}
                   href="/admin/credits/config"
@@ -329,7 +343,7 @@ export default function AdminDashboard() {
                   sx={{ 
                     textTransform: 'none', 
                     borderRadius: 1, 
-                    p: 2,
+                    p: 1.5,
                     justifyContent: 'flex-start',
                     color: '#212529',
                     borderColor: '#e9ecef',
@@ -349,7 +363,7 @@ export default function AdminDashboard() {
                   sx={{ 
                     textTransform: 'none', 
                     borderRadius: 1, 
-                    p: 2,
+                    p: 1.5,
                     justifyContent: 'flex-start',
                     color: '#212529',
                     borderColor: '#e9ecef',
@@ -369,7 +383,7 @@ export default function AdminDashboard() {
                   sx={{ 
                     textTransform: 'none', 
                     borderRadius: 1, 
-                    p: 2,
+                    p: 1.5,
                     justifyContent: 'flex-start',
                     color: '#212529',
                     borderColor: '#e9ecef',
