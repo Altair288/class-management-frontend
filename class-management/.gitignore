@@ -18,6 +18,9 @@ idea.txt
 /.next/
 /out/
 
+# Purpose Markdown
+/*.md
+
 # production
 /build
 

@@ -501,20 +501,19 @@ export default function CreditsPage() {
               >
                 设置学分预警阈值，配置自动通知机制，及时发现和处理学分异常情况
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<WarningIcon />}
-                href="/admin/credits/alerts"
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 500,
+              <Alert 
+                severity="info" 
+                sx={{ 
+                  maxWidth: 400, 
+                  mx: 'auto',
                   borderRadius: 1,
-                  px: 4,
-                  py: 1.5,
+                  '& .MuiAlert-message': {
+                    fontSize: '0.875rem'
+                  }
                 }}
               >
-                预警配置
-              </Button>
+                数据分析功能待开发，敬请期待
+              </Alert>
             </Box>
           </TabPanel>
 
@@ -561,7 +560,7 @@ export default function CreditsPage() {
                   }
                 }}
               >
-                数据分析功能正在开发中，敬请期待
+                数据分析功能待开发，敬请期待
               </Alert>
             </Box>
           </TabPanel>
