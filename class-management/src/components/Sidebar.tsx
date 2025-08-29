@@ -49,7 +49,7 @@ const menu = [
           { text: "数据仪表板", href: "/admin/leave/dashboard", key: "leave-dashboard" },
           { text: "审批处理", href: "/admin/leave/approval", key: "leave-approval" },
           { text: "日历视图", href: "/admin/leave/calendar", key: "leave-calendar" },
-          { text: "员工管理", href: "/admin/leave/employees", key: "leave-employees" },
+          { text: "学生管理", href: "/admin/leave/students", key: "leave-students" },
           { text: "系统配置", href: "/admin/leave/config", key: "leave-config" },
           { text: "审计日志", href: "/admin/leave/logs", key: "leave-logs" },
         ],

@@ -31,7 +31,6 @@ import {
 } from "@mui/material";
 import {
   Search as SearchIcon,
-  Add as AddIcon,
   FilterList as FilterIcon,
   DownloadOutlined as ExportIcon,
   Person as PersonIcon,
@@ -48,7 +47,6 @@ interface Employee {
   department: string;
   email: string;
   phone: string;
-  hireDate: string;
   avatar?: string;
   leaveBalance: {
     annual: { total: number; used: number; remaining: number };
@@ -79,7 +77,6 @@ const mockEmployees: Employee[] = [
     department: "技术部",
     email: "zhangsan@company.com",
     phone: "13800138001",
-    hireDate: "2022-03-15",
     leaveBalance: {
       annual: { total: 15, used: 8, remaining: 7 },
       sick: { total: 10, used: 2, remaining: 8 },
@@ -117,7 +114,6 @@ const mockEmployees: Employee[] = [
     department: "产品部",
     email: "lisi@company.com",
     phone: "13800138002",
-    hireDate: "2021-11-20",
     leaveBalance: {
       annual: { total: 20, used: 12, remaining: 8 },
       sick: { total: 10, used: 5, remaining: 5 },
@@ -142,7 +138,6 @@ const mockEmployees: Employee[] = [
     department: "设计部",
     email: "wangwu@company.com",
     phone: "13800138003",
-    hireDate: "2023-01-10",
     leaveBalance: {
       annual: { total: 10, used: 4, remaining: 6 },
       sick: { total: 10, used: 1, remaining: 9 },
@@ -390,7 +385,7 @@ export default function EmployeesPage() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 700, color: '#212529', mb: 1 }}>
-              员工管理
+              学生管理
             </Typography>
             <Typography variant="body2" sx={{ color: '#6c757d' }}>
               查看员工请假记录、余额和详细信息
@@ -403,13 +398,6 @@ export default function EmployeesPage() {
               sx={{ borderRadius: 2 }}
             >
               导出数据
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              sx={{ borderRadius: 2, boxShadow: 'none' }}
-            >
-              添加员工
             </Button>
           </Box>
         </Box>
@@ -466,9 +454,9 @@ export default function EmployeesPage() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>员工信息</TableCell>
-                    <TableCell>部门</TableCell>
-                    <TableCell>职位</TableCell>
+                    <TableCell>学生信息</TableCell>
+                    <TableCell>班级</TableCell>
+                    <TableCell>年级</TableCell>
                     <TableCell>年假余额</TableCell>
                     <TableCell>病假余额</TableCell>
                     <TableCell>事假余额</TableCell>
@@ -611,12 +599,6 @@ export default function EmployeesPage() {
                           电话
                         </Typography>
                         <Typography variant="body1">{selectedEmployee.phone}</Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
-                          入职日期
-                        </Typography>
-                        <Typography variant="body1">{selectedEmployee.hireDate}</Typography>
                       </Box>
                     </Box>
                   </CardContent>

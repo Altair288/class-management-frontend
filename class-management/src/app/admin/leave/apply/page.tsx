@@ -121,9 +121,10 @@ const mockLeaveTypes: LeaveType[] = [
 const currentUser = {
   id: "EMP001",
   name: "张三",
-  position: "高级开发工程师",
-  department: "技术部",
-  manager: "李经理",
+  position: "学生",
+  department: "21技术网络1班",
+  manager: "张老师",
+  phone: "13800138000",
   email: "zhangsan@company.com",
 };
 
@@ -290,9 +291,15 @@ export default function LeaveApplyPage() {
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
               <Box>
                 <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
-                  直属主管
+                  直属教师
                 </Typography>
                 <Typography variant="body1">{currentUser.manager}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
+                  手机
+                </Typography>
+                <Typography variant="body1">{currentUser.phone}</Typography>
               </Box>
               <Box>
                 <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
@@ -515,7 +522,7 @@ export default function LeaveApplyPage() {
                       </ListItemAvatar>
                       <ListItemText
                         primary="提前申请"
-                        secondary="年假需提前3天申请，紧急情况请电话联系主管"
+                        secondary="病假需提前1天申请，紧急情况请电话联系主管"
                       />
                     </ListItem>
                     <ListItem>
@@ -526,7 +533,7 @@ export default function LeaveApplyPage() {
                       </ListItemAvatar>
                       <ListItemText
                         primary="审批流程"
-                        secondary="申请将依次经过直属主管和HR部门审批"
+                        secondary="申请将依次经过直属教师和系部部门"
                       />
                     </ListItem>
                     <ListItem>

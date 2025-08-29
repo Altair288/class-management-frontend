@@ -258,7 +258,6 @@ export default function ConfigPage() {
                     <TableCell>年度额度</TableCell>
                     <TableCell>最大天数</TableCell>
                     <TableCell>需要审批</TableCell>
-                    <TableCell>可结转</TableCell>
                     <TableCell>状态</TableCell>
                     <TableCell>操作</TableCell>
                   </TableRow>
@@ -293,13 +292,6 @@ export default function ConfigPage() {
                           label={type.requiresApproval ? "是" : "否"}
                           size="small"
                           color={type.requiresApproval ? "warning" : "success"}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={type.carryOverAllowed ? "是" : "否"}
-                          size="small"
-                          color={type.carryOverAllowed ? "info" : "default"}
                         />
                       </TableCell>
                       <TableCell>
