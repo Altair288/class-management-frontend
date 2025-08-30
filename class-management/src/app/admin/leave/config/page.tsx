@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Card,
@@ -26,6 +26,7 @@ import {
   Tab,
   Alert,
   Slider,
+  Snackbar,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -38,16 +39,113 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 
+// API 基础 URL（走 Next.js 代理，避免 CORS 与环境差异）
+const API_BASE_URL = "/api";
+
+// API 调用函数
+const leaveTypeApi = {
+  // 获取所有请假类型（包括已停用的）
+  getAllLeaveTypes: async (): Promise<LeaveType[]> => {
+    const response = await fetch(`${API_BASE_URL}/leave/config/all`);
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`加载失败 ${response.status}: ${text || response.statusText}`);
+    }
+    return response.json();
+  },
+
+  // 获取激活的请假类型
+  getActiveLeaveTypes: async (): Promise<LeaveType[]> => {
+    const response = await fetch(`${API_BASE_URL}/leave/config/active`);
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`加载激活类型失败 ${response.status}: ${text || response.statusText}`);
+    }
+    return response.json();
+  },
+
+  // 创建新的请假类型
+  createLeaveType: async (leaveType: Omit<LeaveType, 'id' | 'createdAt' | 'updatedAt'>): Promise<LeaveType> => {
+    const response = await fetch(`${API_BASE_URL}/leave/config`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(leaveType),
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`创建失败 ${response.status}: ${text || response.statusText}`);
+    }
+    return response.json();
+  },
+
+  // 更新请假类型
+  updateLeaveType: async (id: number, leaveType: Omit<LeaveType, 'createdAt' | 'updatedAt'>): Promise<LeaveType> => {
+    const response = await fetch(`${API_BASE_URL}/leave/config/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(leaveType),
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`更新失败 ${response.status}: ${text || response.statusText}`);
+    }
+    return response.json();
+  },
+
+  // 删除请假类型
+  deleteLeaveType: async (id: number): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/leave/config/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`删除失败 ${response.status}: ${text || response.statusText}`);
+    }
+  },
+
+  // 激活请假类型
+  activateLeaveType: async (id: number): Promise<LeaveType> => {
+    const response = await fetch(`${API_BASE_URL}/leave/config/${id}/activate`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`启用失败 ${response.status}: ${text || response.statusText}`);
+    }
+    return response.json();
+  },
+
+  // 停用请假类型
+  deactivateLeaveType: async (id: number): Promise<LeaveType> => {
+    const response = await fetch(`${API_BASE_URL}/leave/config/${id}/deactivate`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`停用失败 ${response.status}: ${text || response.statusText}`);
+    }
+    return response.json();
+  },
+};
+
 interface LeaveType {
-  id: string;
-  name: string;
-  maxDays: number;
-  requiresApproval: boolean;
-  allowancePerYear: number;
-  carryOverAllowed: boolean;
-  color: string;
+  id: number;
+  typeName: string;
+  typeCode: string;
   description: string;
+  annualAllowance: number;
+  maxDaysPerRequest: number;
+  requiresApproval: boolean;
+  requiresMedicalProof: boolean;
+  advanceDaysRequired: number;
+  color: string;
   enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ApprovalWorkflow {
@@ -87,43 +185,6 @@ interface NotificationSettings {
   notifyOnRejection: boolean;
   reminderBeforeLeave: number; // days
 }
-
-// 模拟数据
-const mockLeaveTypes: LeaveType[] = [
-  {
-    id: "annual",
-    name: "年假",
-    maxDays: 30,
-    requiresApproval: true,
-    allowancePerYear: 15,
-    carryOverAllowed: true,
-    color: "#1976d2",
-    description: "员工每年享有的带薪年假",
-    enabled: true,
-  },
-  {
-    id: "sick",
-    name: "病假",
-    maxDays: 90,
-    requiresApproval: false,
-    allowancePerYear: 10,
-    carryOverAllowed: false,
-    color: "#388e3c",
-    description: "因疾病需要休息的假期",
-    enabled: true,
-  },
-  {
-    id: "personal",
-    name: "事假",
-    maxDays: 10,
-    requiresApproval: true,
-    allowancePerYear: 5,
-    carryOverAllowed: false,
-    color: "#f57c00",
-    description: "因个人事务需要请假",
-    enabled: true,
-  },
-];
 
 const mockWorkflows: ApprovalWorkflow[] = [
   {
@@ -172,10 +233,25 @@ function TabPanel(props: TabPanelProps) {
 
 export default function ConfigPage() {
   const [tabValue, setTabValue] = useState(0);
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>(mockLeaveTypes);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [workflows] = useState<ApprovalWorkflow[]>(mockWorkflows);
   const [editDialog, setEditDialog] = useState(false);
   const [selectedLeaveType, setSelectedLeaveType] = useState<LeaveType | null>(null);
+  const [loading, setLoading] = useState(false);
+  // 行级加载态，避免整页刷新闪烁
+  const [pendingMap, setPendingMap] = useState<Record<number, boolean>>({});
+  // 编辑弹窗保存态
+  const [saving, setSaving] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+  // 通用确认弹窗
+  const [confirmState, setConfirmState] = useState<{
+    open: boolean;
+    title: string;
+    content: React.ReactNode;
+    onConfirm?: () => void | Promise<void>;
+  }>({ open: false, title: '', content: '' });
   const [notifications, setNotifications] = useState<NotificationSettings>({
     emailNotifications: true,
     smsNotifications: false,
@@ -185,6 +261,28 @@ export default function ConfigPage() {
     notifyOnRejection: true,
     reminderBeforeLeave: 3,
   });
+
+  // 加载请假类型数据
+  const loadLeaveTypes = async () => {
+    try {
+      setLoading(true);
+      const data = await leaveTypeApi.getAllLeaveTypes();
+      setLeaveTypes(data);
+    } catch (error: unknown) {
+      console.error('Failed to load leave types:', error);
+      const msg = error instanceof Error ? error.message : '未知错误';
+      setSnackbarMessage(`加载请假类型失败：${msg}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 组件挂载时加载数据
+  useEffect(() => {
+    loadLeaveTypes();
+  }, []);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -197,38 +295,172 @@ export default function ConfigPage() {
 
   const handleAddLeaveType = () => {
     setSelectedLeaveType({
-      id: "",
-      name: "",
-      maxDays: 30,
-      requiresApproval: true,
-      allowancePerYear: 15,
-      carryOverAllowed: true,
-      color: "#1976d2",
+      id: 0,
+      typeName: "",
+      typeCode: "",
       description: "",
+      annualAllowance: 15,
+      maxDaysPerRequest: 30,
+      requiresApproval: true,
+      requiresMedicalProof: false,
+      advanceDaysRequired: 0,
+      color: "#1976d2",
       enabled: true,
+      createdAt: "",
+      updatedAt: "",
     });
     setEditDialog(true);
   };
 
-  const handleSaveLeaveType = () => {
-    if (selectedLeaveType) {
-      if (selectedLeaveType.id) {
-        // 更新现有类型
-        setLeaveTypes(leaveTypes.map(type => 
-          type.id === selectedLeaveType.id ? selectedLeaveType : type
-        ));
-      } else {
-        // 添加新类型
-        const newId = `leave_${Date.now()}`;
-        setLeaveTypes([...leaveTypes, { ...selectedLeaveType, id: newId }]);
+  const handleSaveLeaveType = async () => {
+    if (!selectedLeaveType) return;
+
+    // 如果是更新操作，提醒用户配置变更会影响相关数据（使用页面内确认弹窗）
+    if (selectedLeaveType.id && selectedLeaveType.id > 0) {
+      const originalType = leaveTypes.find(t => t.id === selectedLeaveType.id);
+      if (originalType && originalType.annualAllowance !== selectedLeaveType.annualAllowance) {
+        setConfirmState({
+          open: true,
+          title: '确认更新年度额度',
+          content: (
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                年度额度将从 {originalType.annualAllowance} 天调整为 {selectedLeaveType.annualAllowance} 天。
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                该操作会自动调整当前年度所有学生的对应余额，是否继续？
+              </Typography>
+            </Box>
+          ),
+          onConfirm: () => actuallySaveLeaveType(),
+        });
+        return;
       }
     }
-    setEditDialog(false);
-    setSelectedLeaveType(null);
+
+    await actuallySaveLeaveType();
   };
 
-  const handleDeleteLeaveType = (typeId: string) => {
-    setLeaveTypes(leaveTypes.filter(type => type.id !== typeId));
+  // 真正执行保存（新增/更新）
+  const actuallySaveLeaveType = async () => {
+    if (!selectedLeaveType) return;
+    try {
+      setSaving(true);
+      
+      if (selectedLeaveType.id && selectedLeaveType.id > 0) {
+        // 更新现有类型
+        const updated = await leaveTypeApi.updateLeaveType(selectedLeaveType.id, selectedLeaveType);
+        setLeaveTypes(prev => prev.map(t => (t.id === updated.id ? updated : t)));
+        setSnackbarMessage('请假类型更新成功，相关学生余额已自动调整');
+      } else {
+        // 添加新类型
+        const newLeaveType = {
+          typeName: selectedLeaveType.typeName,
+          typeCode: selectedLeaveType.typeCode,
+          description: selectedLeaveType.description,
+          annualAllowance: selectedLeaveType.annualAllowance,
+          maxDaysPerRequest: selectedLeaveType.maxDaysPerRequest,
+          requiresApproval: selectedLeaveType.requiresApproval,
+          requiresMedicalProof: selectedLeaveType.requiresMedicalProof,
+          advanceDaysRequired: selectedLeaveType.advanceDaysRequired,
+          color: selectedLeaveType.color,
+          enabled: selectedLeaveType.enabled,
+        };
+        const created = await leaveTypeApi.createLeaveType(newLeaveType);
+        setLeaveTypes(prev => [...prev, created]);
+        setSnackbarMessage('请假类型创建成功');
+      }
+      
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      
+      setEditDialog(false);
+      setSelectedLeaveType(null);
+    } catch (error: unknown) {
+      console.error('Failed to save leave type:', error);
+      const msg = error instanceof Error ? error.message : '请重试';
+      setSnackbarMessage(`保存失败：${msg}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteLeaveType = async (typeId: number) => {
+    setConfirmState({
+      open: true,
+      title: '确认删除',
+      content: (
+        <Typography variant="body2">
+          删除后将无法恢复。该操作会影响历史记录中该类型的可见性（建议仅停用）。是否继续删除？
+        </Typography>
+      ),
+      onConfirm: async () => {
+        try {
+          setPendingMap(prev => ({ ...prev, [typeId]: true }));
+          await leaveTypeApi.deleteLeaveType(typeId);
+          setLeaveTypes(prev => prev.filter(t => t.id !== typeId));
+          setSnackbarMessage('请假类型删除成功');
+          setSnackbarSeverity('success');
+          setSnackbarOpen(true);
+        } catch (error: unknown) {
+          console.error('Failed to delete leave type:', error);
+          const msg = error instanceof Error ? error.message : '请重试';
+          setSnackbarMessage(`删除失败：${msg}`);
+          setSnackbarSeverity('error');
+          setSnackbarOpen(true);
+        } finally {
+          setPendingMap(prev => ({ ...prev, [typeId]: false }));
+        }
+      },
+    });
+  };
+
+  // 启用/停用请假类型
+  const handleToggleEnabled = async (type: LeaveType) => {
+    const targetEnabled = !type.enabled;
+    const action = targetEnabled ? '启用' : '停用';
+
+    setConfirmState({
+      open: true,
+      title: `${action}请假类型`,
+      content: (
+        <Box>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            确定要{action}「{type.typeName}」吗？
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {targetEnabled
+              ? '启用后，学生将可以选择此请假类型进行申请。'
+              : '停用后，学生将无法选择此请假类型进行新的申请，但不影响已有申请。'}
+          </Typography>
+        </Box>
+      ),
+      onConfirm: async () => {
+        try {
+          setPendingMap(prev => ({ ...prev, [type.id]: true }));
+          // 乐观更新
+          setLeaveTypes(prev => prev.map(t => (t.id === type.id ? { ...t, enabled: targetEnabled } : t)));
+          // 调后端
+          if (targetEnabled) await leaveTypeApi.activateLeaveType(type.id);
+          else await leaveTypeApi.deactivateLeaveType(type.id);
+          setSnackbarMessage(targetEnabled ? '已启用该请假类型' : '已停用该请假类型');
+          setSnackbarSeverity('success');
+          setSnackbarOpen(true);
+        } catch (error: unknown) {
+          console.error('Failed to toggle leave type status:', error);
+          // 回滚
+          setLeaveTypes(prev => prev.map(t => (t.id === type.id ? { ...t, enabled: type.enabled } : t)));
+          const msg = error instanceof Error ? error.message : '请重试';
+          setSnackbarMessage(`操作失败：${msg}`);
+          setSnackbarSeverity('error');
+          setSnackbarOpen(true);
+        } finally {
+          setPendingMap(prev => ({ ...prev, [type.id]: false }));
+        }
+      },
+    });
   };
 
   const renderLeaveTypesTab = () => {
@@ -243,6 +475,7 @@ export default function ConfigPage() {
             startIcon={<AddIcon />}
             onClick={handleAddLeaveType}
             sx={{ borderRadius: 2, boxShadow: 'none' }}
+            disabled={loading}
           >
             添加类型
           </Button>
@@ -277,7 +510,7 @@ export default function ConfigPage() {
                           />
                           <Box>
                             <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                              {type.name}
+                              {type.typeName}
                             </Typography>
                             <Typography variant="body2" sx={{ color: '#6c757d' }}>
                               {type.description}
@@ -285,8 +518,8 @@ export default function ConfigPage() {
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell>{type.allowancePerYear} 天</TableCell>
-                      <TableCell>{type.maxDays} 天</TableCell>
+                      <TableCell>{type.annualAllowance} 天</TableCell>
+                      <TableCell>{type.maxDaysPerRequest} 天</TableCell>
                       <TableCell>
                         <Chip
                           label={type.requiresApproval ? "是" : "否"}
@@ -295,17 +528,26 @@ export default function ConfigPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={type.enabled ? "启用" : "禁用"}
-                          size="small"
-                          color={type.enabled ? "success" : "default"}
-                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Chip
+                            label={type.enabled ? "启用" : "禁用"}
+                            size="small"
+                            color={type.enabled ? "success" : "default"}
+                          />
+                          <Switch
+                            size="small"
+                            checked={type.enabled}
+                            onChange={() => handleToggleEnabled(type)}
+                            disabled={loading}
+                          />
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                           <IconButton
                             size="small"
                             onClick={() => handleEditLeaveType(type)}
+                            disabled={!!pendingMap[type.id]}
                           >
                             <EditIcon />
                           </IconButton>
@@ -313,6 +555,7 @@ export default function ConfigPage() {
                             size="small"
                             onClick={() => handleDeleteLeaveType(type.id)}
                             color="error"
+                            disabled={!!pendingMap[type.id]}
                           >
                             <DeleteIcon />
                           </IconButton>
@@ -363,11 +606,11 @@ export default function ConfigPage() {
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
                       {workflow.leaveTypes.map((typeId) => {
-                        const leaveType = leaveTypes.find(t => t.id === typeId);
+                        const leaveType = leaveTypes.find(t => t.typeCode === typeId);
                         return leaveType ? (
                           <Chip
                             key={typeId}
-                            label={leaveType.name}
+                            label={leaveType.typeName}
                             size="small"
                             sx={{
                               backgroundColor: leaveType.color,
@@ -620,12 +863,22 @@ export default function ConfigPage() {
               <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <TextField
                   label="类型名称"
-                  value={selectedLeaveType.name}
+                  value={selectedLeaveType.typeName}
                   onChange={(e) => setSelectedLeaveType({
                     ...selectedLeaveType,
-                    name: e.target.value
+                    typeName: e.target.value
                   })}
                   fullWidth
+                />
+                <TextField
+                  label="类型代码"
+                  value={selectedLeaveType.typeCode}
+                  onChange={(e) => setSelectedLeaveType({
+                    ...selectedLeaveType,
+                    typeCode: e.target.value
+                  })}
+                  fullWidth
+                  helperText="用于系统内部识别，建议使用英文字母"
                 />
                 <TextField
                   label="描述"
@@ -642,19 +895,45 @@ export default function ConfigPage() {
                   <TextField
                     label="年度额度（天）"
                     type="number"
-                    value={selectedLeaveType.allowancePerYear}
+                    value={selectedLeaveType.annualAllowance}
                     onChange={(e) => setSelectedLeaveType({
                       ...selectedLeaveType,
-                      allowancePerYear: parseInt(e.target.value)
+                      annualAllowance: parseInt(e.target.value)
                     })}
+                    error={selectedLeaveType.annualAllowance < 0}
+                    helperText={selectedLeaveType.annualAllowance < 0 ? "额度不能为负数" : ""}
                   />
                   <TextField
-                    label="最大天数（天）"
+                    label="单次最大天数（天）"
                     type="number"
-                    value={selectedLeaveType.maxDays}
+                    value={selectedLeaveType.maxDaysPerRequest}
                     onChange={(e) => setSelectedLeaveType({
                       ...selectedLeaveType,
-                      maxDays: parseInt(e.target.value)
+                      maxDaysPerRequest: parseInt(e.target.value)
+                    })}
+                    error={selectedLeaveType.maxDaysPerRequest <= 0}
+                    helperText={selectedLeaveType.maxDaysPerRequest <= 0 ? "单次最大天数必须大于0" : ""}
+                  />
+                </Box>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                  <TextField
+                    label="提前申请天数"
+                    type="number"
+                    value={selectedLeaveType.advanceDaysRequired}
+                    onChange={(e) => setSelectedLeaveType({
+                      ...selectedLeaveType,
+                      advanceDaysRequired: parseInt(e.target.value)
+                    })}
+                    error={selectedLeaveType.advanceDaysRequired < 0}
+                    helperText={selectedLeaveType.advanceDaysRequired < 0 ? "提前申请天数不能为负数" : "0表示无需提前申请"}
+                  />
+                  <TextField
+                    label="颜色"
+                    type="color"
+                    value={selectedLeaveType.color}
+                    onChange={(e) => setSelectedLeaveType({
+                      ...selectedLeaveType,
+                      color: e.target.value
                     })}
                   />
                 </Box>
@@ -674,14 +953,14 @@ export default function ConfigPage() {
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={selectedLeaveType.carryOverAllowed}
+                        checked={selectedLeaveType.requiresMedicalProof}
                         onChange={(e) => setSelectedLeaveType({
                           ...selectedLeaveType,
-                          carryOverAllowed: e.target.checked
+                          requiresMedicalProof: e.target.checked
                         })}
                       />
                     }
-                    label="允许结转到下一年"
+                    label="需要医疗证明"
                   />
                   <FormControlLabel
                     control={
@@ -700,13 +979,52 @@ export default function ConfigPage() {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setEditDialog(false)}>取消</Button>
+            <Button onClick={() => setEditDialog(false)} disabled={loading}>取消</Button>
             <Button
               onClick={handleSaveLeaveType}
               variant="contained"
               sx={{ boxShadow: 'none' }}
+              disabled={saving}
             >
-              保存
+              {saving ? '保存中...' : '保存'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={3000}
+          onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={snackbarSeverity}
+            sx={{ width: '100%' }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
+
+        {/* 通用确认弹窗 */}
+        <Dialog open={confirmState.open} onClose={() => setConfirmState(s => ({ ...s, open: false }))}>
+          <DialogTitle>{confirmState.title}</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 1 }}>{confirmState.content}</Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmState(s => ({ ...s, open: false }))}>取消</Button>
+            <Button
+              variant="contained"
+              onClick={async () => {
+                const cb = confirmState.onConfirm;
+                setConfirmState(s => ({ ...s, open: false }));
+                if (cb) await cb();
+              }}
+              sx={{ boxShadow: 'none' }}
+            >
+              确认
             </Button>
           </DialogActions>
         </Dialog>

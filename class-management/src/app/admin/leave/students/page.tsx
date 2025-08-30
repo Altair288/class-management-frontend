@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Card,
@@ -40,129 +40,100 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 
-interface Employee {
-  id: string;
-  name: string;
-  position: string;
-  department: string;
-  email: string;
-  phone: string;
-  avatar?: string;
-  leaveBalance: {
-    annual: { total: number; used: number; remaining: number };
-    sick: { total: number; used: number; remaining: number };
-    personal: { total: number; used: number; remaining: number };
-  };
-  recentLeaves: LeaveRecord[];
-}
+// 使用 Next.js 代理，避免跨域
+const API_BASE_URL = "/api";
 
-interface LeaveRecord {
+// 后端数据类型
+interface ClassSimple {
   id: number;
-  type: string;
-  startDate: string;
-  endDate: string;
-  days: number;
-  status: 'pending' | 'approved' | 'rejected';
-  reason: string;
-  approvedBy?: string;
-  approvedDate?: string;
+  name: string;
+  grade: string;
 }
 
-// 模拟数据
-const mockEmployees: Employee[] = [
-  {
-    id: "EMP001",
-    name: "张三",
-    position: "高级开发工程师",
-    department: "技术部",
-    email: "zhangsan@company.com",
-    phone: "13800138001",
-    leaveBalance: {
-      annual: { total: 15, used: 8, remaining: 7 },
-      sick: { total: 10, used: 2, remaining: 8 },
-      personal: { total: 5, used: 1, remaining: 4 },
-    },
-    recentLeaves: [
-      {
-        id: 1,
-        type: "年假",
-        startDate: "2024-02-15",
-        endDate: "2024-02-17",
-        days: 3,
-        status: "approved",
-        reason: "春节回家探亲",
-        approvedBy: "李经理",
-        approvedDate: "2024-02-10",
-      },
-      {
-        id: 2,
-        type: "病假",
-        startDate: "2024-01-20",
-        endDate: "2024-01-20",
-        days: 1,
-        status: "approved",
-        reason: "感冒发烧",
-        approvedBy: "李经理",
-        approvedDate: "2024-01-20",
-      },
-    ],
-  },
-  {
-    id: "EMP002",
-    name: "李四",
-    position: "产品经理",
-    department: "产品部",
-    email: "lisi@company.com",
-    phone: "13800138002",
-    leaveBalance: {
-      annual: { total: 20, used: 12, remaining: 8 },
-      sick: { total: 10, used: 5, remaining: 5 },
-      personal: { total: 5, used: 3, remaining: 2 },
-    },
-    recentLeaves: [
-      {
-        id: 3,
-        type: "年假",
-        startDate: "2024-02-16",
-        endDate: "2024-02-18",
-        days: 3,
-        status: "pending",
-        reason: "旅游度假",
-      },
-    ],
-  },
-  {
-    id: "EMP003",
-    name: "王五",
-    position: "UI设计师",
-    department: "设计部",
-    email: "wangwu@company.com",
-    phone: "13800138003",
-    leaveBalance: {
-      annual: { total: 10, used: 4, remaining: 6 },
-      sick: { total: 10, used: 1, remaining: 9 },
-      personal: { total: 5, used: 0, remaining: 5 },
-    },
-    recentLeaves: [
-      {
-        id: 4,
-        type: "事假",
-        startDate: "2024-02-20",
-        endDate: "2024-02-21",
-        days: 2,
-        status: "approved",
-        reason: "处理个人事务",
-        approvedBy: "陈经理",
-        approvedDate: "2024-02-19",
-      },
-    ],
-  },
-];
+interface Clazz {
+  id: number;
+  name: string;
+  grade: string;
+}
 
-const statusConfig = {
-  pending: { label: '待审批', color: '#f57c00' },
-  approved: { label: '已批准', color: '#388e3c' },
-  rejected: { label: '已拒绝', color: '#d32f2f' },
+interface Teacher { id: number; name: string }
+
+interface Student {
+  id: number;
+  name: string;
+  studentNo?: string;
+  phone?: string | null;
+  email?: string | null;
+  clazz?: Clazz | null;
+}
+
+interface LeaveTypeConfig {
+  id: number;
+  typeCode: 'annual' | 'sick' | 'personal' | string;
+  typeName: string;
+  color: string;
+}
+
+interface LeaveRequest {
+  id: number;
+  studentId: number;
+  teacherId?: number | null;
+  leaveTypeId: number;
+  reason: string;
+  startDate: string; // ISO
+  endDate: string;   // ISO
+  days: number;
+  status: string; // 后端中文：待审批/已批准/已拒绝...
+  student: Student;
+  teacher?: Teacher | null;
+  leaveTypeConfig: LeaveTypeConfig;
+}
+
+interface StudentLeaveBalanceItem {
+  id: number;
+  studentId: number;
+  leaveTypeId: number;
+  year: number;
+  totalAllowance: number;
+  usedDays: number;
+  remainingDays: number;
+  leaveTypeConfig: LeaveTypeConfig;
+}
+
+// 聚合后的行数据
+interface StudentRow {
+  studentId: number;
+  name: string;
+  studentNo?: string;
+  clazzId?: number;
+  clazzName?: string;
+  grade?: string;
+  recentLeaves: LeaveRequest[];
+}
+
+const api = {
+  async fetchAllLeaveRequests(): Promise<LeaveRequest[]> {
+    const res = await fetch(`${API_BASE_URL}/leave/all`);
+    if (!res.ok) throw new Error(`获取请假列表失败：${res.status}`);
+    return res.json();
+  },
+  async fetchClasses(): Promise<ClassSimple[]> {
+    const res = await fetch(`${API_BASE_URL}/class/simple`);
+    if (!res.ok) throw new Error(`获取班级列表失败：${res.status}`);
+    return res.json();
+  },
+  async fetchStudentBalances(studentId: number): Promise<StudentLeaveBalanceItem[]> {
+    const res = await fetch(`${API_BASE_URL}/leave/balance/student/${studentId}`);
+    if (!res.ok) throw new Error(`获取学生余额失败：${res.status}`);
+    return res.json();
+  },
+};
+
+const statusStyle = (status: string) => {
+  if (status === '待审批' || status === 'pending') return { label: '待审批', color: '#f57c00' };
+  if (status === '已批准' || status === 'approved') return { label: '已批准', color: '#388e3c' };
+  if (status === '已拒绝' || status === 'rejected') return { label: '已拒绝', color: '#d32f2f' };
+  return { label: status, color: '#6c757d' };
 };
 
 interface TabPanelProps {
@@ -188,29 +159,94 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function EmployeesPage() {
-  const [employees] = useState<Employee[]>(mockEmployees);
+  const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const [classes, setClasses] = useState<ClassSimple[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [classFilter, setClassFilter] = useState<number | "">("");
+  const [selectedRow, setSelectedRow] = useState<StudentRow | null>(null);
+  const [balancesMap, setBalancesMap] = useState<Record<number, StudentLeaveBalanceItem[]>>({});
   const [detailDialog, setDetailDialog] = useState(false);
   const [tabValue, setTabValue] = useState(0);
+  // 可按需用于顶部整体加载指示
+  // const [loading, setLoading] = useState(false);
+  const [loadingBalances, setLoadingBalances] = useState<Record<number, boolean>>({});
 
-  // 获取所有部门
-  const departments = Array.from(new Set(employees.map(emp => emp.department)));
+  // 加载数据
+  useEffect(() => {
+    (async () => {
+  try {
+        const [reqs, cls] = await Promise.all([
+          api.fetchAllLeaveRequests(),
+          api.fetchClasses(),
+        ]);
+        setRequests(reqs);
+        setClasses(cls);
+      } catch (e) {
+        console.error(e);
+  } finally {
+  }
+    })();
+  }, []);
 
-  // 过滤员工
-  const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         employee.position.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDepartment = departmentFilter === "" || employee.department === departmentFilter;
-    return matchesSearch && matchesDepartment;
-  });
+  // 聚合为学生行
+  const rows: StudentRow[] = useMemo(() => {
+    const map = new Map<number, StudentRow>();
+    for (const r of requests) {
+      if (!r.student) continue;
+      const sid = r.student.id;
+      const exists = map.get(sid);
+      const base: StudentRow = exists ?? {
+        studentId: sid,
+        name: r.student.name,
+        studentNo: r.student.studentNo,
+        clazzId: r.student.clazz?.id,
+        clazzName: r.student.clazz?.name,
+        grade: r.student.clazz?.grade,
+        recentLeaves: [],
+      };
+      base.recentLeaves.push(r);
+      map.set(sid, base);
+    }
+    // 仅保留最近 5 条按开始时间倒序
+    const list = Array.from(map.values()).map(row => ({
+      ...row,
+      recentLeaves: row.recentLeaves
+        .slice()
+        .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+        .slice(0, 5),
+    }));
+    // 默认按班级/姓名排序
+    return list.sort((a, b) => (a.clazzName || '').localeCompare(b.clazzName || '') || a.name.localeCompare(b.name));
+  }, [requests]);
 
-  const handleEmployeeClick = (employee: Employee) => {
-    setSelectedEmployee(employee);
+  // 过滤
+  const filteredRows = useMemo(() => {
+    const kw = searchTerm.trim().toLowerCase();
+    return rows.filter(row => {
+      const matchesSearch = !kw ||
+        row.name.toLowerCase().includes(kw) ||
+        (row.studentNo || '').toLowerCase().includes(kw) ||
+        (row.clazzName || '').toLowerCase().includes(kw);
+      const matchesClass = classFilter === "" || row.clazzId === classFilter;
+      return matchesSearch && matchesClass;
+    });
+  }, [rows, searchTerm, classFilter]);
+
+  const handleRowClick = async (row: StudentRow) => {
+    setSelectedRow(row);
     setDetailDialog(true);
     setTabValue(0);
+    if (!balancesMap[row.studentId] && !loadingBalances[row.studentId]) {
+      try {
+        setLoadingBalances(prev => ({ ...prev, [row.studentId]: true }));
+        const balances = await api.fetchStudentBalances(row.studentId);
+        setBalancesMap(prev => ({ ...prev, [row.studentId]: balances }));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingBalances(prev => ({ ...prev, [row.studentId]: false }));
+      }
+    }
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -224,10 +260,10 @@ export default function EmployeesPage() {
     return '#388e3c';
   };
 
-  const renderEmployeeStats = (employee: Employee) => {
-    const totalLeaves = employee.recentLeaves.length;
-    const approvedLeaves = employee.recentLeaves.filter(leave => leave.status === 'approved').length;
-    const pendingLeaves = employee.recentLeaves.filter(leave => leave.status === 'pending').length;
+  const renderEmployeeStats = (row: StudentRow) => {
+    const totalLeaves = row.recentLeaves.length;
+    const approvedLeaves = row.recentLeaves.filter(leave => leave.status === '已批准' || leave.status === 'approved').length;
+    const pendingLeaves = row.recentLeaves.filter(leave => leave.status === '待审批' || leave.status === 'pending').length;
 
     return (
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2, mb: 3 }}>
@@ -270,18 +306,24 @@ export default function EmployeesPage() {
     );
   };
 
-  const renderLeaveBalance = (employee: Employee) => {
+  const renderLeaveBalance = (row: StudentRow) => {
     const balanceTypes = [
       { key: 'annual', label: '年假', color: '#1976d2' },
       { key: 'sick', label: '病假', color: '#388e3c' },
       { key: 'personal', label: '事假', color: '#f57c00' },
-    ];
+    ] as const;
+
+    const items = balancesMap[row.studentId] || [];
+    const getByCode = (code: string) => items.find(i => i.leaveTypeConfig?.typeCode === code);
 
     return (
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 2 }}>
         {balanceTypes.map((type) => {
-          const balance = employee.leaveBalance[type.key as keyof typeof employee.leaveBalance];
-          const percentage = (balance.used / balance.total) * 100;
+          const b = getByCode(type.key);
+          const total = b?.totalAllowance ?? 0;
+          const used = b?.usedDays ?? 0;
+          const remaining = b?.remainingDays ?? Math.max(total - used, 0);
+          const percentage = total > 0 ? (used / total) * 100 : 0;
           
           return (
             <Card key={type.key} sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
@@ -291,7 +333,7 @@ export default function EmployeesPage() {
                     {type.label}
                   </Typography>
                   <Chip
-                    label={`${balance.remaining}天剩余`}
+                    label={`${remaining}天剩余`}
                     size="small"
                     sx={{ 
                       backgroundColor: type.color,
@@ -309,7 +351,7 @@ export default function EmployeesPage() {
                       borderRadius: 4,
                       backgroundColor: '#f0f0f0',
                       '& .MuiLinearProgress-bar': {
-                        backgroundColor: getLeaveBalanceColor(balance.used, balance.total),
+                        backgroundColor: getLeaveBalanceColor(used, total),
                         borderRadius: 4,
                       },
                     }}
@@ -318,10 +360,10 @@ export default function EmployeesPage() {
                 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
                   <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                    已用: {balance.used}天
+                    已用: {used}天
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                    总计: {balance.total}天
+                    总计: {total}天
                   </Typography>
                 </Box>
               </CardContent>
@@ -332,7 +374,7 @@ export default function EmployeesPage() {
     );
   };
 
-  const renderLeaveHistory = (employee: Employee) => {
+  const renderLeaveHistory = (row: StudentRow) => {
     return (
       <TableContainer>
         <Table>
@@ -348,24 +390,19 @@ export default function EmployeesPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {employee.recentLeaves.map((leave) => (
+            {row.recentLeaves.map((leave) => (
               <TableRow key={leave.id}>
-                <TableCell>{leave.type}</TableCell>
-                <TableCell>{leave.startDate}</TableCell>
-                <TableCell>{leave.endDate}</TableCell>
+                <TableCell>{leave.leaveTypeConfig?.typeName || '-'}</TableCell>
+                <TableCell>{new Date(leave.startDate).toLocaleDateString()}</TableCell>
+                <TableCell>{new Date(leave.endDate).toLocaleDateString()}</TableCell>
                 <TableCell>{leave.days}</TableCell>
                 <TableCell>
-                  <Chip
-                    label={statusConfig[leave.status].label}
-                    size="small"
-                    sx={{
-                      backgroundColor: statusConfig[leave.status].color,
-                      color: 'white',
-                    }}
-                  />
+                  {(() => { const s = statusStyle(leave.status); return (
+                    <Chip label={s.label} size="small" sx={{ backgroundColor: s.color, color: 'white' }} />
+                  )})()}
                 </TableCell>
                 <TableCell>{leave.reason}</TableCell>
-                <TableCell>{leave.approvedBy || '-'}</TableCell>
+                <TableCell>{leave.teacher?.name || '-'}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -385,10 +422,10 @@ export default function EmployeesPage() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 700, color: '#212529', mb: 1 }}>
-              学生管理
+              学生请假管理
             </Typography>
             <Typography variant="body2" sx={{ color: '#6c757d' }}>
-              查看员工请假记录、余额和详细信息
+              查看学生请假记录、余额和详细信息
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
@@ -407,7 +444,7 @@ export default function EmployeesPage() {
           <CardContent sx={{ p: 2 }}>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <TextField
-                placeholder="搜索员工姓名、工号或职位..."
+                placeholder="搜索学生姓名、学号或班级..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 size="small"
@@ -421,16 +458,16 @@ export default function EmployeesPage() {
                 }}
               />
               <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>部门</InputLabel>
+                <InputLabel>班级</InputLabel>
                 <Select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  label="部门"
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value as number | "")}
+                  label="班级"
                 >
-                  <MenuItem value="">全部部门</MenuItem>
-                  {departments.map((dept) => (
-                    <MenuItem key={dept} value={dept}>
-                      {dept}
+                  <MenuItem value="">全部班级</MenuItem>
+                  {classes.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -447,7 +484,7 @@ export default function EmployeesPage() {
           </CardContent>
         </Card>
 
-        {/* 员工列表 */}
+        {/* 学生列表 */}
         <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
           <CardContent sx={{ p: 0 }}>
             <TableContainer>
@@ -457,86 +494,43 @@ export default function EmployeesPage() {
                     <TableCell>学生信息</TableCell>
                     <TableCell>班级</TableCell>
                     <TableCell>年级</TableCell>
-                    <TableCell>年假余额</TableCell>
-                    <TableCell>病假余额</TableCell>
-                    <TableCell>事假余额</TableCell>
                     <TableCell>近期请假</TableCell>
                     <TableCell>操作</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredEmployees.map((employee) => (
+                  {filteredRows.map((row) => (
                     <TableRow
-                      key={employee.id}
+                      key={row.studentId}
                       sx={{ '&:hover': { backgroundColor: '#f8f9fa' }, cursor: 'pointer' }}
-                      onClick={() => handleEmployeeClick(employee)}
+                      onClick={() => handleRowClick(row)}
                     >
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <Avatar sx={{ bgcolor: '#1976d2' }}>
-                            {employee.name[0]}
+                            {row.name[0]}
                           </Avatar>
                           <Box>
                             <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                              {employee.name}
+                              {row.name}
                             </Typography>
                             <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                              {employee.id}
+                              {row.studentNo || `ID: ${row.studentId}`}
                             </Typography>
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell>{employee.department}</TableCell>
-                      <TableCell>{employee.position}</TableCell>
+                      <TableCell>{row.clazzName || '-'}</TableCell>
+                      <TableCell>{row.grade || '-'}</TableCell>
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2">
-                            {employee.leaveBalance.annual.remaining}/{employee.leaveBalance.annual.total}
-                          </Typography>
-                          <LinearProgress
-                            variant="determinate"
-                            value={(employee.leaveBalance.annual.used / employee.leaveBalance.annual.total) * 100}
-                            sx={{ width: 60, height: 4 }}
-                          />
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2">
-                            {employee.leaveBalance.sick.remaining}/{employee.leaveBalance.sick.total}
-                          </Typography>
-                          <LinearProgress
-                            variant="determinate"
-                            value={(employee.leaveBalance.sick.used / employee.leaveBalance.sick.total) * 100}
-                            sx={{ width: 60, height: 4 }}
-                          />
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2">
-                            {employee.leaveBalance.personal.remaining}/{employee.leaveBalance.personal.total}
-                          </Typography>
-                          <LinearProgress
-                            variant="determinate"
-                            value={(employee.leaveBalance.personal.used / employee.leaveBalance.personal.total) * 100}
-                            sx={{ width: 60, height: 4 }}
-                          />
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={`${employee.recentLeaves.length} 次`}
-                          size="small"
-                          variant="outlined"
-                        />
+                        <Chip label={`${row.recentLeaves.length} 次`} size="small" variant="outlined" />
                       </TableCell>
                       <TableCell>
                         <Button
                           size="small"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleEmployeeClick(employee);
+                            handleRowClick(row);
                           }}
                         >
                           查看详情
@@ -550,7 +544,7 @@ export default function EmployeesPage() {
           </CardContent>
         </Card>
 
-        {/* 员工详情对话框 */}
+        {/* 学生详情对话框 */}
         <Dialog
           open={detailDialog}
           onClose={() => setDetailDialog(false)}
@@ -564,16 +558,16 @@ export default function EmployeesPage() {
               </Avatar>
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  {selectedEmployee?.name}
+                  {selectedRow?.name}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                  {selectedEmployee?.position} · {selectedEmployee?.department}
+                  {selectedRow?.clazzName} · {selectedRow?.grade}
                 </Typography>
               </Box>
             </Box>
           </DialogTitle>
           <DialogContent>
-            {selectedEmployee && (
+            {selectedRow && (
               <Box>
                 {/* 基本信息 */}
                 <Card sx={{ mb: 3, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
@@ -584,21 +578,21 @@ export default function EmployeesPage() {
                     <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
                       <Box>
                         <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
-                          员工编号
+                          学号
                         </Typography>
-                        <Typography variant="body1">{selectedEmployee.id}</Typography>
+                        <Typography variant="body1">{selectedRow.studentNo || selectedRow.studentId}</Typography>
                       </Box>
                       <Box>
                         <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
-                          邮箱
+                          班级
                         </Typography>
-                        <Typography variant="body1">{selectedEmployee.email}</Typography>
+                        <Typography variant="body1">{selectedRow.clazzName || '-'}</Typography>
                       </Box>
                       <Box>
                         <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
-                          电话
+                          年级
                         </Typography>
-                        <Typography variant="body1">{selectedEmployee.phone}</Typography>
+                        <Typography variant="body1">{selectedRow.grade || '-'}</Typography>
                       </Box>
                     </Box>
                   </CardContent>
@@ -614,13 +608,16 @@ export default function EmployeesPage() {
                 </Box>
 
                 <TabPanel value={tabValue} index={0}>
-                  {renderEmployeeStats(selectedEmployee)}
+                  {renderEmployeeStats(selectedRow)}
                 </TabPanel>
                 <TabPanel value={tabValue} index={1}>
-                  {renderLeaveBalance(selectedEmployee)}
+                  {loadingBalances[selectedRow.studentId] && (
+                    <Box sx={{ mb: 2 }}><LinearProgress /></Box>
+                  )}
+                  {renderLeaveBalance(selectedRow)}
                 </TabPanel>
                 <TabPanel value={tabValue} index={2}>
-                  {renderLeaveHistory(selectedEmployee)}
+                  {renderLeaveHistory(selectedRow)}
                 </TabPanel>
               </Box>
             )}
