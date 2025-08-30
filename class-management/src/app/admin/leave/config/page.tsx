@@ -130,6 +130,22 @@ const leaveTypeApi = {
     }
     return response.json();
   },
+
+  // 同步该类型的余额（默认仅当前学年）
+  syncBalances: async (
+    id: number,
+    onlyCurrentYear: boolean = true
+  ): Promise<{ updated: number; onlyCurrentYear: boolean }> => {
+    const response = await fetch(
+      `${API_BASE_URL}/leave/config/${id}/sync-balances?onlyCurrentYear=${onlyCurrentYear ? 'true' : 'false'}`,
+      { method: 'POST' }
+    );
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`同步失败 ${response.status}: ${text || response.statusText}`);
+    }
+    return response.json();
+  },
 };
 
 interface LeaveType {
@@ -332,7 +348,7 @@ export default function ConfigPage() {
               </Typography>
             </Box>
           ),
-          onConfirm: () => actuallySaveLeaveType(),
+      onConfirm: () => actuallySaveLeaveType({ changedAllowance: true }),
         });
         return;
       }
@@ -342,7 +358,7 @@ export default function ConfigPage() {
   };
 
   // 真正执行保存（新增/更新）
-  const actuallySaveLeaveType = async () => {
+  const actuallySaveLeaveType = async (opts?: { changedAllowance?: boolean }) => {
     if (!selectedLeaveType) return;
     try {
       setSaving(true);
@@ -351,7 +367,20 @@ export default function ConfigPage() {
         // 更新现有类型
         const updated = await leaveTypeApi.updateLeaveType(selectedLeaveType.id, selectedLeaveType);
         setLeaveTypes(prev => prev.map(t => (t.id === updated.id ? updated : t)));
-        setSnackbarMessage('请假类型更新成功，相关学生余额已自动调整');
+        // 若额度变更，调用后端同步余额（仅当前学年）
+        if (opts?.changedAllowance) {
+          try {
+            const res = await leaveTypeApi.syncBalances(updated.id, true);
+            setSnackbarMessage(`请假类型更新成功，已同步当前学年余额：${res.updated} 条`);
+          } catch (syncErr) {
+            console.error('余额同步失败：', syncErr);
+            setSnackbarMessage('请假类型更新成功，但余额同步失败，请稍后在后台重试同步');
+            setSnackbarSeverity('error');
+            setSnackbarOpen(true);
+          }
+        } else {
+          setSnackbarMessage('请假类型更新成功');
+        }
       } else {
         // 添加新类型
         const newLeaveType = {

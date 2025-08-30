@@ -153,7 +153,11 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`employee-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+      {value === index && (
+        <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+          {children}
+        </Box>
+      )}
     </div>
   );
 }
@@ -266,9 +270,9 @@ export default function EmployeesPage() {
     const pendingLeaves = row.recentLeaves.filter(leave => leave.status === '待审批' || leave.status === 'pending').length;
 
     return (
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
         <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-          <CardContent sx={{ textAlign: 'center' }}>
+          <CardContent sx={{ textAlign: 'center', p: 4 }}>
             <CalendarIcon sx={{ fontSize: 40, color: '#1976d2', mb: 1 }} />
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               {totalLeaves}
@@ -280,7 +284,7 @@ export default function EmployeesPage() {
         </Card>
         
         <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-          <CardContent sx={{ textAlign: 'center' }}>
+          <CardContent sx={{ textAlign: 'center', p: 4 }}>
             <TrendingUpIcon sx={{ fontSize: 40, color: '#388e3c', mb: 1 }} />
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               {approvedLeaves}
@@ -292,7 +296,7 @@ export default function EmployeesPage() {
         </Card>
         
         <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-          <CardContent sx={{ textAlign: 'center' }}>
+          <CardContent sx={{ textAlign: 'center', p: 4 }}>
             <WorkIcon sx={{ fontSize: 40, color: '#f57c00', mb: 1 }} />
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               {pendingLeaves}
@@ -327,7 +331,7 @@ export default function EmployeesPage() {
           
           return (
             <Card key={type.key} sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-              <CardContent>
+              <CardContent sx={{ p: 4 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>
                     {type.label}
@@ -376,7 +380,7 @@ export default function EmployeesPage() {
 
   const renderLeaveHistory = (row: StudentRow) => {
     return (
-      <TableContainer>
+      <TableContainer sx={{ maxHeight: '100%', overflow: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -566,12 +570,12 @@ export default function EmployeesPage() {
               </Box>
             </Box>
           </DialogTitle>
-          <DialogContent>
+          <DialogContent sx={{ p: 2 }}>
             {selectedRow && (
-              <Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: { xs: '75vh', md: '65vh' } }}>
                 {/* 基本信息 */}
-                <Card sx={{ mb: 3, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-                  <CardContent>
+                <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+                  <CardContent sx={{ p: 2 }}>
                     <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
                       基本信息
                     </Typography>
@@ -599,7 +603,7 @@ export default function EmployeesPage() {
                 </Card>
 
                 {/* 选项卡 */}
-                <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                   <Tabs value={tabValue} onChange={handleTabChange}>
                     <Tab label="统计概览" />
                     <Tab label="假期余额" />
@@ -607,18 +611,23 @@ export default function EmployeesPage() {
                   </Tabs>
                 </Box>
 
-                <TabPanel value={tabValue} index={0}>
-                  {renderEmployeeStats(selectedRow)}
-                </TabPanel>
-                <TabPanel value={tabValue} index={1}>
-                  {loadingBalances[selectedRow.studentId] && (
-                    <Box sx={{ mb: 2 }}><LinearProgress /></Box>
-                  )}
-                  {renderLeaveBalance(selectedRow)}
-                </TabPanel>
-                <TabPanel value={tabValue} index={2}>
-                  {renderLeaveHistory(selectedRow)}
-                </TabPanel>
+                {/* 固定高度的内容区域，切换 Tab 不改变整体高度 */}
+                <Box sx={{ flex: 1, minHeight: 0 }}>
+                  <Box sx={{ height: '100%' }}>
+                    <TabPanel value={tabValue} index={0}>
+                      {renderEmployeeStats(selectedRow)}
+                    </TabPanel>
+                    <TabPanel value={tabValue} index={1}>
+                      {loadingBalances[selectedRow.studentId] && (
+                        <Box sx={{ mb: 2 }}><LinearProgress /></Box>
+                      )}
+                      {renderLeaveBalance(selectedRow)}
+                    </TabPanel>
+                    <TabPanel value={tabValue} index={2}>
+                      {renderLeaveHistory(selectedRow)}
+                    </TabPanel>
+                  </Box>
+                </Box>
               </Box>
             )}
           </DialogContent>
