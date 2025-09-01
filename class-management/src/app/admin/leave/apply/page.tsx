@@ -71,16 +71,6 @@ interface LeaveApplication {
 // 模拟请假类型数据
 const mockLeaveTypes: LeaveType[] = [
   {
-    id: "annual",
-    name: "年假",
-    maxDays: 30,
-    requiresApproval: true,
-    allowancePerYear: 15,
-    remaining: 12,
-    color: "#1976d2",
-    description: "每年享有的带薪年假，需提前申请"
-  },
-  {
     id: "sick",
     name: "病假",
     maxDays: 90,
@@ -99,16 +89,6 @@ const mockLeaveTypes: LeaveType[] = [
     remaining: 3,
     color: "#f57c00",
     description: "因个人事务需要请假"
-  },
-  {
-    id: "maternity",
-    name: "产假",
-    maxDays: 128,
-    requiresApproval: true,
-    allowancePerYear: 128,
-    remaining: 128,
-    color: "#e91e63",
-    description: "女性员工生育期间的带薪假期"
   },
   {
     id: "emergency",

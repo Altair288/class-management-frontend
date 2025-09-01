@@ -75,14 +75,14 @@ const menu = [
       {
         text: "管理待定（占位）",
         icon: <ScoreIcon />,
-        href: "/admin/grades",
-        key: "grades",
+        href: "/admin/grades2",
+        key: "grades2",
       },
       {
         text: "管理待定（占位）",
         icon: <NotificationsIcon />,
-        href: "/admin/notice",
-        key: "notice",
+        href: "/admin/notice2",
+        key: "notice2",
       },
     ],
   },
