@@ -8,6 +8,7 @@ import {
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import theme from "@/themes/theme";
+import Image from "next/image";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import MenuItem from "@mui/material/MenuItem";
@@ -85,7 +86,10 @@ export default function AuthPage() {
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
       setMessage("登录成功！");
-      router.push("/admin/dashboard");
+      // 登录成功后优先回跳来源
+      const params = new URLSearchParams(window.location.search);
+      const from = params.get('from');
+      router.push(from || "/admin/dashboard");
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const msg = err.response?.data?.message || err.response?.data || "登录失败";
@@ -229,7 +233,7 @@ export default function AuthPage() {
           {/* <FluidBackground /> */}
           <Box width={400}>
             <Box display="flex" alignItems="center" justifyContent="center" mb={4} onClick={handleLogoClick} sx={{ cursor: "pointer" }}>
-              <img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="logo" width={40} />
+              <Image src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="logo" width={40} height={40} unoptimized />
               <Typography variant="h4" fontWeight={700} color="primary" ml={1}>ClassAble</Typography>
             </Box>
             <Card sx={{ borderRadius: 3, boxShadow: 6 }}>
@@ -704,7 +708,7 @@ export default function AuthPage() {
               justifyContent: "center",
             }}
           >
-            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="logo" width={60} />
+            <Image src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="logo" width={60} height={60} unoptimized />
             <Typography variant="h4" color="primary" fontWeight={700} mt={2}>
               ClassAble
             </Typography>

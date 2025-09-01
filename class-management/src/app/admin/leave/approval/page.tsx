@@ -276,7 +276,7 @@ export default function ApprovalPage() {
                 </Select>
               </FormControl>
 
-              <FormControl size="small" sx={{ minWidth: 100 }}>
+              {/* <FormControl size="small" sx={{ minWidth: 100 }}>
                 <InputLabel>紧急程度</InputLabel>
                 <Select
                   value={filterUrgency}
@@ -288,7 +288,7 @@ export default function ApprovalPage() {
                   <MenuItem value="medium">中等</MenuItem>
                   <MenuItem value="low">普通</MenuItem>
                 </Select>
-              </FormControl>
+              </FormControl> */}
             </Box>
 
             {/* 批量操作按钮 */}
@@ -440,19 +440,19 @@ export default function ApprovalPage() {
               <Box sx={{ pt: 2 }}>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, mb: 3 }}>
                   <TextField
-                    label="员工姓名"
+                    label="学生姓名"
                     value={selectedRequest.employeeName}
                     disabled
                     fullWidth
                   />
                   <TextField
-                    label="员工工号"
+                    label="学生学号"
                     value={selectedRequest.employeeId}
                     disabled
                     fullWidth
                   />
                   <TextField
-                    label="所属部门"
+                    label="所属班级"
                     value={selectedRequest.department}
                     disabled
                     fullWidth
