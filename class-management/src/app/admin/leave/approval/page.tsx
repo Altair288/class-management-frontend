@@ -98,11 +98,6 @@ const mockRequests: LeaveRequest[] = [
   },
 ];
 
-const urgencyConfig = {
-  low: { label: '普通', color: '#388e3c', bgColor: '#e8f5e8' },
-  medium: { label: '中等', color: '#f57c00', bgColor: '#fff3e0' },
-  high: { label: '紧急', color: '#d32f2f', bgColor: '#ffebee' },
-};
 
 const typeColors: { [key: string]: string } = {
   '年假': '#1976d2',
@@ -182,22 +177,6 @@ export default function ApprovalPage() {
     setApprovalDialog(false);
     setApprovalRemark('');
     setSelectedRequest(null);
-  };
-
-  const getUrgencyChip = (urgency: string) => {
-    const config = urgencyConfig[urgency as keyof typeof urgencyConfig];
-    return (
-      <Chip
-        label={config.label}
-        size="small"
-        sx={{
-          backgroundColor: config.color,
-          color: 'white',
-          fontWeight: 600,
-          fontSize: '0.75rem',
-        }}
-      />
-    );
   };
 
   const getTypeChip = (type: string) => {
@@ -354,11 +333,10 @@ export default function ApprovalPage() {
                       onChange={(e) => handleSelectAll(e.target.checked)}
                     />
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>员工信息</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>学生信息</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>请假类型</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>请假时间</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>天数</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>紧急程度</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>提交时间</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>操作</TableCell>
                 </TableRow>
@@ -403,9 +381,6 @@ export default function ApprovalPage() {
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {request.days} 天
                       </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {getUrgencyChip(request.urgency)}
                     </TableCell>
                     <TableCell>
                       <Typography variant="caption" sx={{ color: '#6c757d' }}>

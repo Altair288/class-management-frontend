@@ -1,24 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  LinearProgress,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-} from "@mui/material";
+import { Box, Card, CardContent, Typography, LinearProgress } from "@mui/material";
 import {
   TrendingUp as TrendingUpIcon,
   Schedule as ScheduleIcon,
@@ -27,116 +10,111 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 
-// 模拟数据类型
+// API 基础地址（与 calendar/config 一致，走 Next.js 代理）
+const API_BASE_URL = "/api";
+
+// 仪表盘统计类型
 interface LeaveStats {
   totalRequests: number;
   pendingRequests: number;
   approvedRequests: number;
   rejectedRequests: number;
   avgApprovalTime: number;
-  employeeCount: number;
 }
 
+// 类型分布项
 interface LeaveTypeStats {
-  type: string;
+  type: string; // 展示名称（typeName）
   count: number;
   percentage: number;
-  color: string;
+  color: string; // 根据 typeCode 映射
 }
 
-interface RecentLeave {
-  id: number;
-  employeeName: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  status: 'pending' | 'approved' | 'rejected';
-  submittedAt: string;
+// 后端返回的数据结构
+interface LeaveStatisticsResponse {
+  approvalDuration: {
+    avgHours: number;
+    minHours: number;
+    maxHours: number;
+    count: number;
+  };
+  total: number;
+  approved: number;
+  rejected: number;
+  pending: number;
+  typeCounts: Array<{
+    typeName: string;
+    count: number;
+    typeCode: string;
+  }>;
 }
 
-// 模拟数据
-const mockStats: LeaveStats = {
-  totalRequests: 156,
-  pendingRequests: 12,
-  approvedRequests: 128,
-  rejectedRequests: 16,
-  avgApprovalTime: 2.3,
-  employeeCount: 85,
-};
-
-const mockLeaveTypes: LeaveTypeStats[] = [
-  { type: "年假", count: 65, percentage: 41.7, color: "#1976d2" },
-  { type: "病假", count: 28, percentage: 17.9, color: "#f57c00" },
-  { type: "事假", count: 32, percentage: 20.5, color: "#388e3c" },
-  { type: "调休", count: 21, percentage: 13.5, color: "#7b1fa2" },
-  { type: "其他", count: 10, percentage: 6.4, color: "#d32f2f" },
-];
-
-const mockRecentLeaves: RecentLeave[] = [
-  {
-    id: 1,
-    employeeName: "张三",
-    type: "年假",
-    startDate: "2024-01-15",
-    endDate: "2024-01-17",
-    status: "pending",
-    submittedAt: "2024-01-10 14:30",
-  },
-  {
-    id: 2,
-    employeeName: "李四",
-    type: "病假",
-    startDate: "2024-01-12",
-    endDate: "2024-01-12",
-    status: "approved",
-    submittedAt: "2024-01-11 09:15",
-  },
-  {
-    id: 3,
-    employeeName: "王五",
-    type: "事假",
-    startDate: "2024-01-18",
-    endDate: "2024-01-19",
-    status: "rejected",
-    submittedAt: "2024-01-08 16:45",
-  },
-];
-
-const statusConfig = {
-  pending: { label: '待审批', color: '#f57c00', bgColor: '#fff3e0' },
-  approved: { label: '已批准', color: '#388e3c', bgColor: '#e8f5e8' },
-  rejected: { label: '已拒绝', color: '#d32f2f', bgColor: '#ffebee' },
+// 类型颜色映射（与日历页面保持一致的风格）
+const typeColor = (code: string) => {
+  const colors: Record<string, { primary: string; bg: string }> = {
+    annual: { primary: "#007AFF", bg: "#E6F3FF" },
+    sick: { primary: "#34C759", bg: "#E6F7EA" },
+    personal: { primary: "#FF9500", bg: "#FFF2E6" },
+    emergency: { primary: "#FF3B30", bg: "#FFE6E6" },
+    default: { primary: "#8E8E93", bg: "#F2F2F7" },
+  };
+  return (colors[code] || colors.default).primary;
 };
 
 export default function LeaveDashboard() {
-  const [stats, setStats] = useState<LeaveStats>(mockStats);
-  const [leaveTypes, setLeaveTypes] = useState<LeaveTypeStats[]>(mockLeaveTypes);
-  const [recentLeaves, setRecentLeaves] = useState<RecentLeave[]>(mockRecentLeaves);
-  const [timeRange, setTimeRange] = useState('month');
+  const [stats, setStats] = useState<LeaveStats>({
+    totalRequests: 0,
+    pendingRequests: 0,
+    approvedRequests: 0,
+    rejectedRequests: 0,
+    avgApprovalTime: 0,
+  });
+  const [leaveTypes, setLeaveTypes] = useState<LeaveTypeStats[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // 模拟数据加载
+
+  // 拉取统计数据
   useEffect(() => {
-    // 这里可以调用后端接口获取数据
-    setStats(mockStats);
-    setLeaveTypes(mockLeaveTypes);
-    setRecentLeaves(mockRecentLeaves);
-  }, [timeRange]);
+    const controller = new AbortController();
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_BASE_URL}/leave/statistics`, { signal: controller.signal });
+        if (!res.ok) throw new Error(`加载统计失败：${res.status}`);
+        const data: LeaveStatisticsResponse = await res.json();
 
-  const getStatusChip = (status: string) => {
-    const config = statusConfig[status as keyof typeof statusConfig];
-    return (
-      <Chip
-        label={config.label}
-        size="small"
-        sx={{
-          backgroundColor: config.color,
-          color: 'white',
-          fontWeight: 600,
-          fontSize: '0.75rem',
-        }}
-      />
-    );
-  };
+        const total = data.total || 0;
+        setStats({
+          totalRequests: total,
+          pendingRequests: data.pending || 0,
+          approvedRequests: data.approved || 0,
+          rejectedRequests: data.rejected || 0,
+          avgApprovalTime: data.approvalDuration?.avgHours ?? 0,
+        });
+
+        const mapped: LeaveTypeStats[] = (data.typeCounts || []).map((t) => ({
+          type: t.typeName,
+          count: t.count,
+          percentage: total > 0 ? Number(((t.count / total) * 100).toFixed(1)) : 0,
+          color: typeColor(t.typeCode),
+        }));
+        setLeaveTypes(mapped);
+      } catch (e) {
+        console.error(e);
+        setStats({
+          totalRequests: 0,
+          pendingRequests: 0,
+          approvedRequests: 0,
+          rejectedRequests: 0,
+          avgApprovalTime: 0,
+        });
+        setLeaveTypes([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, []);
 
   return (
     <motion.div
@@ -155,19 +133,6 @@ export default function LeaveDashboard() {
               查看请假统计数据、趋势分析和关键指标
             </Typography>
           </Box>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>时间范围</InputLabel>
-            <Select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              label="时间范围"
-            >
-              <MenuItem value="week">本周</MenuItem>
-              <MenuItem value="month">本月</MenuItem>
-              <MenuItem value="quarter">本季度</MenuItem>
-              <MenuItem value="year">本年</MenuItem>
-            </Select>
-          </FormControl>
         </Box>
 
         {/* 关键指标卡片 */}
@@ -286,7 +251,7 @@ export default function LeaveDashboard() {
         </Box>
 
         {/* 主要内容区域 */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 3 }}>
           {/* 请假类型分布 */}
           <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none', height: '100%' }}>
             <CardContent sx={{ p: 3 }}>
@@ -324,52 +289,12 @@ export default function LeaveDashboard() {
                     />
                   </Box>
                 ))}
+                {leaveTypes.length === 0 && (
+                  <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                    {loading ? '加载中…' : '暂无数据'}
+                  </Typography>
+                )}
               </Box>
-            </CardContent>
-          </Card>
-
-          {/* 最近请假申请 */}
-          <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none', height: '100%' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: '#212529', mb: 3 }}>
-                最近请假申请
-              </Typography>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 600, color: '#212529' }}>姓名</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#212529' }}>类型</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#212529' }}>日期</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#212529' }}>状态</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {recentLeaves.map((leave) => (
-                      <TableRow key={leave.id} hover>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {leave.employeeName}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                            {leave.type}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ color: '#6c757d', fontSize: '0.75rem' }}>
-                            {leave.startDate}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          {getStatusChip(leave.status)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
             </CardContent>
           </Card>
         </Box>

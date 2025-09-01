@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Card,
@@ -24,6 +24,9 @@ import {
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+// 与其他页面保持一致，通过 Next.js 代理调用后端
+const API_BASE_URL = "/api";
+
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -46,13 +49,24 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-// 模拟统计数据
-const statsData = [
-  { label: "总请假数", value: 156, unit: "次", color: "#1976d2", bgColor: "#e3f2fd", icon: <ScheduleIcon /> },
-  { label: "待审批", value: 12, unit: "次", color: "#f57c00", bgColor: "#fff3e0", icon: <WarningIcon /> },
-  { label: "已批准", value: 128, unit: "次", color: "#388e3c", bgColor: "#e8f5e8", icon: <CheckCircleIcon /> },
-  { label: "审批时长", value: 2.3, unit: "小时", color: "#7b1fa2", bgColor: "#f3e5f5", icon: <AssignmentIcon /> },
-];
+// 后端返回结构
+interface LeaveStatisticsResponse {
+  approvalDuration: {
+    avgHours: number;
+    minHours: number;
+    maxHours: number;
+    count: number;
+  };
+  total: number;
+  approved: number;
+  rejected: number;
+  pending: number;
+  typeCounts: Array<{
+    typeName: string;
+    count: number;
+    typeCode: string;
+  }>;
+}
 
 const quickActions = [
   {
@@ -107,10 +121,45 @@ const quickActions = [
 
 export default function LeavePage() {
   const [tabValue, setTabValue] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [pending, setPending] = useState(0);
+  const [approved, setApproved] = useState(0);
+  const [avgHours, setAvgHours] = useState(0);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
+
+  // 拉取头部统计
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/leave/statistics`, { signal: controller.signal });
+        if (!res.ok) throw new Error(`加载统计失败：${res.status}`);
+        const data: LeaveStatisticsResponse = await res.json();
+        setTotal(data.total || 0);
+        setPending(data.pending || 0);
+        setApproved(data.approved || 0);
+        setAvgHours(data.approvalDuration?.avgHours ?? 0);
+      } catch (e) {
+        console.error(e);
+        setTotal(0);
+        setPending(0);
+        setApproved(0);
+        setAvgHours(0);
+      } finally {
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
+  const cards = [
+    { label: "总请假数", value: total, unit: "次", color: "#1976d2", bgColor: "#e3f2fd", icon: <ScheduleIcon /> },
+    { label: "待审批", value: pending, unit: "次", color: "#f57c00", bgColor: "#fff3e0", icon: <WarningIcon /> },
+    { label: "已批准", value: approved, unit: "次", color: "#388e3c", bgColor: "#e8f5e8", icon: <CheckCircleIcon /> },
+    { label: "审批时长", value: Number(avgHours.toFixed(1)), unit: "小时", color: "#7b1fa2", bgColor: "#f3e5f5", icon: <AssignmentIcon /> },
+  ];
 
   return (
     <motion.div
@@ -131,7 +180,7 @@ export default function LeavePage() {
 
         {/* 关键指标统计 */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 2, mb: 4 }}>
-          {statsData.map((stat, index) => (
+          {cards.map((stat, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
