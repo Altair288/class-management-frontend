@@ -17,6 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         sx={{
           transition: "margin-left 0.2s",
           ml: { xs: 0, md: sidebarOpen ? "240px" : 0 },
+          pt: 1, // 减少顶部padding，因为Topbar已经提供了足够的间距
           p: { xs: 2, md: 4 },
         }}
       >

@@ -137,7 +137,6 @@ function findSelectedKeys(
 
 export default function Sidebar({ open }: { open: boolean }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
 
   // 选中项和父级项
@@ -160,91 +159,39 @@ export default function Sidebar({ open }: { open: boolean }) {
   return (
     <Box
       sx={{
-        width: collapsed ? 64 : 240,
+        width: 240,
         bgcolor: "#fff",
-        height: "100vh",
+        height: "calc(100vh - 64px)", // 减去Topbar的高度
         borderRight: "1px solid #e0e0e0",
         position: "fixed",
         left: 0,
-        top: 0,
+        top: 64, // 调整为与Topbar高度对齐，避免叠加
         transition: "width 0.4s cubic-bezier(0.77, 0, 0.175, 1)",
         zIndex: 1100,
         display: "flex",
         flexDirection: "column",
-        boxShadow: collapsed ? 1 : 3,
+        boxShadow: 3,
       }}
     >
-      {/* Logo & Collapse Button */}
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, pt: 3, pb: 2 }}>
-        <Box
-          sx={{
-            width: 32,
-            height: 32,
-            backgroundColor: "#007bff",
-            borderRadius: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Typography sx={{ color: "white", fontSize: "0.875rem", fontWeight: 700 }}>
-            CM
-          </Typography>
-        </Box>
-        {!collapsed && (
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-              color: "#212529",
-              ml: 1,
-              letterSpacing: 0.5,
-              flex: 1,
-            }}
-          >
-            班级管理系统
-          </Typography>
-        )}
-        <Box
-          component="button"
-          aria-label="toggle sidebar"
-          onClick={() => setCollapsed((v) => !v)}
-          sx={{
-            ml: "auto",
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            p: 1,
-            borderRadius: "50%",
-            "&:hover": { bgcolor: "#f5f7fa" },
-          }}
-        >
-          <svg width="20" height="20" fill="none">
-            <rect width="20" height="20" rx="6" fill="#f5f7fa" />
-            <rect x="6" y="9" width="8" height="2" rx="1" fill="#888" />
-            <rect x="9" y="6" width="2" height="8" rx="1" fill="#888" />
-          </svg>
-        </Box>
-      </Box>
-      <Box sx={{ flex: 1, overflowY: "auto", mt: 1 }}>
+
+      <Box sx={{ flex: 1, overflowY: "auto", pt: 1 }}>
         {menu.map((section) => (
-          <Box key={section.section} sx={{ mb: 1 }}>
-            {!collapsed && (
-              <Typography
-                variant="caption"
-                sx={{
-                  color: "#888",
-                  px: 2,
-                  mt: 2,
-                  mb: 0.5,
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                  textTransform: "none",
-                }}
-              >
-                {section.section}
-              </Typography>
-            )}
+          <Box key={section.section} sx={{ mb: 2 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#666",
+                px: 2,
+                mb: 1,
+                fontWeight: 600,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                fontSize: "0.75rem",
+                display: "block",
+              }}
+            >
+              {section.section}
+            </Typography>
             <List disablePadding>
               {section.items.map((item) => {
                 const hasChildren = !!item.children;
@@ -259,14 +206,17 @@ export default function Sidebar({ open }: { open: boolean }) {
                           selected={selectedKey === item.key}
                           sx={{
                             mx: 1,
-                            my: 0.5,
-                            borderRadius: 2,
-                            minHeight: 44,
+                            my: 0.25,
+                            borderRadius: 1.5,
+                            minHeight: 40,
                             ...(selectedKey === item.key && {
                               bgcolor: "primary.50",
                               color: "primary.main",
-                              boxShadow: "0 0 0 2px #e3e8ff",
+                              boxShadow: "0 2px 4px rgba(0,123,255,0.1)",
                             }),
+                            "&:hover": {
+                              bgcolor: selectedKey === item.key ? "primary.50" : "#f8f9fa",
+                            },
                           }}
                         >
                           <ListItemIcon
@@ -278,14 +228,12 @@ export default function Sidebar({ open }: { open: boolean }) {
                           >
                             {item.icon}
                           </ListItemIcon>
-                          {!collapsed && (
-                            <ListItemText
-                              primary={item.text}
-                              primaryTypographyProps={{
-                                fontWeight: selectedKey === item.key ? 700 : 500,
-                              }}
-                            />
-                          )}
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{
+                              fontWeight: selectedKey === item.key ? 700 : 500,
+                            }}
+                          />
                         </ListItemButton>
                       </Link>
                     ) : (
@@ -298,14 +246,17 @@ export default function Sidebar({ open }: { open: boolean }) {
                         selected={isSelected}
                         sx={{
                           mx: 1,
-                          my: 0.5,
-                          borderRadius: 2,
-                          minHeight: 44,
+                          my: 0.25,
+                          borderRadius: 1.5,
+                          minHeight: 40,
                           ...(isSelected && {
                             bgcolor: "primary.50",
                             color: "primary.main",
-                            boxShadow: "0 0 0 2px #e3e8ff",
+                            boxShadow: "0 2px 4px rgba(0,123,255,0.1)",
                           }),
+                          "&:hover": {
+                            bgcolor: isSelected ? "primary.50" : "#f8f9fa",
+                          },
                         }}
                       >
                         <ListItemIcon
@@ -317,38 +268,36 @@ export default function Sidebar({ open }: { open: boolean }) {
                         >
                           {item.icon}
                         </ListItemIcon>
-                        {!collapsed && (
-                          <ListItemText
-                            primary={item.text}
-                            primaryTypographyProps={{
-                              fontWeight: isSelected ? 700 : 500,
-                            }}
-                          />
-                        )}
-                        {hasChildren &&
-                          (!collapsed ? (
-                            isOpen ? <ExpandLess /> : <ExpandMore />
-                          ) : null)}
+                        <ListItemText
+                          primary={item.text}
+                          primaryTypographyProps={{
+                            fontWeight: isSelected ? 700 : 500,
+                          }}
+                        />
+                        {hasChildren && (isOpen ? <ExpandLess /> : <ExpandMore />)}
                       </ListItemButton>
                     )}
                     {/* 子菜单 */}
                     {hasChildren && (
-                      <Collapse in={isOpen && !collapsed} timeout="auto" unmountOnExit>
-                        <List disablePadding sx={{ pl: 4 }}>
+                      <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                        <List disablePadding sx={{ pl: 3, py: 0.5 }}>
                           {item.children!.map((child) => (
                             <Link href={child.href} passHref legacyBehavior key={child.key}>
                               <ListItemButton
                                 selected={selectedKey === child.key}
                                 sx={{
                                   mx: 1,
-                                  my: 0.5,
-                                  borderRadius: 2,
+                                  my: 0.25,
+                                  borderRadius: 1.5,
                                   minHeight: 36,
                                   ...(selectedKey === child.key && {
                                     bgcolor: "primary.50",
                                     color: "primary.main",
-                                    boxShadow: "0 0 0 2px #e3e8ff",
+                                    boxShadow: "0 2px 4px rgba(0,123,255,0.1)",
                                   }),
+                                  "&:hover": {
+                                    bgcolor: selectedKey === child.key ? "primary.50" : "#f8f9fa",
+                                  },
                                 }}
                               >
                                 <ListItemText
