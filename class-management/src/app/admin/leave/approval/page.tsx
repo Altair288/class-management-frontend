@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Card,
@@ -37,67 +37,37 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 
-interface LeaveRequest {
+// 与其他页面一致，走 Next.js 代理
+const API_BASE_URL = "/api";
+
+// 后端返回的请假单映射到前端 UI 的结构
+type UILeaveRequest = {
   id: number;
-  employeeId: string;
-  employeeName: string;
-  department: string;
-  type: string;
-  startDate: string;
-  endDate: string;
+  studentNo: string;
+  studentName: string;
+  className: string;
+  typeName: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
   days: number;
   reason: string;
-  status: 'pending' | 'approved' | 'rejected';
-  submittedAt: string;
-  urgency: 'low' | 'medium' | 'high';
-}
+  status: string; // 后端：待审批 / 已批准 / 已拒绝 / 已撤销
+  createdAt?: string;
+};
 
-// 模拟数据
-const mockRequests: LeaveRequest[] = [
-  {
-    id: 1,
-    employeeId: "EMP001",
-    employeeName: "张三",
-    department: "技术部",
-    type: "年假",
-    startDate: "2024-02-15",
-    endDate: "2024-02-17",
-    days: 3,
-    reason: "春节假期延长，家庭团聚",
-    status: "pending",
-    submittedAt: "2024-01-10 14:30",
-    urgency: "medium",
-  },
-  {
-    id: 2,
-    employeeId: "EMP002",
-    employeeName: "李四",
-    department: "销售部",
-    type: "病假",
-    startDate: "2024-01-15",
-    endDate: "2024-01-15",
-    days: 1,
-    reason: "感冒发烧，需要休息治疗",
-    status: "pending",
-    submittedAt: "2024-01-14 09:15",
-    urgency: "high",
-  },
-  {
-    id: 3,
-    employeeId: "EMP003",
-    employeeName: "王五",
-    department: "人事部",
-    type: "事假",
-    startDate: "2024-02-20",
-    endDate: "2024-02-21",
-    days: 2,
-    reason: "处理个人重要事务",
-    status: "pending",
-    submittedAt: "2024-01-08 16:45",
-    urgency: "low",
-  },
-];
-
+// 后端 LeaveRequest 响应的最小形状（我们只取用到的字段）
+type BackendLeaveRequest = {
+  id: number;
+  studentId?: number;
+  student?: { name?: string; studentNo?: string; clazz?: { name?: string } };
+  leaveTypeConfig?: { typeName?: string };
+  startDate?: string | number | Date;
+  endDate?: string | number | Date;
+  days?: number | string;
+  reason?: string;
+  status?: string;
+  createdAt?: string | number | Date;
+};
 
 const typeColors: { [key: string]: string } = {
   '年假': '#1976d2',
@@ -108,28 +78,113 @@ const typeColors: { [key: string]: string } = {
 };
 
 export default function ApprovalPage() {
-  const [requests, setRequests] = useState<LeaveRequest[]>(mockRequests);
+  const [requests, setRequests] = useState<UILeaveRequest[]>([]);
   const [selectedRequests, setSelectedRequests] = useState<number[]>([]);
   const [filterType, setFilterType] = useState('');
-  const [filterUrgency, setFilterUrgency] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 角色与班级筛选
+  const [userType, setUserType] = useState<string>(''); // 管理员/教师/学生
+  // const [teacherId, setTeacherId] = useState<number | null>(null); // 暂不直接使用
+  const isAdmin = userType === '管理员';
+  // const isTeacher = userType === '教师';
+
+  const [classes, setClasses] = useState<Array<{ id: number; name: string; grade?: string }>>([]);
+  const [filterClassId, setFilterClassId] = useState<number | ''>('');
   const [detailDialog, setDetailDialog] = useState(false);
   const [approvalDialog, setApprovalDialog] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<UILeaveRequest | null>(null);
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
   const [approvalRemark, setApprovalRemark] = useState('');
 
-  // 过滤后的请求
-  const filteredRequests = requests.filter(request => {
-    const matchType = !filterType || request.type === filterType;
-    const matchUrgency = !filterUrgency || request.urgency === filterUrgency;
-    const matchSearch = !searchTerm || 
-      request.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.department.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchType && matchUrgency && matchSearch && request.status === 'pending';
-  });
+  // 加载当前用户角色 + 基础数据
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // 当前用户信息（含 userType、teacherId）
+        const ures = await fetch(`${API_BASE_URL}/leave/current-user-info`, {
+          signal: controller.signal,
+          credentials: 'include',
+        });
+        if (!ures.ok) throw new Error(`获取当前用户失败 ${ures.status}`);
+        const uinfo: { userType: string; teacherId?: number } = await ures.json();
+        setUserType(uinfo.userType);
+        // if (uinfo.teacherId) setTeacherId(uinfo.teacherId);
+
+        // 管理员：加载班级用于筛选
+        if (uinfo.userType === '管理员') {
+          const cres = await fetch(`${API_BASE_URL}/users/classes`, { credentials: 'include', signal: controller.signal });
+          if (cres.ok) {
+            const clist: Array<{ id: number; name: string; grade?: string }> = await cres.json();
+            setClasses(clist);
+          }
+        }
+
+        // 加载请假列表
+        let listRes: Response;
+        if (uinfo.userType === '管理员') {
+          listRes = await fetch(`${API_BASE_URL}/leave/all`, { credentials: 'include', signal: controller.signal });
+        } else if (uinfo.userType === '教师' && uinfo.teacherId) {
+          listRes = await fetch(`${API_BASE_URL}/leave/teacher/${uinfo.teacherId}`, { credentials: 'include', signal: controller.signal });
+        } else {
+          // 其他角色暂不显示
+          setRequests([]);
+          setLoading(false);
+          return;
+        }
+        if (!listRes.ok) throw new Error(`获取请假列表失败 ${listRes.status}`);
+        const rawList: BackendLeaveRequest[] = await listRes.json();
+
+        // 映射为 UI 结构
+        const mapDate = (v: string | number | Date | undefined) => {
+          if (!v) return '';
+          const d = new Date(v);
+          if (Number.isNaN(d.getTime())) return '';
+          return d.toISOString().slice(0, 10);
+        };
+        const mapped: UILeaveRequest[] = rawList.map((r) => ({
+          id: r.id,
+          studentNo: r.student?.studentNo || String(r.studentId || ''),
+          studentName: r.student?.name || '-',
+          className: r.student?.clazz?.name || '-',
+          typeName: r.leaveTypeConfig?.typeName || '-',
+          startDate: mapDate(r.startDate),
+          endDate: mapDate(r.endDate),
+          days: typeof r.days === 'number' ? r.days : Number(r.days || 0),
+          reason: r.reason || '',
+          status: r.status || '-',
+          createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : undefined,
+        }));
+        setRequests(mapped);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(e);
+        setError(msg || '加载失败');
+      } finally {
+        setLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
+  // 过滤后的请求（仅显示待审批）
+  const filteredRequests = useMemo(() => {
+    return requests.filter((request) => {
+      const matchType = !filterType || request.typeName === filterType;
+      const matchSearch = !searchTerm ||
+        request.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.studentNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        request.className.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchClass = !isAdmin || !filterClassId || !!(request.className && classes.find(c => c.id === filterClassId && request.className === c.name));
+      return matchType && matchSearch && matchClass && request.status === '待审批';
+    });
+  }, [requests, filterType, searchTerm, filterClassId, isAdmin, classes]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -147,12 +202,12 @@ export default function ApprovalPage() {
     }
   };
 
-  const handleViewDetail = (request: LeaveRequest) => {
+  const handleViewDetail = (request: UILeaveRequest) => {
     setSelectedRequest(request);
     setDetailDialog(true);
   };
 
-  const handleApproval = (request: LeaveRequest, action: 'approve' | 'reject') => {
+  const handleApproval = (request: UILeaveRequest, action: 'approve' | 'reject') => {
     setSelectedRequest(request);
     setApprovalAction(action);
     setApprovalDialog(true);
@@ -160,23 +215,38 @@ export default function ApprovalPage() {
 
   const handleBatchApproval = (action: 'approve' | 'reject') => {
     if (selectedRequests.length === 0) return;
-    // 这里可以实现批量审批逻辑
-    console.log(`批量${action === 'approve' ? '批准' : '拒绝'}:`, selectedRequests);
+    // 批量审批
+    const doReq = async () => {
+      await Promise.all(
+        selectedRequests.map(id => fetch(`${API_BASE_URL}/leave/${id}/approve?approved=${action === 'approve' ? 'true' : 'false'}`, {
+          method: 'PUT',
+          credentials: 'include',
+        }))
+      );
+      // 本地更新状态
+      setRequests(prev => prev.map(r => selectedRequests.includes(r.id) ? { ...r, status: action === 'approve' ? '已批准' : '已拒绝' } : r));
+      setSelectedRequests([]);
+    };
+    void doReq();
   };
 
-  const submitApproval = () => {
+  const submitApproval = async () => {
     if (!selectedRequest) return;
-    
-    // 更新请求状态
-    setRequests(requests.map(req => 
-      req.id === selectedRequest.id 
-        ? { ...req, status: approvalAction === 'approve' ? 'approved' : 'rejected' }
-        : req
-    ));
-    
-    setApprovalDialog(false);
-    setApprovalRemark('');
-    setSelectedRequest(null);
+    try {
+      // 使用兼容端点，避免必须传 approverId
+      const res = await fetch(`${API_BASE_URL}/leave/${selectedRequest.id}/approve?approved=${approvalAction === 'approve' ? 'true' : 'false'}` , {
+        method: 'PUT',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`提交失败 ${res.status}`);
+      setRequests(prev => prev.map(req => req.id === selectedRequest.id ? { ...req, status: approvalAction === 'approve' ? '已批准' : '已拒绝' } : req));
+      setApprovalDialog(false);
+      setApprovalRemark('');
+      setSelectedRequest(null);
+    } catch (e) {
+      console.error(e);
+      alert('审批提交失败，请稍后重试');
+    }
   };
 
   const getTypeChip = (type: string) => {
@@ -211,7 +281,7 @@ export default function ApprovalPage() {
           </Typography>
         </Box>
 
-        {/* 统计信息 */}
+  {/* 统计信息 */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2, mb: 4 }}>
           <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
             <CardContent sx={{ p: 2, textAlign: 'center' }}>
@@ -226,10 +296,10 @@ export default function ApprovalPage() {
           <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
             <CardContent sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="h3" sx={{ color: '#d32f2f', fontWeight: 700, mb: 1 }}>
-                {filteredRequests.filter(r => r.urgency === 'high').length}
+    {requests.length}
               </Typography>
               <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                紧急申请
+    全部申请
               </Typography>
             </CardContent>
           </Card>
@@ -250,7 +320,7 @@ export default function ApprovalPage() {
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 3 }}>
               <TextField
-                placeholder="搜索员工姓名、工号或部门"
+                placeholder="搜索学生姓名、学号或班级"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 size="small"
@@ -259,7 +329,22 @@ export default function ApprovalPage() {
                   startAdornment: <SearchIcon sx={{ color: '#6c757d', mr: 1 }} />,
                 }}
               />
-              
+              {isAdmin && (
+                <FormControl size="small" sx={{ minWidth: 160 }}>
+                  <InputLabel>班级</InputLabel>
+                  <Select
+                    value={filterClassId}
+                    onChange={(e) => setFilterClassId(e.target.value as number | '')}
+                    label="班级"
+                  >
+                    <MenuItem value="">全部</MenuItem>
+                    {classes.map(c => (
+                      <MenuItem key={c.id} value={c.id}>{c.name}{c.grade ? ` · ${c.grade}` : ''}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
               <FormControl size="small" sx={{ minWidth: 120 }}>
                 <InputLabel>请假类型</InputLabel>
                 <Select
@@ -322,6 +407,11 @@ export default function ApprovalPage() {
 
         {/* 请假申请列表 */}
         <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+          {error && (
+            <Box sx={{ p: 2 }}>
+              <Alert severity="error">{error}</Alert>
+            </Box>
+          )}
           <TableContainer>
             <Table>
               <TableHead>
@@ -337,62 +427,60 @@ export default function ApprovalPage() {
                   <TableCell sx={{ fontWeight: 600 }}>请假类型</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>请假时间</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>天数</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>提交时间</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>状态</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>操作</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredRequests.map((request) => (
+                {filteredRequests.map((item) => (
                   <TableRow 
-                    key={request.id} 
+                    key={item.id} 
                     hover
-                    selected={selectedRequests.includes(request.id)}
+                    selected={selectedRequests.includes(item.id)}
                   >
                     <TableCell padding="checkbox">
                       <Checkbox
-                        checked={selectedRequests.includes(request.id)}
-                        onChange={(e) => handleSelectRequest(request.id, e.target.checked)}
+                        checked={selectedRequests.includes(item.id)}
+                        onChange={(e) => handleSelectRequest(item.id, e.target.checked)}
                       />
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: '0.875rem' }}>
-                          {request.employeeName[0]}
+                          {item.studentName?.[0] || '-'}
                         </Avatar>
                         <Box>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {request.employeeName}
+                            {item.studentName}
                           </Typography>
                           <Typography variant="caption" sx={{ color: '#6c757d' }}>
-                            {request.employeeId} · {request.department}
+                            {item.studentNo} · {item.className}
                           </Typography>
                         </Box>
                       </Box>
                     </TableCell>
                     <TableCell>
-                      {getTypeChip(request.type)}
+                      {getTypeChip(item.typeName)}
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {request.startDate} 至 {request.endDate}
+                        {item.startDate} 至 {item.endDate}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {request.days} 天
+                        {item.days} 天
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="caption" sx={{ color: '#6c757d' }}>
-                        {request.submittedAt}
-                      </Typography>
+                      <Chip size="small" label={item.status} />
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Tooltip title="查看详情">
                           <IconButton 
                             size="small" 
-                            onClick={() => handleViewDetail(request)}
+                            onClick={() => handleViewDetail(item)}
                           >
                             <VisibilityIcon fontSize="small" />
                           </IconButton>
@@ -401,7 +489,7 @@ export default function ApprovalPage() {
                           <IconButton 
                             size="small" 
                             color="success"
-                            onClick={() => handleApproval(request, 'approve')}
+                            onClick={() => handleApproval(item, 'approve')}
                           >
                             <CheckIcon fontSize="small" />
                           </IconButton>
@@ -410,7 +498,7 @@ export default function ApprovalPage() {
                           <IconButton 
                             size="small" 
                             color="error"
-                            onClick={() => handleApproval(request, 'reject')}
+                            onClick={() => handleApproval(item, 'reject')}
                           >
                             <CloseIcon fontSize="small" />
                           </IconButton>
@@ -426,7 +514,7 @@ export default function ApprovalPage() {
           {filteredRequests.length === 0 && (
             <Box sx={{ p: 4, textAlign: 'center' }}>
               <Typography variant="body1" sx={{ color: '#6c757d' }}>
-                暂无待审批的请假申请
+                {loading ? '加载中...' : '暂无待审批的请假申请'}
               </Typography>
             </Box>
           )}
@@ -441,25 +529,25 @@ export default function ApprovalPage() {
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, mb: 3 }}>
                   <TextField
                     label="学生姓名"
-                    value={selectedRequest.employeeName}
+                    value={selectedRequest.studentName}
                     disabled
                     fullWidth
                   />
                   <TextField
                     label="学生学号"
-                    value={selectedRequest.employeeId}
+                    value={selectedRequest.studentNo}
                     disabled
                     fullWidth
                   />
                   <TextField
                     label="所属班级"
-                    value={selectedRequest.department}
+                    value={selectedRequest.className}
                     disabled
                     fullWidth
                   />
                   <TextField
                     label="请假类型"
-                    value={selectedRequest.type}
+                    value={selectedRequest.typeName}
                     disabled
                     fullWidth
                   />
@@ -504,7 +592,7 @@ export default function ApprovalPage() {
                   severity={approvalAction === 'approve' ? 'success' : 'warning'} 
                   sx={{ mb: 3 }}
                 >
-                  您即将{approvalAction === 'approve' ? '批准' : '拒绝'} {selectedRequest.employeeName} 的{selectedRequest.type}申请
+                  您即将{approvalAction === 'approve' ? '批准' : '拒绝'} {selectedRequest.studentName} 的{selectedRequest.typeName}申请
                 </Alert>
               )}
               <TextField
