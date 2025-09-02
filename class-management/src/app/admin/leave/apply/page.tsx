@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Card,
@@ -45,15 +45,21 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 
+// 与其他页面一致，走 Next.js 代理
+const API_BASE_URL = "/api";
+
+// 页面内部使用的类型（与后端字段做轻量映射）
 interface LeaveType {
-  id: string;
+  // 前端下拉使用的标识（沿用 typeCode 以避免大范围改动）
+  id: string; // typeCode
   name: string;
-  maxDays: number;
-  requiresApproval: boolean;
-  allowancePerYear: number;
-  remaining: number;
-  color: string;
-  description: string;
+  maxDays?: number; // 对应后端 maxDaysPerRequest
+  requiresApproval?: boolean;
+  allowancePerYear?: number; // 对应后端 annualAllowance
+  color?: string;
+  description?: string;
+  // 后端主键ID（提交时需要用它作为 leaveTypeId）
+  backendId?: number;
 }
 
 interface LeaveApplication {
@@ -68,52 +74,51 @@ interface LeaveApplication {
   attachments?: File[];
 }
 
-// 模拟请假类型数据
-const mockLeaveTypes: LeaveType[] = [
-  {
-    id: "sick",
-    name: "病假",
-    maxDays: 90,
-    requiresApproval: false,
-    allowancePerYear: 10,
-    remaining: 8,
-    color: "#388e3c",
-    description: "因病需要休息，需提供医疗证明"
-  },
-  {
-    id: "personal",
-    name: "事假",
-    maxDays: 10,
-    requiresApproval: true,
-    allowancePerYear: 5,
-    remaining: 3,
-    color: "#f57c00",
-    description: "因个人事务需要请假"
-  },
-  {
-    id: "emergency",
-    name: "紧急事假",
-    maxDays: 3,
-    requiresApproval: true,
-    allowancePerYear: 3,
-    remaining: 2,
-    color: "#f44336",
-    description: "突发紧急情况的临时请假"
-  },
-];
+// 当前登录用户（来自后端）
+interface CurrentUserInfo {
+  userId: number;
+  userType: string; // 学生 等
+  studentId?: number;
+  studentName?: string;
+  teacherId?: number;
+  teacherName?: string;
+  phone?: string;
+  email?: string;
+  classId?: number;
+  className?: string;
+}
 
-// 模拟当前用户信息
-const currentUser = {
-  id: "EMP001",
-  name: "张三",
-  position: "学生",
-  department: "21技术网络1班",
-  manager: "张老师",
-  phone: "13800138000",
-  email: "zhangsan@company.com",
+// 后端类型定义（/api/leave/types）
+interface ApiLeaveType {
+  id?: number;
+  typeName: string;
+  typeCode: string;
+  description?: string;
+  annualAllowance?: number;
+  maxDaysPerRequest?: number;
+  requiresApproval?: boolean;
+  requiresMedicalProof?: boolean;
+  advanceDaysRequired?: number;
+  color?: string;
+  enabled?: boolean;
+}
+
+// 颜色映射（与其他页面一致）
+const typeColor = (code: string) => {
+  const colors: Record<string, string> = {
+    annual: "#007AFF",
+    sick: "#34C759",
+    personal: "#FF9500",
+    emergency: "#FF3B30",
+    default: "#8E8E93",
+  };
+  return colors[code] || colors.default;
 };
 
 export default function LeaveApplyPage() {
+  const [currentUser, setCurrentUser] = useState<CurrentUserInfo | null>(null);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+
   const [application, setApplication] = useState<LeaveApplication>({
     type: "",
     startDate: "",
@@ -131,6 +136,57 @@ export default function LeaveApplyPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // 初始化加载：用户信息与请假类型
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+  try {
+        // 当前用户信息
+        const ures = await fetch(`${API_BASE_URL}/leave/current-user-info`, {
+          signal: controller.signal,
+          credentials: 'include',
+        });
+        if (ures.ok) {
+          const info: CurrentUserInfo = await ures.json();
+          setCurrentUser(info);
+          // 用用户信息预填紧急联系人/电话（可按需调整）
+          setApplication(prev => ({
+            ...prev,
+            emergencyContact: info.studentName || info.teacherName || "",
+            emergencyPhone: info.phone || "",
+          }));
+        }
+        // 请假类型
+        const tres = await fetch(`${API_BASE_URL}/leave/types`, {
+          signal: controller.signal,
+          credentials: 'include',
+        });
+        if (tres.ok) {
+          const list: ApiLeaveType[] = await tres.json();
+          const mapped: LeaveType[] = list
+            .filter(t => t.enabled !== false)
+            .map(t => ({
+              id: t.typeCode,
+              name: t.typeName,
+              maxDays: t.maxDaysPerRequest,
+              requiresApproval: t.requiresApproval,
+              allowancePerYear: t.annualAllowance,
+              color: t.color || typeColor(t.typeCode),
+              description: t.description,
+              backendId: typeof t.id === 'number' ? t.id : undefined,
+            }));
+          setLeaveTypes(mapped);
+        } else {
+          setLeaveTypes([]);
+        }
+      } catch (e) {
+        console.error(e);
+  } finally {
+  }
+    })();
+    return () => controller.abort();
+  }, []);
+
   // 计算请假天数
   const calculateDays = (startDate: string, endDate: string) => {
     if (startDate && endDate) {
@@ -145,7 +201,7 @@ export default function LeaveApplyPage() {
 
   // 处理请假类型选择
   const handleLeaveTypeChange = (typeId: string) => {
-    const leaveType = mockLeaveTypes.find(type => type.id === typeId);
+  const leaveType = leaveTypes.find(type => type.id === typeId);
     setSelectedLeaveType(leaveType || null);
     setApplication(prev => ({
       ...prev,
@@ -194,9 +250,9 @@ export default function LeaveApplyPage() {
       newErrors.emergencyPhone = "请填写紧急联系电话";
     }
 
-    // 检查请假天数是否超过余额
-    if (selectedLeaveType && application.days > selectedLeaveType.remaining) {
-      newErrors.days = `请假天数不能超过剩余${selectedLeaveType.name}天数(${selectedLeaveType.remaining}天)`;
+    // 校验：不超过单次最大天数（如果后端配置了）
+    if (selectedLeaveType?.maxDays && application.days > selectedLeaveType.maxDays) {
+      newErrors.days = `请假天数不能超过该类型最大连续天数(${selectedLeaveType.maxDays}天)`;
     }
 
     setErrors(newErrors);
@@ -211,25 +267,71 @@ export default function LeaveApplyPage() {
   };
 
   // 确认提交
-  const handleConfirmSubmit = () => {
-    // 这里应该调用API提交申请
-    console.log("提交请假申请:", application);
-    setShowPreview(false);
-    setShowSuccess(true);
-    
-    // 重置表单
-    setApplication({
-      type: "",
-      startDate: "",
-      endDate: "",
-      days: 0,
-      reason: "",
-      emergencyContact: "",
-      emergencyPhone: "",
-      handoverNotes: "",
-      attachments: [],
-    });
-    setSelectedLeaveType(null);
+  type SubmitPayload = {
+  // 按后端 LeaveRequest 实体字段提交
+  leaveTypeId: number;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    emergencyContact?: string;
+    emergencyPhone?: string;
+    handoverNotes?: string;
+    studentId?: number;
+  };
+
+  const handleConfirmSubmit = async () => {
+    try {
+      // 校验登录身份是否为学生并且拿到学生ID
+      if (!currentUser?.studentId) {
+        alert('当前账号未关联学生，无法提交请假申请。');
+        return;
+      }
+      // 通过所选 typeCode 找到后端的类型主键ID
+      const selected = leaveTypes.find(t => t.id === application.type);
+      if (!selected?.backendId) {
+        alert('请选择有效的请假类型');
+        return;
+      }
+      // 构造与后端 LeaveRequest 对应的最小体
+      const payload: SubmitPayload = {
+        leaveTypeId: selected.backendId,
+        startDate: application.startDate,
+        endDate: application.endDate,
+        reason: application.reason,
+        emergencyContact: application.emergencyContact,
+        emergencyPhone: application.emergencyPhone,
+        handoverNotes: application.handoverNotes,
+        studentId: currentUser.studentId,
+      };
+
+      const res = await fetch(`${API_BASE_URL}/leave/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`提交失败：${res.status}`);
+
+      setShowPreview(false);
+      setShowSuccess(true);
+      // 重置表单
+      setApplication({
+        type: "",
+        startDate: "",
+        endDate: "",
+        days: 0,
+        reason: "",
+        emergencyContact: currentUser?.studentName || currentUser?.teacherName || "",
+        emergencyPhone: currentUser?.phone || "",
+        handoverNotes: "",
+        attachments: [],
+      });
+      setSelectedLeaveType(null);
+    } catch (e) {
+      console.error(e);
+      alert('提交失败，请稍后重试');
+  } finally {
+  }
   };
 
   // 保存草稿
@@ -265,10 +367,10 @@ export default function LeaveApplyPage() {
               </Avatar>
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  {currentUser.name}
+                  {currentUser?.studentName || currentUser?.userId || '-'}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                  {currentUser.position} · {currentUser.department}
+                  {currentUser?.userType || ''} · {currentUser?.className || ''}
                 </Typography>
               </Box>
             </Box>
@@ -278,19 +380,19 @@ export default function LeaveApplyPage() {
                 <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
                   直属教师
                 </Typography>
-                <Typography variant="body1">{currentUser.manager}</Typography>
+                <Typography variant="body1">{currentUser?.teacherName || '-'}</Typography>
               </Box>
               <Box>
                 <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
                   手机
                 </Typography>
-                <Typography variant="body1">{currentUser.phone}</Typography>
+                <Typography variant="body1">{currentUser?.phone || '-'}</Typography>
               </Box>
               <Box>
                 <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
                   邮箱
                 </Typography>
-                <Typography variant="body1">{currentUser.email}</Typography>
+                <Typography variant="body1">{currentUser?.email || '-'}</Typography>
               </Box>
             </Box>
           </CardContent>
@@ -314,7 +416,7 @@ export default function LeaveApplyPage() {
                       onChange={(e) => handleLeaveTypeChange(e.target.value)}
                       label="请假类型"
                     >
-                      {mockLeaveTypes.map((type) => (
+                      {leaveTypes.map((type) => (
                         <MenuItem key={type.id} value={type.id}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                             <Box
@@ -322,14 +424,16 @@ export default function LeaveApplyPage() {
                                 width: 12,
                                 height: 12,
                                 borderRadius: '50%',
-                                backgroundColor: type.color,
+                                backgroundColor: type.color || '#8E8E93',
                               }}
                             />
                             <Box sx={{ flex: 1 }}>
                               <Typography variant="body1">{type.name}</Typography>
-                              <Typography variant="caption" sx={{ color: '#6c757d' }}>
-                                剩余: {type.remaining}天 / 总计: {type.allowancePerYear}天
-                              </Typography>
+                              {typeof type.allowancePerYear !== 'undefined' && (
+                                <Typography variant="caption" sx={{ color: '#6c757d' }}>
+                                  年额度: {type.allowancePerYear}天 {type.maxDays ? `· 单次最多 ${type.maxDays} 天` : ''}
+                                </Typography>
+                              )}
                             </Box>
                           </Box>
                         </MenuItem>
@@ -356,8 +460,9 @@ export default function LeaveApplyPage() {
                         {selectedLeaveType.description}
                       </Typography>
                       <Typography variant="body2" sx={{ mt: 1 }}>
-                        剩余天数: <strong>{selectedLeaveType.remaining}天</strong> | 
-                        最大连续天数: <strong>{selectedLeaveType.maxDays}天</strong>
+                        {typeof selectedLeaveType.maxDays !== 'undefined' ? (
+                          <>最大连续天数: <strong>{selectedLeaveType.maxDays}天</strong></>
+                        ) : '按类型配置为准'}
                       </Typography>
                     </Alert>
                   )}
@@ -543,7 +648,7 @@ export default function LeaveApplyPage() {
                     假期余额
                   </Typography>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    {mockLeaveTypes.map((type) => (
+                    {leaveTypes.map((type) => (
                       <Box key={type.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Box
@@ -551,16 +656,16 @@ export default function LeaveApplyPage() {
                               width: 8,
                               height: 8,
                               borderRadius: '50%',
-                              backgroundColor: type.color,
+                              backgroundColor: type.color || '#8E8E93',
                             }}
                           />
                           <Typography variant="body2">{type.name}</Typography>
                         </Box>
                         <Chip
-                          label={`${type.remaining}/${type.allowancePerYear}`}
+                          label={typeof type.allowancePerYear !== 'undefined' ? `年额度 ${type.allowancePerYear}` : '按配置'}
                           size="small"
                           sx={{
-                            backgroundColor: type.color,
+                            backgroundColor: type.color || '#8E8E93',
                             color: 'white',
                             fontSize: '0.75rem',
                           }}
@@ -626,7 +731,7 @@ export default function LeaveApplyPage() {
           open={showSuccess}
           autoHideDuration={6000}
           onClose={() => setShowSuccess(false)}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         >
           <Alert 
             onClose={() => setShowSuccess(false)} 
