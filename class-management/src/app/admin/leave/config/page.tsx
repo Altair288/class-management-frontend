@@ -27,6 +27,10 @@ import {
   Alert,
   Slider,
   Snackbar,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -155,6 +159,32 @@ const leaveTypeApi = {
 
 // 审批流程 API
 const workflowsApi = {
+  listBindings: async (): Promise<LeaveTypeWorkflowBinding[]> => {
+    const res = await fetch(`${API_BASE_URL}/workflows/bindings`, { credentials: 'include' });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`加载绑定关系失败 ${res.status}: ${text || res.statusText}`);
+    }
+    return res.json();
+  },
+  bindType: async (leaveTypeId: number, workflowId: number): Promise<LeaveTypeWorkflowBinding> => {
+    const res = await fetch(`${API_BASE_URL}/workflows/bind/type/${leaveTypeId}/workflow/${workflowId}`, {
+      method: 'PUT',
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`绑定失败 ${res.status}: ${text || res.statusText}`);
+    }
+    return res.json();
+  },
+  unbindType: async (leaveTypeId: number): Promise<void> => {
+    const res = await fetch(`${API_BASE_URL}/workflows/bind/type/${leaveTypeId}`, { method: 'DELETE', credentials: 'include' });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`解绑失败 ${res.status}: ${text || res.statusText}`);
+    }
+  },
   list: async (): Promise<BackendWorkflow[]> => {
     const res = await fetch(`${API_BASE_URL}/workflows`, { credentials: 'include' });
     if (!res.ok) {
@@ -282,6 +312,13 @@ type BackendWorkflowStep = {
   enabled: boolean;
 };
 
+type LeaveTypeWorkflowBinding = {
+  id: number;
+  leaveTypeId: number;
+  workflowId: number;
+  enabled?: boolean;
+};
+
 interface NotificationSettings {
   emailNotifications: boolean;
   smsNotifications: boolean;
@@ -323,6 +360,7 @@ export default function ConfigPage() {
   const [wfSteps, setWfSteps] = useState<Record<number, BackendWorkflowStep[]>>({});
   const [wfLoading, setWfLoading] = useState(false);
   const [wfError, setWfError] = useState<string | null>(null);
+  const [typeBindings, setTypeBindings] = useState<Record<number, number | null>>({}); // leaveTypeId -> workflowId
   // 流程编辑弹窗
   const [wfDialogOpen, setWfDialogOpen] = useState(false);
   const [wfSaving, setWfSaving] = useState(false);
@@ -403,6 +441,18 @@ export default function ConfigPage() {
         const map: Record<number, BackendWorkflowStep[]> = {};
         for (const [id, steps] of pairs) map[id] = steps;
         setWfSteps(map);
+        // 加载类型-流程绑定
+        try {
+          const binds = await workflowsApi.listBindings();
+          const next: Record<number, number | null> = {};
+          for (const b of binds) {
+            if (b.enabled === false) continue;
+            next[b.leaveTypeId] = b.workflowId;
+          }
+          setTypeBindings(next);
+        } catch (be) {
+          console.error('加载绑定失败', be);
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : '加载失败';
         setWfError(msg);
@@ -792,6 +842,7 @@ export default function ConfigPage() {
                     <TableCell>年度额度</TableCell>
                     <TableCell>最大天数</TableCell>
                     <TableCell>需要审批</TableCell>
+                    <TableCell>审批流程</TableCell>
                     <TableCell>状态</TableCell>
                     <TableCell>操作</TableCell>
                   </TableRow>
@@ -827,6 +878,51 @@ export default function ConfigPage() {
                           size="small"
                           color={type.requiresApproval ? "warning" : "success"}
                         />
+                      </TableCell>
+                      <TableCell>
+                        <FormControl size="small" sx={{ minWidth: 180 }}>
+                          <InputLabel id={`wf-label-${type.id}`}>流程</InputLabel>
+                          <Select
+                            labelId={`wf-label-${type.id}`}
+                            label="流程"
+                            value={typeBindings[type.id] ?? ''}
+                            onChange={async (e) => {
+                              const val = e.target.value as number | '';
+                              const targetId = val === '' ? null : (val as number);
+                              try {
+                                setPendingMap(prev => ({ ...prev, [type.id]: true }));
+                                if (targetId === null) {
+                                  await workflowsApi.unbindType(type.id);
+                                  setTypeBindings(prev => ({ ...prev, [type.id]: null }));
+                                  setSnackbarMessage('已解绑审批流程');
+                                } else {
+                                  const res = await workflowsApi.bindType(type.id, targetId);
+                                  setTypeBindings(prev => ({ ...prev, [type.id]: res.workflowId }));
+                                  setSnackbarMessage('已绑定审批流程');
+                                }
+                                setSnackbarSeverity('success');
+                                setSnackbarOpen(true);
+                              } catch (err: unknown) {
+                                const msg = err instanceof Error ? err.message : '请重试';
+                                setSnackbarMessage(`设置流程失败：${msg}`);
+                                setSnackbarSeverity('error');
+                                setSnackbarOpen(true);
+                              } finally {
+                                setPendingMap(prev => ({ ...prev, [type.id]: false }));
+                              }
+                            }}
+                            disabled={!!pendingMap[type.id] || loading}
+                          >
+                            <MenuItem value="">
+                              <em>未绑定</em>
+                            </MenuItem>
+                            {workflows.map(w => (
+                              <MenuItem key={w.id} value={w.id} disabled={!w.enabled}>
+                                {w.workflowName}{!w.enabled ? '（禁用）' : ''}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
                       </TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
