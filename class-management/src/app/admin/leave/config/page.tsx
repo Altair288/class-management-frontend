@@ -46,7 +46,7 @@ const API_BASE_URL = "/api";
 const leaveTypeApi = {
   // 获取所有请假类型（包括已停用的）
   getAllLeaveTypes: async (): Promise<LeaveType[]> => {
-    const response = await fetch(`${API_BASE_URL}/leave/config/all`);
+  const response = await fetch(`${API_BASE_URL}/leave/config/all`, { credentials: 'include' });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       throw new Error(`加载失败 ${response.status}: ${text || response.statusText}`);
@@ -56,7 +56,7 @@ const leaveTypeApi = {
 
   // 获取激活的请假类型
   getActiveLeaveTypes: async (): Promise<LeaveType[]> => {
-    const response = await fetch(`${API_BASE_URL}/leave/config/active`);
+  const response = await fetch(`${API_BASE_URL}/leave/config/active`, { credentials: 'include' });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       throw new Error(`加载激活类型失败 ${response.status}: ${text || response.statusText}`);
@@ -71,6 +71,7 @@ const leaveTypeApi = {
       headers: {
         'Content-Type': 'application/json',
       },
+  credentials: 'include',
       body: JSON.stringify(leaveType),
     });
     if (!response.ok) {
@@ -87,6 +88,7 @@ const leaveTypeApi = {
       headers: {
         'Content-Type': 'application/json',
       },
+  credentials: 'include',
       body: JSON.stringify(leaveType),
     });
     if (!response.ok) {
@@ -100,6 +102,7 @@ const leaveTypeApi = {
   deleteLeaveType: async (id: number): Promise<void> => {
     const response = await fetch(`${API_BASE_URL}/leave/config/${id}`, {
       method: 'DELETE',
+  credentials: 'include',
     });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -111,6 +114,7 @@ const leaveTypeApi = {
   activateLeaveType: async (id: number): Promise<LeaveType> => {
     const response = await fetch(`${API_BASE_URL}/leave/config/${id}/activate`, {
       method: 'POST',
+  credentials: 'include',
     });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -123,6 +127,7 @@ const leaveTypeApi = {
   deactivateLeaveType: async (id: number): Promise<LeaveType> => {
     const response = await fetch(`${API_BASE_URL}/leave/config/${id}/deactivate`, {
       method: 'POST',
+  credentials: 'include',
     });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -138,13 +143,105 @@ const leaveTypeApi = {
   ): Promise<{ updated: number; onlyCurrentYear: boolean }> => {
     const response = await fetch(
       `${API_BASE_URL}/leave/config/${id}/sync-balances?onlyCurrentYear=${onlyCurrentYear ? 'true' : 'false'}`,
-      { method: 'POST' }
+      { method: 'POST', credentials: 'include' }
     );
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       throw new Error(`同步失败 ${response.status}: ${text || response.statusText}`);
     }
     return response.json();
+  },
+};
+
+// 审批流程 API
+const workflowsApi = {
+  list: async (): Promise<BackendWorkflow[]> => {
+    const res = await fetch(`${API_BASE_URL}/workflows`, { credentials: 'include' });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`加载流程失败 ${res.status}: ${text || res.statusText}`);
+    }
+    return res.json();
+  },
+  create: async (w: Partial<BackendWorkflow>): Promise<BackendWorkflow> => {
+    const res = await fetch(`${API_BASE_URL}/workflows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(w),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`创建流程失败 ${res.status}: ${text || res.statusText}`);
+    }
+    return res.json();
+  },
+  update: async (id: number, w: Partial<BackendWorkflow>): Promise<BackendWorkflow> => {
+    const res = await fetch(`${API_BASE_URL}/workflows/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(w),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`更新流程失败 ${res.status}: ${text || res.statusText}`);
+    }
+    return res.json();
+  },
+  remove: async (id: number): Promise<void> => {
+    const res = await fetch(`${API_BASE_URL}/workflows/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`删除流程失败 ${res.status}: ${text || res.statusText}`);
+    }
+  },
+  steps: async (workflowId: number): Promise<BackendWorkflowStep[]> => {
+    const res = await fetch(`${API_BASE_URL}/workflows/${workflowId}/steps`, { credentials: 'include' });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`加载流程步骤失败 ${res.status}: ${text || res.statusText}`);
+    }
+    return res.json();
+  },
+  addStep: async (workflowId: number, s: Partial<BackendWorkflowStep>): Promise<BackendWorkflowStep> => {
+    const res = await fetch(`${API_BASE_URL}/workflows/${workflowId}/steps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(s),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`新增步骤失败 ${res.status}: ${text || res.statusText}`);
+    }
+    return res.json();
+  },
+  updateStep: async (stepId: number, s: Partial<BackendWorkflowStep>): Promise<BackendWorkflowStep> => {
+    const res = await fetch(`${API_BASE_URL}/workflows/steps/${stepId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(s),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`更新步骤失败 ${res.status}: ${text || res.statusText}`);
+    }
+    return res.json();
+  },
+  removeStep: async (stepId: number): Promise<void> => {
+    const res = await fetch(`${API_BASE_URL}/workflows/steps/${stepId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`删除步骤失败 ${res.status}: ${text || res.statusText}`);
+    }
   },
 };
 
@@ -164,33 +261,26 @@ interface LeaveType {
   updatedAt: string;
 }
 
-interface ApprovalWorkflow {
-  id: string;
-  name: string;
-  leaveTypes: string[];
-  steps: ApprovalStep[];
-  autoApprovalRules?: AutoApprovalRule[];
+// 后端返回类型
+type BackendWorkflow = {
+  id: number;
+  workflowName: string;
+  workflowCode: string;
+  description?: string;
   enabled: boolean;
-}
+  createdAt?: string;
+  updatedAt?: string;
+};
 
-interface ApprovalStep {
-  id: string;
-  order: number;
-  approverType: 'class_manager' | 'result' | 'specific_role' | 'specific_person';
-  approverValue?: string;
-  required: boolean;
-}
-
-interface AutoApprovalRule {
-  id: string;
-  name: string;
-  conditions: {
-    maxDays?: number;
-    leaveTypes?: string[];
-    departments?: string[];
-  };
+type BackendWorkflowStep = {
+  id: number;
+  workflowId: number;
+  stepOrder: number;
+  stepName: string;
+  approverRole: string;
+  autoApprove: boolean;
   enabled: boolean;
-}
+};
 
 interface NotificationSettings {
   emailNotifications: boolean;
@@ -202,28 +292,7 @@ interface NotificationSettings {
   reminderBeforeLeave: number; // days
 }
 
-const mockWorkflows: ApprovalWorkflow[] = [
-  {
-    id: "default",
-    name: "默认审批流程",
-    leaveTypes: ["annual", "personal"],
-    steps: [
-      {
-        id: "step1",
-        order: 1,
-        approverType: "class_manager",
-        required: true,
-      },
-      {
-        id: "step2",
-        order: 2,
-        approverType: "result",
-        required: true,
-      },
-    ],
-    enabled: true,
-  },
-];
+// 占位：不再使用模拟流程
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -250,7 +319,19 @@ function TabPanel(props: TabPanelProps) {
 export default function ConfigPage() {
   const [tabValue, setTabValue] = useState(0);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
-  const [workflows] = useState<ApprovalWorkflow[]>(mockWorkflows);
+  const [workflows, setWorkflows] = useState<BackendWorkflow[]>([]);
+  const [wfSteps, setWfSteps] = useState<Record<number, BackendWorkflowStep[]>>({});
+  const [wfLoading, setWfLoading] = useState(false);
+  const [wfError, setWfError] = useState<string | null>(null);
+  // 流程编辑弹窗
+  const [wfDialogOpen, setWfDialogOpen] = useState(false);
+  const [wfSaving, setWfSaving] = useState(false);
+  const [wfForm, setWfForm] = useState<Partial<BackendWorkflow>>({ workflowName: '', workflowCode: '', description: '', enabled: true });
+  // 步骤编辑弹窗
+  const [stepDialogOpen, setStepDialogOpen] = useState(false);
+  const [stepSaving, setStepSaving] = useState(false);
+  const [activeWorkflowId, setActiveWorkflowId] = useState<number | null>(null);
+  const [stepForm, setStepForm] = useState<Partial<BackendWorkflowStep>>({ stepOrder: 1, stepName: '', approverRole: '', autoApprove: false, enabled: true });
   const [editDialog, setEditDialog] = useState(false);
   const [selectedLeaveType, setSelectedLeaveType] = useState<LeaveType | null>(null);
   const [loading, setLoading] = useState(false);
@@ -298,10 +379,201 @@ export default function ConfigPage() {
   // 组件挂载时加载数据
   useEffect(() => {
     loadLeaveTypes();
+    // 加载审批流程列表与步骤
+    (async () => {
+      try {
+        setWfLoading(true);
+        setWfError(null);
+        const list = await workflowsApi.list();
+        setWorkflows(list);
+        // 并行加载每个流程的步骤
+    const pairs = await Promise.all(
+          list.map(async (w) => {
+            try {
+              const steps = await workflowsApi.steps(w.id);
+              // 保持按 stepOrder 排序
+              steps.sort((a, b) => a.stepOrder - b.stepOrder);
+      return [w.id, steps as BackendWorkflowStep[]] as const;
+            } catch (e) {
+              console.error('加载步骤失败', w.id, e);
+      return [w.id, [] as BackendWorkflowStep[]] as const;
+            }
+          })
+        );
+        const map: Record<number, BackendWorkflowStep[]> = {};
+        for (const [id, steps] of pairs) map[id] = steps;
+        setWfSteps(map);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : '加载失败';
+        setWfError(msg);
+      } finally {
+        setWfLoading(false);
+      }
+    })();
   }, []);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+  };
+
+  // 工作流：新增
+  const handleAddWorkflow = () => {
+    setWfForm({ workflowName: '', workflowCode: '', description: '', enabled: true });
+    setWfDialogOpen(true);
+  };
+
+  // 工作流：编辑
+  const handleEditWorkflow = (w: BackendWorkflow) => {
+    setWfForm({ ...w });
+    setWfDialogOpen(true);
+  };
+
+  // 工作流：保存（新增或更新）
+  const handleSaveWorkflow = async () => {
+    try {
+      setWfSaving(true);
+      if (wfForm.id) {
+        const updated = await workflowsApi.update(wfForm.id, wfForm);
+        setWorkflows(prev => prev.map(w => (w.id === updated.id ? updated : w)));
+        setSnackbarMessage('流程已更新');
+      } else {
+        const created = await workflowsApi.create(wfForm);
+        setWorkflows(prev => [...prev, created]);
+        setSnackbarMessage('流程已创建');
+      }
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      setWfDialogOpen(false);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '请重试';
+      setSnackbarMessage(`保存流程失败：${msg}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setWfSaving(false);
+    }
+  };
+
+  // 工作流：删除
+  const handleDeleteWorkflow = (w: BackendWorkflow) => {
+    setConfirmState({
+      open: true,
+      title: '删除流程',
+      content: (
+        <Typography variant="body2">确认删除流程「{w.workflowName}」？该操作不可恢复。</Typography>
+      ),
+      onConfirm: async () => {
+        try {
+          await workflowsApi.remove(w.id);
+          setWorkflows(prev => prev.filter(x => x.id !== w.id));
+          setWfSteps(prev => {
+            const next = { ...prev };
+            delete next[w.id];
+            return next;
+          });
+          setSnackbarMessage('流程已删除');
+          setSnackbarSeverity('success');
+          setSnackbarOpen(true);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : '请重试';
+          setSnackbarMessage(`删除流程失败：${msg}`);
+          setSnackbarSeverity('error');
+          setSnackbarOpen(true);
+        }
+      }
+    });
+  };
+
+  // 工作流：切换启用
+  const handleToggleWorkflowEnabled = async (w: BackendWorkflow) => {
+    const target = !w.enabled;
+    try {
+      const updated = await workflowsApi.update(w.id, { ...w, enabled: target });
+      setWorkflows(prev => prev.map(x => (x.id === w.id ? updated : x)));
+      setSnackbarMessage(target ? '已启用流程' : '已禁用流程');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '请重试';
+      setSnackbarMessage(`切换失败：${msg}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
+  // 步骤：新增
+  const handleAddStep = (workflowId: number) => {
+    const current = wfSteps[workflowId] || [];
+    const nextOrder = current.length > 0 ? Math.max(...current.map(s => s.stepOrder)) + 1 : 1;
+    setActiveWorkflowId(workflowId);
+    setStepForm({ id: undefined, workflowId, stepOrder: nextOrder, stepName: '', approverRole: '', autoApprove: false, enabled: true });
+    setStepDialogOpen(true);
+  };
+
+  // 步骤：编辑
+  const handleEditStep = (workflowId: number, step: BackendWorkflowStep) => {
+    setActiveWorkflowId(workflowId);
+    setStepForm({ ...step });
+    setStepDialogOpen(true);
+  };
+
+  // 步骤：保存
+  const handleSaveStep = async () => {
+    if (!activeWorkflowId) return;
+    try {
+      setStepSaving(true);
+      if (stepForm.id) {
+        const updated = await workflowsApi.updateStep(stepForm.id, stepForm);
+        setWfSteps(prev => ({
+          ...prev,
+          [activeWorkflowId]: (prev[activeWorkflowId] || []).map(s => (s.id === updated.id ? updated : s)).sort((a, b) => a.stepOrder - b.stepOrder)
+        }));
+        setSnackbarMessage('步骤已更新');
+      } else {
+        const created = await workflowsApi.addStep(activeWorkflowId, stepForm);
+        setWfSteps(prev => ({
+          ...prev,
+          [activeWorkflowId]: ([...(prev[activeWorkflowId] || []), created]).sort((a, b) => a.stepOrder - b.stepOrder)
+        }));
+        setSnackbarMessage('步骤已创建');
+      }
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      setStepDialogOpen(false);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '请重试';
+      setSnackbarMessage(`保存步骤失败：${msg}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setStepSaving(false);
+    }
+  };
+
+  // 步骤：删除
+  const handleDeleteStep = (workflowId: number, step: BackendWorkflowStep) => {
+    setConfirmState({
+      open: true,
+      title: '删除步骤',
+      content: (<Typography variant="body2">确认删除「步骤{step.stepOrder}：{step.stepName}」？</Typography>),
+      onConfirm: async () => {
+        try {
+          await workflowsApi.removeStep(step.id);
+          setWfSteps(prev => ({
+            ...prev,
+            [workflowId]: (prev[workflowId] || []).filter(s => s.id !== step.id)
+          }));
+          setSnackbarMessage('步骤已删除');
+          setSnackbarSeverity('success');
+          setSnackbarOpen(true);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : '请重试';
+          setSnackbarMessage(`删除步骤失败：${msg}`);
+          setSnackbarSeverity('error');
+          setSnackbarOpen(true);
+        }
+      }
+    });
   };
 
   const handleEditLeaveType = (leaveType: LeaveType) => {
@@ -612,17 +884,20 @@ export default function ConfigPage() {
             variant="contained"
             startIcon={<AddIcon />}
             sx={{ borderRadius: 2, boxShadow: 'none' }}
+            onClick={handleAddWorkflow}
           >
             添加流程
           </Button>
         </Box>
-
+        {wfError && (
+          <Alert severity="error" sx={{ mb: 2 }}>{wfError}</Alert>
+        )}
         <Alert severity="info" sx={{ mb: 1.5 }}>
-          审批流程定义了不同类型请假申请的审批路径和规则。您可以为不同的请假类型设置不同的审批流程。
+          审批流程定义了不同类型请假申请的审批路径和规则，系统已支持多级审批。
         </Alert>
-        <Alert severity="info" sx={{ mb: 3 }}>
-          目前暂不支持多级审批，后续将会支持。
-        </Alert>
+        {wfLoading && (
+          <Alert severity="info" sx={{ mb: 2 }}>流程加载中…</Alert>
+        )}
 
         <Box sx={{ display: 'grid', gap: 2 }}>
           {workflows.map((workflow) => (
@@ -630,61 +905,61 @@ export default function ConfigPage() {
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
                   <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-                      {workflow.name}
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                      {workflow.workflowName}
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                      {workflow.leaveTypes.map((typeId) => {
-                        const leaveType = leaveTypes.find(t => t.typeCode === typeId);
-                        return leaveType ? (
-                          <Chip
-                            key={typeId}
-                            label={leaveType.typeName}
-                            size="small"
-                            sx={{
-                              backgroundColor: leaveType.color,
-                              color: 'white',
-                            }}
-                          />
-                        ) : null;
-                      })}
-                    </Box>
+                    <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                      {workflow.description || '—'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#6c757d' }}>
+                      编码：{workflow.workflowCode}
+                    </Typography>
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <Chip
-                      label={workflow.enabled ? "启用" : "禁用"}
+                      label={workflow.enabled ? '启用' : '禁用'}
                       size="small"
-                      color={workflow.enabled ? "success" : "default"}
+                      color={workflow.enabled ? 'success' : 'default'}
                     />
-                    <IconButton size="small">
+                    <Switch size="small" checked={workflow.enabled} onChange={() => handleToggleWorkflowEnabled(workflow)} />
+                    <IconButton size="small" onClick={() => handleEditWorkflow(workflow)}>
                       <EditIcon />
                     </IconButton>
-                    <IconButton size="small" color="error">
+                    <IconButton size="small" color="error" onClick={() => handleDeleteWorkflow(workflow)}>
                       <DeleteIcon />
                     </IconButton>
                   </Box>
                 </Box>
 
-                <Typography variant="body2" sx={{ color: '#6c757d', mb: 2 }}>
-                  审批步骤:
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                  {workflow.steps.map((step, index) => (
-                    <Box key={step.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Chip
-                        label={`步骤${step.order}: ${
-                          step.approverType === 'class_manager' ? '班级教师' :
-                          step.approverType === 'result' ? '审批成功' :
-                          step.approverType === 'specific_role' ? '特定角色' : '特定人员'
-                        }`}
-                        size="small"
-                        variant="outlined"
-                      />
-                      {index < workflow.steps.length - 1 && (
-                        <Typography sx={{ color: '#6c757d' }}>→</Typography>
-                      )}
-                    </Box>
-                  ))}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                    审批步骤：
+                  </Typography>
+                  <Button size="small" startIcon={<AddIcon />} onClick={() => handleAddStep(workflow.id)}>添加步骤</Button>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {(wfSteps[workflow.id] || []).length === 0 ? (
+                    <Typography variant="body2" sx={{ color: '#6c757d' }}>暂无步骤</Typography>
+                  ) : (
+                    (wfSteps[workflow.id] || []).map((s, index) => (
+                      <Box key={s.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Chip
+                          label={`步骤${s.stepOrder}: ${s.stepName}（${s.approverRole}${s.autoApprove ? '·自动通过' : ''}）`}
+                          size="small"
+                          variant="outlined"
+                        />
+                        <IconButton size="small" onClick={() => handleEditStep(workflow.id, s)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" color="error" onClick={() => handleDeleteStep(workflow.id, s)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                        {index < (wfSteps[workflow.id] || []).length - 1 && (
+                          <Typography sx={{ color: '#6c757d' }}>→</Typography>
+                        )}
+                      </Box>
+                    ))
+                  )}
                 </Box>
               </CardContent>
             </Card>
@@ -718,18 +993,6 @@ export default function ConfigPage() {
                   />
                 }
                 label="邮件通知"
-              />
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={notifications.smsNotifications}
-                    onChange={(e) => setNotifications({
-                      ...notifications,
-                      smsNotifications: e.target.checked
-                    })}
-                  />
-                }
-                label="短信通知"
               />
               <FormControlLabel
                 control={
@@ -1016,6 +1279,89 @@ export default function ConfigPage() {
               disabled={saving}
             >
               {saving ? '保存中...' : '保存'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* 编辑/新增 流程 对话框 */}
+        <Dialog open={wfDialogOpen} onClose={() => setWfDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>{wfForm.id ? '编辑流程' : '新增流程'}</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField
+                label="流程名称"
+                value={wfForm.workflowName || ''}
+                onChange={(e) => setWfForm(f => ({ ...f, workflowName: e.target.value }))}
+                fullWidth
+              />
+              <TextField
+                label="流程编码"
+                value={wfForm.workflowCode || ''}
+                onChange={(e) => setWfForm(f => ({ ...f, workflowCode: e.target.value }))}
+                fullWidth
+                helperText="用于系统识别，需唯一"
+                disabled={!!wfForm.id}
+              />
+              <TextField
+                label="描述"
+                value={wfForm.description || ''}
+                onChange={(e) => setWfForm(f => ({ ...f, description: e.target.value }))}
+                fullWidth
+                multiline
+                rows={2}
+              />
+              <FormControlLabel
+                control={<Switch checked={!!wfForm.enabled} onChange={(e) => setWfForm(f => ({ ...f, enabled: e.target.checked }))} />}
+                label="启用此流程"
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setWfDialogOpen(false)}>取消</Button>
+            <Button onClick={handleSaveWorkflow} variant="contained" disabled={wfSaving} sx={{ boxShadow: 'none' }}>
+              {wfSaving ? '保存中…' : '保存'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* 编辑/新增 步骤 对话框 */}
+        <Dialog open={stepDialogOpen} onClose={() => setStepDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>{stepForm.id ? '编辑步骤' : '新增步骤'}</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField
+                label="步骤序号"
+                type="number"
+                value={stepForm.stepOrder ?? 1}
+                onChange={(e) => setStepForm(f => ({ ...f, stepOrder: parseInt(e.target.value || '1', 10) }))}
+              />
+              <TextField
+                label="步骤名称"
+                value={stepForm.stepName || ''}
+                onChange={(e) => setStepForm(f => ({ ...f, stepName: e.target.value }))}
+                fullWidth
+              />
+              <TextField
+                label="审批角色"
+                value={stepForm.approverRole || ''}
+                onChange={(e) => setStepForm(f => ({ ...f, approverRole: e.target.value }))}
+                fullWidth
+                helperText="如：CLASS_TEACHER, GRADE_LEADER, ADMIN 等"
+              />
+              <FormControlLabel
+                control={<Switch checked={!!stepForm.autoApprove} onChange={(e) => setStepForm(f => ({ ...f, autoApprove: e.target.checked }))} />}
+                label="自动通过"
+              />
+              <FormControlLabel
+                control={<Switch checked={!!stepForm.enabled} onChange={(e) => setStepForm(f => ({ ...f, enabled: e.target.checked }))} />}
+                label="启用此步骤"
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setStepDialogOpen(false)}>取消</Button>
+            <Button onClick={handleSaveStep} variant="contained" disabled={stepSaving} sx={{ boxShadow: 'none' }}>
+              {stepSaving ? '保存中…' : '保存'}
             </Button>
           </DialogActions>
         </Dialog>
