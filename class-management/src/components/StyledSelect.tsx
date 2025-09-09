@@ -162,6 +162,8 @@ const StyledSelect: React.FC<StyledSelectProps> = ({
   formControlProps,
   children,
   size = 'medium',
+  value,
+  onChange,
   ...selectProps
 }) => {
   const colors = colorThemes[themeVariant];
@@ -178,6 +180,8 @@ const StyledSelect: React.FC<StyledSelectProps> = ({
       <Select
         label={label}
         size={size}
+        value={value}
+        onChange={onChange}
         IconComponent={ExpandMoreIcon}
         MenuProps={{
           PaperProps: {

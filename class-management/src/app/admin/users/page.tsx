@@ -23,6 +23,10 @@ import {
 	DialogActions,
 	Checkbox,
 	FormControlLabel,
+	MenuItem,
+	Select,
+	FormControl,
+	InputLabel,
 	Tabs,
 	Tab,
 	Snackbar,
@@ -41,7 +45,6 @@ import {
 	Save as SaveIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import StyledSelect, { StyledMenuItem_Custom, EmptyMenuItem } from '@/components/StyledSelect';
 
 // === 后端 DTO 结构 ===
 interface TeacherRoleDTO {
@@ -1131,25 +1134,52 @@ export default function UsersPage() {
 									<Typography variant="body1" sx={{ color: '#718096', mb: 4 }}>
 										校长是学校的最高管理者，负责学校整体运营、战略决策和对外事务。
 									</Typography>
-									<StyledSelect
-										label="选择校长"
-										value={principalId ?? ''}
-										onChange={e => handleAssignPrincipal(e.target.value as number | '')}
-										themeVariant="principal"
-									>
-										<EmptyMenuItem themeVariant="principal">未指派</EmptyMenuItem>
-										{teachers.map(t => (
-											<StyledMenuItem_Custom 
-												key={t.id} 
-												value={t.id} 
-												themeVariant="principal"
-												icon={<PersonIcon sx={{ color: '#c53030', fontSize: 16 }} />}
-												subtitle={`${t.teacherNo} • ${t.departmentName && `${t.departmentName}系`}`}
-											>
-												{t.name}
-											</StyledMenuItem_Custom>
-										))}
-									</StyledSelect>
+									<FormControl fullWidth size="medium">
+										<InputLabel sx={{ color: '#718096' }}>选择校长</InputLabel>
+										<Select
+											label="选择校长"
+											value={principalId ?? ''}
+											onChange={e => handleAssignPrincipal(e.target.value as number | '')}
+											sx={{
+												backgroundColor: 'white',
+												borderRadius: '12px',
+												'& .MuiOutlinedInput-notchedOutline': {
+													borderColor: '#fed7d7'
+												},
+												'&:hover .MuiOutlinedInput-notchedOutline': {
+													borderColor: '#feb2b2'
+												},
+												'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+													borderColor: '#c53030'
+												}
+											}}
+										>
+											<MenuItem value=""><em>未指派</em></MenuItem>
+											{teachers.map(t => (
+												<MenuItem key={t.id} value={t.id}>
+													<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
+														<Box sx={{
+															width: 32,
+															height: 32,
+															borderRadius: '50%',
+															backgroundColor: '#fed7d7',
+															display: 'flex',
+															alignItems: 'center',
+															justifyContent: 'center'
+														}}>
+															<PersonIcon sx={{ color: '#c53030', fontSize: 16 }} />
+														</Box>
+														<Box>
+															<Typography>{t.name}</Typography>
+															<Typography variant="caption" sx={{ color: '#718096' }}>
+																{t.teacherNo} • {t.departmentName && `${t.departmentName}系`}
+															</Typography>
+														</Box>
+													</Box>
+												</MenuItem>
+											))}
+										</Select>
+									</FormControl>
 									{principalId && (
 										<Box sx={{ mt: 3, p: 3, backgroundColor: 'white', borderRadius: '8px', border: '1px solid #fed7d7' }}>
 											<Typography variant="body2" sx={{ color: '#38a169', fontWeight: 600 }}>
@@ -1240,24 +1270,39 @@ export default function UsersPage() {
 															/>
 														)}
 													</Box>
-													<StyledSelect
-														label="选择年级主任"
-														value={gradeLeaders[grade] ?? ''}
-														onChange={e => handleAssignGradeLeader(grade, e.target.value as number | '')}
-														themeVariant="grade"
-													>
-														<EmptyMenuItem themeVariant="grade">未指派</EmptyMenuItem>
-														{teachers.filter(t => !t.roles?.includes('校长')).map(t => (
-															<StyledMenuItem_Custom 
-																key={t.id} 
-																value={t.id} 
-																themeVariant="grade"
-																subtitle={t.departmentName ? `${t.departmentName}系` : undefined}
-															>
-																{t.name}
-															</StyledMenuItem_Custom>
-														))}
-													</StyledSelect>
+													<FormControl fullWidth size="medium">
+														<InputLabel sx={{ color: '#718096' }}>选择年级主任</InputLabel>
+														<Select
+															label="选择年级主任"
+															value={gradeLeaders[grade] ?? ''}
+															onChange={e => handleAssignGradeLeader(grade, e.target.value as number | '')}
+															sx={{
+																backgroundColor: '#fafbfc',
+																borderRadius: '8px',
+																'& .MuiOutlinedInput-notchedOutline': {
+																	borderColor: '#feebc8'
+																},
+																'&:hover .MuiOutlinedInput-notchedOutline': {
+																	borderColor: '#fbd38d'
+																},
+																'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+																	borderColor: '#c05621'
+																}
+															}}
+														>
+															<MenuItem value=""><em>未指派</em></MenuItem>
+															{teachers.filter(t => !t.roles?.includes('校长')).map(t => (
+																<MenuItem key={t.id} value={t.id}>
+																	<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+																		<Typography>{t.name}</Typography>
+																		<Typography variant="caption" sx={{ color: '#718096' }}>
+																			{t.departmentName && `${t.departmentName}系`}
+																		</Typography>
+																	</Box>
+																</MenuItem>
+															))}
+														</Select>
+													</FormControl>
 												</Box>
 											))}
 										</Box>
@@ -1341,23 +1386,34 @@ export default function UsersPage() {
 															/>
 														)}
 													</Box>
-													<StyledSelect
-														label="选择系部主任"
-														value={departmentHeads[dept.name] ?? ''}
-														onChange={e => handleAssignDepartmentHead(dept.name, e.target.value as number | '')}
-														themeVariant="department"
-													>
-														<EmptyMenuItem themeVariant="department">未指派</EmptyMenuItem>
-														{teachers.filter(t => !t.roles?.includes('校长')).map(t => (
-															<StyledMenuItem_Custom 
-																key={t.id} 
-																value={t.id} 
-																themeVariant="department"
-															>
-																{t.name}
-															</StyledMenuItem_Custom>
-														))}
-													</StyledSelect>
+													<FormControl fullWidth size="medium">
+														<InputLabel sx={{ color: '#718096' }}>选择系部主任</InputLabel>
+														<Select
+															label="选择系部主任"
+															value={departmentHeads[dept.name] ?? ''}
+															onChange={e => handleAssignDepartmentHead(dept.name, e.target.value as number | '')}
+															sx={{
+																backgroundColor: '#fafbfc',
+																borderRadius: '8px',
+																'& .MuiOutlinedInput-notchedOutline': {
+																	borderColor: '#e2e8f0'
+																},
+																'&:hover .MuiOutlinedInput-notchedOutline': {
+																	borderColor: '#cbd5e0'
+																},
+																'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+																	borderColor: '#4a5568'
+																}
+															}}
+														>
+															<MenuItem value=""><em>未指派</em></MenuItem>
+															{teachers.filter(t => !t.roles?.includes('校长')).map(t => (
+																<MenuItem key={t.id} value={t.id}>
+																	{t.name}
+																</MenuItem>
+															))}
+														</Select>
+													</FormControl>
 												</Box>
 											))}
 										</Box>
@@ -1472,28 +1528,42 @@ export default function UsersPage() {
 																				}}>
 																					{c.name}
 																				</Typography>
-																				<StyledSelect
-																					label="选择班主任"
-																					value={currentHomeroom?.id ?? ''}
-																					onChange={e => handleAssignHomeroomInline(c.id, e.target.value as number | '')}
-																					themeVariant="class"
-																					size="small"
-																				>
-																					<EmptyMenuItem themeVariant="class">未指派</EmptyMenuItem>
-																					{teachers.filter(t =>
-																						!t.roles?.includes('校长') &&
-																						(!t.homeroomClassId || t.homeroomClassId === c.id)
-																					).map(t => (
-																						<StyledMenuItem_Custom 
-																							key={t.id} 
-																							value={t.id} 
-																							themeVariant="class"
-																							subtitle={t.teacherNo}
-																						>
-																							{t.name}
-																						</StyledMenuItem_Custom>
-																					))}
-																				</StyledSelect>
+																				<FormControl size="small" fullWidth>
+																					<InputLabel sx={{ color: '#718096' }}>选择班主任</InputLabel>
+																					<Select
+																						label="选择班主任"
+																						value={currentHomeroom?.id ?? ''}
+																						onChange={e => handleAssignHomeroomInline(c.id, e.target.value as number | '')}
+																						sx={{
+																							backgroundColor: '#fafbfc',
+																							borderRadius: '6px',
+																							'& .MuiOutlinedInput-notchedOutline': {
+																								borderColor: '#c6f6d5'
+																							},
+																							'&:hover .MuiOutlinedInput-notchedOutline': {
+																								borderColor: '#9ae6b4'
+																							},
+																							'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+																								borderColor: '#38a169'
+																							}
+																						}}
+																					>
+																						<MenuItem value=""><em>未指派</em></MenuItem>
+																						{teachers.filter(t =>
+																							!t.roles?.includes('校长') &&
+																							(!t.homeroomClassId || t.homeroomClassId === c.id)
+																						).map(t => (
+																							<MenuItem key={t.id} value={t.id}>
+																								<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+																									<Typography>{t.name}</Typography>
+																									<Typography variant="caption" sx={{ color: '#718096' }}>
+																										{t.teacherNo}
+																									</Typography>
+																								</Box>
+																							</MenuItem>
+																						))}
+																					</Select>
+																				</FormControl>
 																				{currentHomeroom && (
 																					<Box sx={{ mt: 2, p: 2, backgroundColor: '#f0fff4', borderRadius: '6px', border: '1px solid #c6f6d5' }}>
 																						<Typography variant="body2" sx={{ color: '#38a169', fontWeight: 600 }}>
@@ -1883,48 +1953,141 @@ export default function UsersPage() {
 									)
 								}}
 							/>
-							<StyledSelect
-								value={filterGrade}
-								onChange={e => setFilterGrade(e.target.value as string)}
-								label="年级"
-								size="small"
-								formControlProps={{ sx: { minWidth: 120 } }}
-							>
-								<EmptyMenuItem>全部</EmptyMenuItem>
-								{uniqueGrades.map(g => (
-									<StyledMenuItem_Custom key={g} value={g}>
-										{g}
-									</StyledMenuItem_Custom>
-								))}
-							</StyledSelect>
-							<StyledSelect
-								value={filterDept}
-								onChange={e => setFilterDept(e.target.value as string)}
-								label="系部"
-								size="small"
-								formControlProps={{ sx: { minWidth: 140 } }}
-							>
-								<EmptyMenuItem>全部</EmptyMenuItem>
-								{uniqueDepartments.map(d => (
-									<StyledMenuItem_Custom key={d} value={d}>
-										{d}
-									</StyledMenuItem_Custom>
-								))}
-							</StyledSelect>
-							<StyledSelect
-								value={filterRole}
-								onChange={e => setFilterRole(e.target.value as string)}
-								label="组织角色"
-								size="small"
-								formControlProps={{ sx: { minWidth: 160 } }}
-							>
-								<EmptyMenuItem>全部</EmptyMenuItem>
-								{ORG_ROLES.map(r => (
-									<StyledMenuItem_Custom key={r} value={r}>
-										{r}
-									</StyledMenuItem_Custom>
-								))}
-							</StyledSelect>
+							<FormControl size="small" sx={{ minWidth: 120 }}>
+								<InputLabel sx={{ 
+									color: '#718096',
+									'&.Mui-focused': { color: '#c05621' }
+								}}>年级</InputLabel>
+								<Select
+									value={filterGrade}
+									label="年级"
+									onChange={e => setFilterGrade(e.target.value)}
+									sx={{
+										backgroundColor: 'white',
+										borderRadius: '8px',
+										'& .MuiOutlinedInput-notchedOutline': {
+											borderColor: '#feebc8'
+										},
+										'&:hover .MuiOutlinedInput-notchedOutline': {
+											borderColor: '#fbd38d'
+										},
+										'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+											borderColor: '#c05621',
+											borderWidth: '2px'
+										},
+										'& .MuiSelect-select': {
+											color: '#1a202c',
+											fontWeight: 500
+										}
+									}}
+								>
+									<MenuItem value="" sx={{
+										fontStyle: 'italic',
+										color: '#a0aec0',
+										'&:hover': { backgroundColor: '#fffaf0' }
+									}}>全部</MenuItem>
+									{uniqueGrades.map(g => (
+										<MenuItem key={g} value={g} sx={{
+											color: '#1a202c',
+											'&:hover': { backgroundColor: '#fffaf0' },
+											'&.Mui-selected': { 
+												backgroundColor: '#feebc8',
+												'&:hover': { backgroundColor: '#fbd38d' }
+											}
+										}}>{g}</MenuItem>
+									))}
+								</Select>
+							</FormControl>
+							<FormControl size="small" sx={{ minWidth: 140 }}>
+								<InputLabel sx={{ 
+									color: '#718096',
+									'&.Mui-focused': { color: '#4a5568' }
+								}}>系部</InputLabel>
+								<Select
+									value={filterDept}
+									label="系部"
+									onChange={e => setFilterDept(e.target.value)}
+									sx={{
+										backgroundColor: 'white',
+										borderRadius: '8px',
+										'& .MuiOutlinedInput-notchedOutline': {
+											borderColor: '#e2e8f0'
+										},
+										'&:hover .MuiOutlinedInput-notchedOutline': {
+											borderColor: '#cbd5e0'
+										},
+										'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+											borderColor: '#4a5568',
+											borderWidth: '2px'
+										},
+										'& .MuiSelect-select': {
+											color: '#1a202c',
+											fontWeight: 500
+										}
+									}}
+								>
+									<MenuItem value="" sx={{
+										fontStyle: 'italic',
+										color: '#a0aec0',
+										'&:hover': { backgroundColor: '#f7fafc' }
+									}}>全部</MenuItem>
+									{uniqueDepartments.map(d => (
+										<MenuItem key={d} value={d} sx={{
+											color: '#1a202c',
+											'&:hover': { backgroundColor: '#f7fafc' },
+											'&.Mui-selected': { 
+												backgroundColor: '#e2e8f0',
+												'&:hover': { backgroundColor: '#cbd5e0' }
+											}
+										}}>{d}</MenuItem>
+									))}
+								</Select>
+							</FormControl>
+							<FormControl size="small" sx={{ minWidth: 160 }}>
+								<InputLabel sx={{ 
+									color: '#718096',
+									'&.Mui-focused': { color: '#38a169' }
+								}}>组织角色</InputLabel>
+								<Select
+									value={filterRole}
+									label="组织角色"
+									onChange={e => setFilterRole(e.target.value)}
+									sx={{
+										backgroundColor: 'white',
+										borderRadius: '8px',
+										'& .MuiOutlinedInput-notchedOutline': {
+											borderColor: '#c6f6d5'
+										},
+										'&:hover .MuiOutlinedInput-notchedOutline': {
+											borderColor: '#9ae6b4'
+										},
+										'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+											borderColor: '#38a169',
+											borderWidth: '2px'
+										},
+										'& .MuiSelect-select': {
+											color: '#1a202c',
+											fontWeight: 500
+										}
+									}}
+								>
+									<MenuItem value="" sx={{
+										fontStyle: 'italic',
+										color: '#a0aec0',
+										'&:hover': { backgroundColor: '#f0fff4' }
+									}}>全部</MenuItem>
+									{ORG_ROLES.map(r => (
+										<MenuItem key={r} value={r} sx={{
+											color: '#1a202c',
+											'&:hover': { backgroundColor: '#f0fff4' },
+											'&.Mui-selected': { 
+												backgroundColor: '#c6f6d5',
+												'&:hover': { backgroundColor: '#9ae6b4' }
+											}
+										}}>{r}</MenuItem>
+									))}
+								</Select>
+							</FormControl>
 							<IconButton
 								onClick={loadAll}
 								sx={{
@@ -2050,62 +2213,80 @@ export default function UsersPage() {
 							</Box>
 
 							{roleDraft.includes('班主任') && (
-								<StyledSelect
-									label="班主任班级"
-									value={draftHomeroomClassId}
-									onChange={e => setDraftHomeroomClassId(e.target.value as number)}
-									size="small"
-									themeVariant="class"
-								>
-									{classes.map(c => (
-										<StyledMenuItem_Custom 
-											key={c.id} 
-											value={c.id} 
-											themeVariant="class"
-											subtitle={`${c.grade} / ${c.department?.name || '无系部'}`}
-										>
-											{c.name}
-										</StyledMenuItem_Custom>
-									))}
-								</StyledSelect>
+								<FormControl size="small" fullWidth>
+									<InputLabel sx={{ color: '#718096' }}>班主任班级</InputLabel>
+									<Select
+										label="班主任班级"
+										value={draftHomeroomClassId}
+										onChange={e => setDraftHomeroomClassId(e.target.value as number)}
+										sx={{
+											borderRadius: '8px',
+											'& .MuiOutlinedInput-notchedOutline': {
+												borderColor: '#e8eaed'
+											},
+											'&:hover .MuiOutlinedInput-notchedOutline': {
+												borderColor: '#cbd5e0'
+											},
+											'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+												borderColor: '#4a5568'
+											}
+										}}
+									>
+										{classes.map(c => (
+											<MenuItem key={c.id} value={c.id}>
+												{c.name}（{c.grade} / {c.department?.name || '无系部'}）
+											</MenuItem>
+										))}
+									</Select>
+								</FormControl>
 							)}
 
 							{roleDraft.includes('年级主任') && (
-								<StyledSelect
-									label="负责年级"
-									value={roleScopeDraft['年级主任']?.grade || ''}
-									onChange={e => setRoleScopeDraft(prev => ({ ...prev, ['年级主任']: { ...(prev['年级主任']||{}), grade: e.target.value as string } }))}
-									size="small"
-									themeVariant="grade"
-								>
-									<EmptyMenuItem themeVariant="grade">未指定</EmptyMenuItem>
-									{Array.from(new Set(classes.map(c => c.grade).filter(Boolean))).map(g => (
-										<StyledMenuItem_Custom key={g as string} value={g as string} themeVariant="grade">
-											{g}
-										</StyledMenuItem_Custom>
-									))}
-								</StyledSelect>
+								<FormControl size="small" fullWidth>
+									<InputLabel sx={{ color: '#718096' }}>负责年级</InputLabel>
+									<Select
+										label="负责年级"
+										value={roleScopeDraft['年级主任']?.grade || ''}
+										onChange={e => setRoleScopeDraft(prev => ({ ...prev, ['年级主任']: { ...(prev['年级主任']||{}), grade: e.target.value as string } }))}
+										sx={{
+											borderRadius: '8px',
+											'& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8eaed' },
+											'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e0' },
+											'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#c05621' }
+										}}
+									>
+										<MenuItem value=""><em>未指定</em></MenuItem>
+										{Array.from(new Set(classes.map(c => c.grade).filter(Boolean))).map(g => (
+											<MenuItem key={g as string} value={g as string}>{g}</MenuItem>
+										))}
+									</Select>
+								</FormControl>
 							)}
 
 							{roleDraft.includes('系部主任') && (
-								<StyledSelect
-									label="负责系部"
-									value={roleScopeDraft['系部主任']?.departmentId ?? ''}
-									onChange={e => {
-										const val = e.target.value as string | number;
-										const depId = (val === '' ? null : Number(val));
-										setRoleScopeDraft(prev => ({ ...prev, ['系部主任']: { ...(prev['系部主任']||{}), departmentId: depId } }));
-									}}
-									size="small"
-									themeVariant="department"
-								>
-									<EmptyMenuItem themeVariant="department">未指定</EmptyMenuItem>
-									{departments.map(d => (
-										<StyledMenuItem_Custom key={d.id} value={d.id} themeVariant="department">
-											{d.name || d.code || d.id}
-										</StyledMenuItem_Custom>
-									))}
-								</StyledSelect>
+								<FormControl size="small" fullWidth>
+									<InputLabel sx={{ color: '#718096' }}>负责系部</InputLabel>
+									<Select
+										label="负责系部"
+										value={roleScopeDraft['系部主任']?.departmentId ?? ''}
+										onChange={e => {
+											const val = e.target.value as string | number;
+											const depId = (val === '' ? null : Number(val));
+											setRoleScopeDraft(prev => ({ ...prev, ['系部主任']: { ...(prev['系部主任']||{}), departmentId: depId } }));
+										}}
+										sx={{
+											borderRadius: '8px',
+											'& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8eaed' },
+											'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e0' },
+											'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#4a5568' }
+										}}
+									>
+										<MenuItem value=""><em>未指定</em></MenuItem>
+										{departments.map(d => (
+											<MenuItem key={d.id} value={d.id}>{d.name || d.code || d.id}</MenuItem>
+										))}
+									</Select>
+								</FormControl>
 							)}
 
 							<Alert
