@@ -92,8 +92,11 @@ const menu = [
       {
         text: "用户管理",
         icon: <SupervisorAccountIcon />,
-        href: "/admin/users",
         key: "users",
+        children: [
+          { text: "角色管理", href: "/admin/users/roles", key: "user-roles" },
+          { text: "教师管理", href: "/admin/users/teachers", key: "user-teachers" },
+        ],
       },
     ],
   },

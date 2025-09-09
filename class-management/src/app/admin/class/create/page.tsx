@@ -1,8 +1,9 @@
-// 创建班级时提交后显示成功提示。
+// 创建班级页面 - 重新设计，移除教师分配功能
 
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
 import {
   Box,
@@ -12,47 +13,30 @@ import {
   TextField,
   Button,
   MenuItem,
-  Autocomplete,
-  Grid,
   InputLabel,
   Select,
   FormControl,
   Divider,
   Stack,
-  LinearProgress
+  LinearProgress,
+  Alert,
+  AlertTitle,
+  IconButton,
+  Chip
 } from "@mui/material";
-import { styled } from "@mui/material/styles";
-
-type Teacher = { id: number; name: string };
-
-const StyledCard = styled(Card)(({ theme }) => ({
-  borderRadius: theme.shape.borderRadius * 2,
-  boxShadow: theme.shadows[4],
-  transition: "box-shadow 0.3s ease",
-  "&:hover": {
-    boxShadow: theme.shadows[8],
-  },
-}));
-
-const StyledButton = styled(Button)(({ theme }) => ({
-  borderRadius: theme.shape.borderRadius * 2,
-  padding: theme.spacing(1.5, 3),
-  fontWeight: 600,
-}));
-
-const StyledTextField = styled(TextField)(({ theme }) => ({
-  "& .MuiOutlinedInput-root": {
-    borderRadius: theme.shape.borderRadius * 2,
-  },
-}));
+import { motion } from "framer-motion";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import InfoIcon from "@mui/icons-material/Info";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
 export default function ClassCreatePage() {
+  const router = useRouter();
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [gradeOptions, setGradeOptions] = useState<number[]>([]);
   const [className, setClassName] = useState("");
-  const [teacher, setTeacher] = useState<Teacher | null>(null);
-  const [teacherOptions, setTeacherOptions] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   // 年级下拉
   useEffect(() => {
@@ -60,13 +44,6 @@ export default function ClassCreatePage() {
     const arr = [];
     for (let y = 2020; y <= now; y++) arr.push(y);
     setGradeOptions(arr.reverse());
-  }, []);
-
-  // 获取老师列表
-  useEffect(() => {
-    axios.get("/api/users/teacher/all").then(res => {
-      setTeacherOptions(res.data);
-    });
   }, []);
 
   // 自动加年份前缀
@@ -84,106 +61,373 @@ export default function ClassCreatePage() {
     setYear(y);
     const yearSuffix = String(y).slice(-2);
     setClassName((prev) => {
-      let name = prev.replace(/^\d{2}/, "");
+      const name = prev.replace(/^\d{2}/, "");
       return yearSuffix + name;
     });
   };
 
   // 提交
   const handleSubmit = async () => {
+    if (!className.trim()) {
+      alert("请输入班级名称");
+      return;
+    }
+
     setLoading(true);
     try {
       await axios.post("/api/class/create", {
         name: className,
         grade: year,
-        teacherId: teacher?.id,
       });
-      alert("创建成功！");
-      setClassName("");
-      setTeacher(null);
-    } catch (e: any) {
-      alert("创建失败：" + (e?.response?.data?.message || e.message));
+      setSuccess(true);
+      setTimeout(() => {
+        setClassName("");
+        setSuccess(false);
+      }, 3000);
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "未知错误";
+      alert("创建失败：" + errorMessage);
     }
     setLoading(false);
   };
 
+  const handleGoToTeacherManagement = () => {
+    router.push("/admin/users");
+  };
+
   return (
-    <Box sx={{
-      maxWidth: 800,
-      mx: "auto",
-      mt: 4,
-      px: { xs: 2, sm: 3, md: 4 }
-    }}>
-      <StyledCard>
-        {loading && <LinearProgress />}
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-          <Stack spacing={3}>
-            <Typography variant="h4" fontWeight={700} color="primary">
-              创建新班级
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <Box sx={{
+        p: 3,
+        backgroundColor: '#fafbfc',
+        minHeight: '100vh'
+      }}>
+        {/* 页面头部 */}
+        <Box sx={{
+          mb: 4,
+          p: 3,
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          border: '1px solid #e8eaed',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <IconButton
+              onClick={() => router.back()}
+              sx={{
+                mr: 2,
+                color: '#4a5568',
+                '&:hover': {
+                  backgroundColor: '#f7fafc',
+                }
+              }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+            <Typography variant="h4" sx={{
+              fontWeight: 600,
+              color: '#1a202c',
+              letterSpacing: '-0.025em'
+            }}>
+              创建班级
             </Typography>
-            <Divider sx={{ my: 1 }} />
-            <Grid container spacing={4}>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>年级</InputLabel>
-                  <Select
-                    label="年级"
-                    value={year}
-                    onChange={e => handleYearChange(Number(e.target.value))}
-                    sx={{ borderRadius: 2 }}
+          </Box>
+          <Typography variant="body1" sx={{
+            color: '#718096',
+            lineHeight: 1.6
+          }}>
+            创建新的班级信息，配置基本属性和设置
+          </Typography>
+        </Box>
+
+        {/* 主要内容卡片 */}
+        <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+          <Card sx={{
+            borderRadius: '12px',
+            border: '1px solid #e8eaed',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            overflow: 'hidden',
+            position: 'relative'
+          }}>
+            {loading && (
+              <LinearProgress sx={{ 
+                backgroundColor: '#f7fafc',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: '#3182ce'
+                }
+              }} />
+            )}
+            
+            <CardContent sx={{ p: 4 }}>
+              <Stack spacing={4}>
+                {/* Success Alert */}
+                {success && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
                   >
-                    {gradeOptions.map(y => (
-                      <MenuItem key={y} value={y}>{y}级</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <StyledTextField
-                  label="班级名称"
-                  value={className}
-                  onChange={e => handleClassNameChange(e.target.value)}
-                  fullWidth
-                  required
-                  helperText="班级名称前自动加上年份后两位"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <Autocomplete
-                  options={teacherOptions}
-                  getOptionLabel={option => option.name}
-                  value={teacher}
-                  onChange={(_, val) => setTeacher(val)}
-                  renderInput={params => (
-                    <StyledTextField
-                      {...params}
-                      label="任教老师"
-                      placeholder="搜索老师"
+                    <Alert 
+                      severity="success" 
+                      icon={<CheckCircleIcon fontSize="inherit" />}
+                      sx={{
+                        borderRadius: '12px',
+                        '& .MuiAlert-icon': {
+                          color: '#4caf50'
+                        }
+                      }}
+                    >
+                      <AlertTitle sx={{ fontWeight: 600 }}>创建成功！</AlertTitle>
+                      班级 &ldquo;{className}&rdquo; 已创建完成
+                    </Alert>
+                  </motion.div>
+                )}
+
+                {/* Info Alert */}
+                <Alert 
+                  severity="info" 
+                  icon={<InfoIcon fontSize="inherit" />}
+                  sx={{
+                    borderRadius: '12px',
+                    backgroundColor: '#e3f2fd',
+                    '& .MuiAlert-icon': {
+                      color: '#2196f3'
+                    }
+                  }}
+                >
+                  <AlertTitle sx={{ fontWeight: 600 }}>关于教师分配</AlertTitle>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+                    <Typography variant="body2">
+                      班级创建后，您可以前往教师管理页面为班级分配班主任和任课教师
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<PersonAddIcon />}
+                      onClick={handleGoToTeacherManagement}
+                      sx={{
+                        ml: 2,
+                        borderRadius: '8px',
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
+                        '&:hover': {
+                          boxShadow: '0 6px 16px rgba(33, 150, 243, 0.4)'
+                        }
+                      }}
+                    >
+                      分配教师
+                    </Button>
+                  </Box>
+                </Alert>
+
+                <Divider sx={{ borderColor: '#e8eaed' }} />
+
+                {/* Form */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+                  <Box>
+                    <FormControl fullWidth>
+                      <InputLabel sx={{ 
+                        color: '#718096',
+                        fontWeight: 500,
+                        '&.Mui-focused': { color: '#3182ce' }
+                      }}>年级</InputLabel>
+                      <Select
+                        label="年级"
+                        value={year}
+                        onChange={e => handleYearChange(Number(e.target.value))}
+                        sx={{
+                          backgroundColor: 'white',
+                          borderRadius: '8px',
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#e8eaed',
+                            borderWidth: '1px'
+                          },
+                          '&:hover': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: '#90cdf4'
+                            }
+                          },
+                          '&.Mui-focused': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: '#3182ce',
+                              borderWidth: '2px'
+                            }
+                          },
+                          '& .MuiSelect-select': {
+                            color: '#1a202c',
+                            fontWeight: 500,
+                            padding: '12px 14px'
+                          },
+                          '& .MuiSelect-icon': {
+                            color: '#3182ce'
+                          }
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            sx: {
+                              borderRadius: '8px',
+                              border: '1px solid #e8eaed',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              mt: 1,
+                              '& .MuiList-root': {
+                                padding: '8px'
+                              }
+                            }
+                          }
+                        }}
+                      >
+                        {gradeOptions.map(y => (
+                          <MenuItem 
+                            key={y} 
+                            value={y}
+                            sx={{
+                              borderRadius: '4px',
+                              margin: '2px 4px',
+                              '&:hover': { 
+                                backgroundColor: '#ebf8ff'
+                              },
+                              '&.Mui-selected': { 
+                                backgroundColor: '#e3f2fd',
+                                fontWeight: 600,
+                                '&:hover': { 
+                                  backgroundColor: '#bbdefb'
+                                }
+                              }
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography sx={{ fontWeight: 600, color: '#1a202c' }}>{y}级</Typography>
+                              <Chip
+                                label="入学年份"
+                                size="small"
+                                sx={{
+                                  backgroundColor: '#ebf8ff',
+                                  color: '#3182ce',
+                                  fontSize: '0.7rem',
+                                  height: 20
+                                }}
+                              />
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+
+                  <Box>
+                    <TextField
+                      label="班级名称"
+                      value={className}
+                      onChange={e => handleClassNameChange(e.target.value)}
+                      fullWidth
                       required
-                      sx={{ width: "140%" }}
+                      helperText="班级名称前会自动加上年份后两位数字"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: 'white',
+                          borderRadius: '8px',
+                          '& fieldset': {
+                            borderColor: '#e8eaed',
+                            borderWidth: '1px'
+                          },
+                          '&:hover': {
+                            '& fieldset': {
+                              borderColor: '#90cdf4'
+                            }
+                          },
+                          '&.Mui-focused': {
+                            '& fieldset': {
+                              borderColor: '#3182ce',
+                              borderWidth: '2px'
+                            }
+                          }
+                        },
+                        '& .MuiInputBase-input': {
+                          fontWeight: 500,
+                          color: '#1a202c',
+                          padding: '12px 14px'
+                        },
+                        '& .MuiInputLabel-root': {
+                          color: '#718096',
+                          fontWeight: 500,
+                          '&.Mui-focused': {
+                            color: '#2196f3'
+                          }
+                        },
+                        '& .MuiFormHelperText-root': {
+                          color: '#718096',
+                          fontSize: '0.75rem',
+                          mt: 1
+                        }
+                      }}
+                      InputProps={{
+                        placeholder: "例如: 计算机1班"
+                      }}
                     />
-                  )}
-                  isOptionEqualToValue={(o, v) => o.id === v.id}
-                />
-              </Grid>
-              <Grid item xs={12} sx={{ pt: 0.5 }}>
-                <Stack direction="row" justifyContent="flex-end" spacing={2}>
-                  <StyledButton
-                    variant="contained"
-                    color="primary"
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    size="large"
-                    sx={{ minWidth: 180 }}
+                  </Box>
+                </Box>
+
+                {/* Action Buttons */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  pt: 3,
+                  borderTop: '1px solid #e2e8f0'
+                }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<PersonAddIcon />}
+                    onClick={handleGoToTeacherManagement}
+                    sx={{
+                      borderRadius: '12px',
+                      borderColor: '#2196f3',
+                      color: '#2196f3',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      padding: '10px 20px',
+                      '&:hover': {
+                        backgroundColor: '#e3f2fd',
+                        borderColor: '#1976d2'
+                      }
+                    }}
                   >
-                    {loading ? "提交中..." : "创建班级"}
-                  </StyledButton>
-                </Stack>
-              </Grid>
-            </Grid>
-          </Stack>
-        </CardContent>
-      </StyledCard>
-    </Box>
+                    管理教师分配
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    onClick={handleSubmit}
+                    disabled={loading || !className.trim()}
+                    size="large"
+                    sx={{
+                      borderRadius: '12px',
+                      background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                      boxShadow: '0 8px 24px rgba(33, 150, 243, 0.3)',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      padding: '12px 32px',
+                      minWidth: 160,
+                      '&:hover': {
+                        background: 'linear-gradient(45deg, #1976D2 30%, #1E88E5 90%)',
+                        boxShadow: '0 12px 32px rgba(33, 150, 243, 0.4)',
+                        transform: 'translateY(-2px)'
+                      },
+                      '&:disabled': {
+                        background: '#e0e0e0',
+                        boxShadow: 'none'
+                      }
+                    }}
+                  >
+                    {loading ? "创建中..." : "创建班级"}
+                  </Button>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Box>
+      </Box>
+    </motion.div>
   );
 }
