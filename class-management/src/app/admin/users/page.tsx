@@ -1135,7 +1135,11 @@ export default function UsersPage() {
 										校长是学校的最高管理者，负责学校整体运营、战略决策和对外事务。
 									</Typography>
 									<FormControl fullWidth size="medium">
-										<InputLabel sx={{ color: '#718096' }}>选择校长</InputLabel>
+										<InputLabel sx={{ 
+											color: '#718096',
+											fontWeight: 500,
+											'&.Mui-focused': { color: '#c53030' }
+										}}>选择校长</InputLabel>
 										<Select
 											label="选择校长"
 											value={principalId ?? ''}
@@ -1143,20 +1147,99 @@ export default function UsersPage() {
 											sx={{
 												backgroundColor: 'white',
 												borderRadius: '12px',
+												boxShadow: '0 2px 8px rgba(197, 48, 48, 0.08)',
+												transition: 'all 0.2s ease',
 												'& .MuiOutlinedInput-notchedOutline': {
-													borderColor: '#fed7d7'
+													borderColor: '#fed7d7',
+													borderWidth: '1.5px'
 												},
-												'&:hover .MuiOutlinedInput-notchedOutline': {
-													borderColor: '#feb2b2'
+												'&:hover': {
+													transform: 'translateY(-1px)',
+													boxShadow: '0 4px 16px rgba(197, 48, 48, 0.15)',
+													'& .MuiOutlinedInput-notchedOutline': {
+														borderColor: '#feb2b2'
+													}
 												},
-												'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-													borderColor: '#c53030'
+												'&.Mui-focused': {
+													transform: 'translateY(-1px)',
+													boxShadow: '0 4px 20px rgba(197, 48, 48, 0.2)',
+													'& .MuiOutlinedInput-notchedOutline': {
+														borderColor: '#c53030',
+														borderWidth: '2px'
+													}
+												},
+												'& .MuiSelect-select': {
+													fontWeight: 600,
+													padding: '12px 14px',
+													textAlign: 'center',
+													display: 'flex',
+													alignItems: 'center',
+													justifyContent: 'center'
+												},
+												'& .MuiSelect-icon': {
+													color: '#c53030',
+													transition: 'transform 0.2s ease'
+												},
+												'&.Mui-focused .MuiSelect-icon': {
+													transform: 'rotate(180deg)'
 												}
 											}}
+											MenuProps={{
+												PaperProps: {
+													sx: {
+														borderRadius: '12px',
+														boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+														border: '1px solid #fed7d7',
+														mt: 1,
+														maxHeight: 300,
+														'& .MuiList-root': {
+															padding: '8px'
+														}
+													}
+												},
+												anchorOrigin: {
+													vertical: 'bottom',
+													horizontal: 'left'
+												},
+												transformOrigin: {
+													vertical: 'top',
+													horizontal: 'left'
+												},
+												disablePortal: false
+											}}
 										>
-											<MenuItem value=""><em>未指派</em></MenuItem>
+											<MenuItem value="" sx={{
+												fontStyle: 'italic',
+												color: '#a0aec0',
+												fontWeight: 500,
+												borderRadius: '8px',
+												margin: '4px 8px',
+												transition: 'all 0.2s ease',
+												'&:hover': { 
+													backgroundColor: '#fff5f5',
+													transform: 'translateX(4px)',
+													color: '#c53030'
+												}
+											}}>未指派</MenuItem>
 											{teachers.map(t => (
-												<MenuItem key={t.id} value={t.id}>
+												<MenuItem key={t.id} value={t.id} sx={{
+													borderRadius: '8px',
+													margin: '4px 8px',
+													transition: 'all 0.2s ease',
+													'&:hover': { 
+														backgroundColor: '#fff5f5',
+														transform: 'translateX(4px)',
+														boxShadow: '0 2px 8px rgba(197, 48, 48, 0.1)'
+													},
+													'&.Mui-selected': { 
+														backgroundColor: '#fed7d7',
+														fontWeight: 600,
+														'&:hover': { 
+															backgroundColor: '#feb2b2',
+															transform: 'translateX(4px)'
+														}
+													}
+												}}>
 													<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
 														<Box sx={{
 															width: 32,
@@ -1271,28 +1354,111 @@ export default function UsersPage() {
 														)}
 													</Box>
 													<FormControl fullWidth size="medium">
-														<InputLabel sx={{ color: '#718096' }}>选择年级主任</InputLabel>
+														<InputLabel sx={{ 
+															color: '#718096',
+															fontWeight: 500,
+															'&.Mui-focused': { color: '#c05621' }
+														}}>选择年级主任</InputLabel>
 														<Select
 															label="选择年级主任"
 															value={gradeLeaders[grade] ?? ''}
 															onChange={e => handleAssignGradeLeader(grade, e.target.value as number | '')}
 															sx={{
 																backgroundColor: '#fafbfc',
-																borderRadius: '8px',
+																borderRadius: '12px',
+																boxShadow: '0 2px 8px rgba(192, 86, 33, 0.08)',
+																transition: 'all 0.2s ease',
 																'& .MuiOutlinedInput-notchedOutline': {
-																	borderColor: '#feebc8'
+																	borderColor: '#feebc8',
+																	borderWidth: '1.5px'
 																},
-																'&:hover .MuiOutlinedInput-notchedOutline': {
-																	borderColor: '#fbd38d'
+																'&:hover': {
+																	transform: 'translateY(-1px)',
+																	boxShadow: '0 4px 16px rgba(192, 86, 33, 0.15)',
+																	'& .MuiOutlinedInput-notchedOutline': {
+																		borderColor: '#fbd38d'
+																	}
 																},
-																'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-																	borderColor: '#c05621'
+																'&.Mui-focused': {
+																	transform: 'translateY(-1px)',
+																	boxShadow: '0 4px 20px rgba(192, 86, 33, 0.2)',
+																	'& .MuiOutlinedInput-notchedOutline': {
+																		borderColor: '#c05621',
+																		borderWidth: '2px'
+																	}
+																},
+																'& .MuiSelect-select': {
+																	fontWeight: 600,
+																	padding: '12px 14px',
+																	textAlign: 'center',
+																	display: 'flex',
+																	alignItems: 'center',
+																	justifyContent: 'center'
+																},
+																'& .MuiSelect-icon': {
+																	color: '#c05621',
+																	transition: 'transform 0.2s ease'
+																},
+																'&.Mui-focused .MuiSelect-icon': {
+																	transform: 'rotate(180deg)'
 																}
 															}}
+															MenuProps={{
+																PaperProps: {
+																	sx: {
+																		borderRadius: '12px',
+																		boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+																		border: '1px solid #feebc8',
+																		mt: 1,
+																		maxHeight: 300,
+																		'& .MuiList-root': {
+																			padding: '8px'
+																		}
+																	}
+																},
+																anchorOrigin: {
+																	vertical: 'bottom',
+																	horizontal: 'left'
+																},
+																transformOrigin: {
+																	vertical: 'top',
+																	horizontal: 'left'
+																},
+																disablePortal: false
+															}}
 														>
-															<MenuItem value=""><em>未指派</em></MenuItem>
+															<MenuItem value="" sx={{
+																fontStyle: 'italic',
+																color: '#a0aec0',
+																fontWeight: 500,
+																borderRadius: '8px',
+																margin: '4px 8px',
+																transition: 'all 0.2s ease',
+																'&:hover': { 
+																	backgroundColor: '#fffaf0',
+																	transform: 'translateX(4px)',
+																	color: '#c05621'
+																}
+															}}>未指派</MenuItem>
 															{teachers.filter(t => !t.roles?.includes('校长')).map(t => (
-																<MenuItem key={t.id} value={t.id}>
+																<MenuItem key={t.id} value={t.id} sx={{
+																	borderRadius: '8px',
+																	margin: '4px 8px',
+																	transition: 'all 0.2s ease',
+																	'&:hover': { 
+																		backgroundColor: '#fffaf0',
+																		transform: 'translateX(4px)',
+																		boxShadow: '0 2px 8px rgba(192, 86, 33, 0.1)'
+																	},
+																	'&.Mui-selected': { 
+																		backgroundColor: '#feebc8',
+																		fontWeight: 600,
+																		'&:hover': { 
+																			backgroundColor: '#fbd38d',
+																			transform: 'translateX(4px)'
+																		}
+																	}
+																}}>
 																	<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
 																		<Typography>{t.name}</Typography>
 																		<Typography variant="caption" sx={{ color: '#718096' }}>
@@ -1387,28 +1553,111 @@ export default function UsersPage() {
 														)}
 													</Box>
 													<FormControl fullWidth size="medium">
-														<InputLabel sx={{ color: '#718096' }}>选择系部主任</InputLabel>
+														<InputLabel sx={{ 
+															color: '#718096',
+															fontWeight: 500,
+															'&.Mui-focused': { color: '#4a5568' }
+														}}>选择系部主任</InputLabel>
 														<Select
 															label="选择系部主任"
 															value={departmentHeads[dept.name] ?? ''}
 															onChange={e => handleAssignDepartmentHead(dept.name, e.target.value as number | '')}
 															sx={{
 																backgroundColor: '#fafbfc',
-																borderRadius: '8px',
+																borderRadius: '12px',
+																boxShadow: '0 2px 8px rgba(74, 85, 104, 0.08)',
+																transition: 'all 0.2s ease',
 																'& .MuiOutlinedInput-notchedOutline': {
-																	borderColor: '#e2e8f0'
+																	borderColor: '#e2e8f0',
+																	borderWidth: '1.5px'
 																},
-																'&:hover .MuiOutlinedInput-notchedOutline': {
-																	borderColor: '#cbd5e0'
+																'&:hover': {
+																	transform: 'translateY(-1px)',
+																	boxShadow: '0 4px 16px rgba(74, 85, 104, 0.15)',
+																	'& .MuiOutlinedInput-notchedOutline': {
+																		borderColor: '#cbd5e0'
+																	}
 																},
-																'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-																	borderColor: '#4a5568'
+																'&.Mui-focused': {
+																	transform: 'translateY(-1px)',
+																	boxShadow: '0 4px 20px rgba(74, 85, 104, 0.2)',
+																	'& .MuiOutlinedInput-notchedOutline': {
+																		borderColor: '#4a5568',
+																		borderWidth: '2px'
+																	}
+																},
+																'& .MuiSelect-select': {
+																	fontWeight: 600,
+																	padding: '12px 14px',
+																	textAlign: 'center',
+																	display: 'flex',
+																	alignItems: 'center',
+																	justifyContent: 'center'
+																},
+																'& .MuiSelect-icon': {
+																	color: '#4a5568',
+																	transition: 'transform 0.2s ease'
+																},
+																'&.Mui-focused .MuiSelect-icon': {
+																	transform: 'rotate(180deg)'
 																}
 															}}
+															MenuProps={{
+																PaperProps: {
+																	sx: {
+																		borderRadius: '12px',
+																		boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+																		border: '1px solid #e2e8f0',
+																		mt: 1,
+																		maxHeight: 300,
+																		'& .MuiList-root': {
+																			padding: '8px'
+																		}
+																	}
+																},
+																anchorOrigin: {
+																	vertical: 'bottom',
+																	horizontal: 'left'
+																},
+																transformOrigin: {
+																	vertical: 'top',
+																	horizontal: 'left'
+																},
+																disablePortal: false
+															}}
 														>
-															<MenuItem value=""><em>未指派</em></MenuItem>
+															<MenuItem value="" sx={{
+																fontStyle: 'italic',
+																color: '#a0aec0',
+																fontWeight: 500,
+																borderRadius: '8px',
+																margin: '4px 8px',
+																transition: 'all 0.2s ease',
+																'&:hover': { 
+																	backgroundColor: '#f7fafc',
+																	transform: 'translateX(4px)',
+																	color: '#4a5568'
+																}
+															}}>未指派</MenuItem>
 															{teachers.filter(t => !t.roles?.includes('校长')).map(t => (
-																<MenuItem key={t.id} value={t.id}>
+																<MenuItem key={t.id} value={t.id} sx={{
+																	borderRadius: '8px',
+																	margin: '4px 8px',
+																	transition: 'all 0.2s ease',
+																	'&:hover': { 
+																		backgroundColor: '#f7fafc',
+																		transform: 'translateX(4px)',
+																		boxShadow: '0 2px 8px rgba(74, 85, 104, 0.1)'
+																	},
+																	'&.Mui-selected': { 
+																		backgroundColor: '#e2e8f0',
+																		fontWeight: 600,
+																		'&:hover': { 
+																			backgroundColor: '#cbd5e0',
+																			transform: 'translateX(4px)'
+																		}
+																	}
+																}}>
 																	{t.name}
 																</MenuItem>
 															))}
@@ -1529,23 +1778,84 @@ export default function UsersPage() {
 																					{c.name}
 																				</Typography>
 																				<FormControl size="small" fullWidth>
-																					<InputLabel sx={{ color: '#718096' }}>选择班主任</InputLabel>
+																					<InputLabel sx={{ 
+																						color: '#718096',
+																						fontWeight: 500,
+																						fontSize: '0.875rem'
+																					}}>选择班主任</InputLabel>
 																					<Select
 																						label="选择班主任"
 																						value={currentHomeroom?.id ?? ''}
 																						onChange={e => handleAssignHomeroomInline(c.id, e.target.value as number | '')}
 																						sx={{
-																							backgroundColor: '#fafbfc',
-																							borderRadius: '6px',
+																							backgroundColor: '#fefefe',
+																							borderRadius: '12px',
+																							border: '2px solid #e2f2ea',
+																							boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+																							transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
 																							'& .MuiOutlinedInput-notchedOutline': {
-																								borderColor: '#c6f6d5'
+																								border: 'none'
 																							},
-																							'&:hover .MuiOutlinedInput-notchedOutline': {
-																								borderColor: '#9ae6b4'
+																							'&:hover': {
+																								borderColor: '#a8e6b7',
+																								transform: 'translateY(-1px)',
+																								boxShadow: '0 4px 12px rgba(0,0,0,0.12)'
 																							},
-																							'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-																								borderColor: '#38a169'
+																							'&.Mui-focused': {
+																								borderColor: '#38a169',
+																								boxShadow: '0 0 0 3px rgba(56,161,105,0.1)'
+																							},
+																							'& .MuiSelect-select': {
+																								padding: '12px 16px',
+																								fontSize: '0.875rem',
+																								fontWeight: 500,
+																								color: '#2d3748',
+																								textAlign: 'center',
+																								display: 'flex',
+																								alignItems: 'center',
+																								justifyContent: 'center'
 																							}
+																						}}
+																						MenuProps={{
+																							PaperProps: {
+																								sx: {
+																									borderRadius: '12px',
+																									boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+																									border: '1px solid #e2e8f0',
+																									mt: 1,
+																									maxHeight: 300,
+																									'& .MuiList-root': {
+																										padding: '8px'
+																									},
+																									'& .MuiMenuItem-root': {
+																										margin: '4px 8px',
+																										borderRadius: '8px',
+																										padding: '10px 12px',
+																										transition: 'all 0.2s ease',
+																										'&:hover': {
+																											backgroundColor: '#e6fffa',
+																											transform: 'translateX(4px)'
+																										},
+																										'&.Mui-selected': {
+																											backgroundColor: '#e6fffa',
+																											color: '#2b6cb0',
+																											fontWeight: 600,
+																											'&:hover': {
+																												backgroundColor: '#b2f5ea'
+																											}
+																										}
+																									}
+																								}
+																							},
+																							anchorOrigin: {
+																								vertical: 'bottom',
+																								horizontal: 'left'
+																							},
+																							transformOrigin: {
+																								vertical: 'top',
+																								horizontal: 'left'
+																							},
+																							disablePortal: false
 																						}}
 																					>
 																						<MenuItem value=""><em>未指派</em></MenuItem>
@@ -1927,28 +2237,52 @@ export default function UsersPage() {
 						}}>
 							<TextField
 								size="small"
-								placeholder="搜索姓名或工号"
+								placeholder="搜索姓名或工号..."
 								value={search}
 								onChange={e => setSearch(e.target.value)}
 								sx={{
+									minWidth: 250,
 									'& .MuiOutlinedInput-root': {
 										backgroundColor: 'white',
-										borderRadius: '8px',
+										borderRadius: '12px',
+										boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+										transition: 'all 0.2s ease',
 										'& fieldset': {
-											borderColor: '#e8eaed'
+											borderColor: '#e8eaed',
+											borderWidth: '1.5px'
 										},
-										'&:hover fieldset': {
-											borderColor: '#cbd5e0'
+										'&:hover': {
+											transform: 'translateY(-1px)',
+											boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
+											'& fieldset': {
+												borderColor: '#cbd5e0'
+											}
 										},
-										'&.Mui-focused fieldset': {
-											borderColor: '#4a5568'
+										'&.Mui-focused': {
+											transform: 'translateY(-1px)',
+											boxShadow: '0 4px 20px rgba(74, 85, 104, 0.15)',
+											'& fieldset': {
+												borderColor: '#4a5568',
+												borderWidth: '2px'
+											}
+										},
+										'& .MuiInputBase-input': {
+											fontWeight: 500,
+											color: '#2d3748',
+											'&::placeholder': {
+												color: '#a0aec0',
+												opacity: 1
+											}
 										}
 									}
 								}}
 								InputProps={{
 									startAdornment: (
 										<InputAdornment position="start">
-											<SearchIcon fontSize="small" sx={{ color: '#a0aec0' }} />
+											<SearchIcon fontSize="small" sx={{ 
+												color: '#718096',
+												transition: 'color 0.2s ease'
+											}} />
 										</InputAdornment>
 									)
 								}}
@@ -1956,7 +2290,8 @@ export default function UsersPage() {
 							<FormControl size="small" sx={{ minWidth: 120 }}>
 								<InputLabel sx={{ 
 									color: '#718096',
-									'&.Mui-focused': { color: '#c05621' }
+									'&.Mui-focused': { color: '#c05621' },
+									fontWeight: 500
 								}}>年级</InputLabel>
 								<Select
 									value={filterGrade}
@@ -1964,44 +2299,113 @@ export default function UsersPage() {
 									onChange={e => setFilterGrade(e.target.value)}
 									sx={{
 										backgroundColor: 'white',
-										borderRadius: '8px',
+										borderRadius: '12px',
+										boxShadow: '0 2px 8px rgba(192, 86, 33, 0.08)',
+										transition: 'all 0.2s ease',
 										'& .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#feebc8'
+											borderColor: '#feebc8',
+											borderWidth: '1.5px'
 										},
-										'&:hover .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#fbd38d'
+										'&:hover': {
+											transform: 'translateY(-1px)',
+											boxShadow: '0 4px 16px rgba(192, 86, 33, 0.15)',
+											'& .MuiOutlinedInput-notchedOutline': {
+												borderColor: '#fbd38d'
+											}
 										},
-										'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#c05621',
-											borderWidth: '2px'
+										'&.Mui-focused': {
+											transform: 'translateY(-1px)',
+											boxShadow: '0 4px 20px rgba(192, 86, 33, 0.2)',
+											'& .MuiOutlinedInput-notchedOutline': {
+												borderColor: '#c05621',
+												borderWidth: '2px'
+											}
 										},
 										'& .MuiSelect-select': {
 											color: '#1a202c',
-											fontWeight: 500
+											fontWeight: 600,
+											padding: '10px 14px',
+											textAlign: 'center',
+											display: 'flex',
+											alignItems: 'center',
+											justifyContent: 'center'
+										},
+										'& .MuiSelect-icon': {
+											color: '#c05621',
+											transition: 'transform 0.2s ease'
+										},
+										'&.Mui-focused .MuiSelect-icon': {
+											transform: 'rotate(180deg)'
 										}
+									}}
+									MenuProps={{
+										PaperProps: {
+											sx: {
+												borderRadius: '12px',
+												boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+												border: '1px solid #feebc8',
+												mt: 1,
+												maxHeight: 300,
+												'& .MuiList-root': {
+													padding: '8px'
+												}
+											}
+										},
+										anchorOrigin: {
+											vertical: 'bottom',
+											horizontal: 'left'
+										},
+										transformOrigin: {
+											vertical: 'top',
+											horizontal: 'left'
+										},
+										disablePortal: false
 									}}
 								>
 									<MenuItem value="" sx={{
 										fontStyle: 'italic',
 										color: '#a0aec0',
-										'&:hover': { backgroundColor: '#fffaf0' }
-									}}>全部</MenuItem>
+										fontWeight: 500,
+										borderRadius: '8px',
+										margin: '4px 8px',
+										transition: 'all 0.2s ease',
+										'&:hover': { 
+											backgroundColor: '#fffaf0',
+											transform: 'translateX(4px)',
+											color: '#c05621'
+										}
+									}}>全部年级</MenuItem>
 									{uniqueGrades.map(g => (
 										<MenuItem key={g} value={g} sx={{
 											color: '#1a202c',
-											'&:hover': { backgroundColor: '#fffaf0' },
+											fontWeight: 500,
+											borderRadius: '8px',
+											margin: '4px 8px',
+											transition: 'all 0.2s ease',
+											'&:hover': { 
+												backgroundColor: '#fffaf0',
+												transform: 'translateX(4px)',
+												boxShadow: '0 2px 8px rgba(192, 86, 33, 0.1)'
+											},
 											'&.Mui-selected': { 
 												backgroundColor: '#feebc8',
-												'&:hover': { backgroundColor: '#fbd38d' }
+												fontWeight: 600,
+												'&:hover': { 
+													backgroundColor: '#fbd38d',
+													transform: 'translateX(4px)'
+												}
 											}
-										}}>{g}</MenuItem>
+										}}>
+											{g}年级
+										</MenuItem>
 									))}
 								</Select>
 							</FormControl>
 							<FormControl size="small" sx={{ minWidth: 140 }}>
 								<InputLabel sx={{ 
 									color: '#718096',
-									'&.Mui-focused': { color: '#4a5568' }
+									'&.Mui-focused': { color: '#4a5568' },
+									fontWeight: 500
 								}}>系部</InputLabel>
 								<Select
 									value={filterDept}
@@ -2009,44 +2413,113 @@ export default function UsersPage() {
 									onChange={e => setFilterDept(e.target.value)}
 									sx={{
 										backgroundColor: 'white',
-										borderRadius: '8px',
+										borderRadius: '12px',
+										boxShadow: '0 2px 8px rgba(74, 85, 104, 0.08)',
+										transition: 'all 0.2s ease',
 										'& .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#e2e8f0'
+											borderColor: '#e2e8f0',
+											borderWidth: '1.5px'
 										},
-										'&:hover .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#cbd5e0'
+										'&:hover': {
+											transform: 'translateY(-1px)',
+											boxShadow: '0 4px 16px rgba(74, 85, 104, 0.15)',
+											'& .MuiOutlinedInput-notchedOutline': {
+												borderColor: '#cbd5e0'
+											}
 										},
-										'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#4a5568',
-											borderWidth: '2px'
+										'&.Mui-focused': {
+											transform: 'translateY(-1px)',
+											boxShadow: '0 4px 20px rgba(74, 85, 104, 0.2)',
+											'& .MuiOutlinedInput-notchedOutline': {
+												borderColor: '#4a5568',
+												borderWidth: '2px'
+											}
 										},
 										'& .MuiSelect-select': {
 											color: '#1a202c',
-											fontWeight: 500
+											fontWeight: 600,
+											padding: '10px 14px',
+											textAlign: 'center',
+											display: 'flex',
+											alignItems: 'center',
+											justifyContent: 'center'
+										},
+										'& .MuiSelect-icon': {
+											color: '#4a5568',
+											transition: 'transform 0.2s ease'
+										},
+										'&.Mui-focused .MuiSelect-icon': {
+											transform: 'rotate(180deg)'
 										}
+									}}
+									MenuProps={{
+										PaperProps: {
+											sx: {
+												borderRadius: '12px',
+												boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+												border: '1px solid #e2e8f0',
+												mt: 1,
+												maxHeight: 300,
+												'& .MuiList-root': {
+													padding: '8px'
+												}
+											}
+										},
+										anchorOrigin: {
+											vertical: 'bottom',
+											horizontal: 'left'
+										},
+										transformOrigin: {
+											vertical: 'top',
+											horizontal: 'left'
+										},
+										disablePortal: false
 									}}
 								>
 									<MenuItem value="" sx={{
 										fontStyle: 'italic',
 										color: '#a0aec0',
-										'&:hover': { backgroundColor: '#f7fafc' }
-									}}>全部</MenuItem>
+										fontWeight: 500,
+										borderRadius: '8px',
+										margin: '4px 8px',
+										transition: 'all 0.2s ease',
+										'&:hover': { 
+											backgroundColor: '#f7fafc',
+											transform: 'translateX(4px)',
+											color: '#4a5568'
+										}
+									}}>全部系部</MenuItem>
 									{uniqueDepartments.map(d => (
 										<MenuItem key={d} value={d} sx={{
 											color: '#1a202c',
-											'&:hover': { backgroundColor: '#f7fafc' },
+											fontWeight: 500,
+											borderRadius: '8px',
+											margin: '4px 8px',
+											transition: 'all 0.2s ease',
+											'&:hover': { 
+												backgroundColor: '#f7fafc',
+												transform: 'translateX(4px)',
+												boxShadow: '0 2px 8px rgba(74, 85, 104, 0.1)'
+											},
 											'&.Mui-selected': { 
 												backgroundColor: '#e2e8f0',
-												'&:hover': { backgroundColor: '#cbd5e0' }
+												fontWeight: 600,
+												'&:hover': { 
+													backgroundColor: '#cbd5e0',
+													transform: 'translateX(4px)'
+												}
 											}
-										}}>{d}</MenuItem>
+										}}>
+											{d}
+										</MenuItem>
 									))}
 								</Select>
 							</FormControl>
 							<FormControl size="small" sx={{ minWidth: 160 }}>
 								<InputLabel sx={{ 
 									color: '#718096',
-									'&.Mui-focused': { color: '#38a169' }
+									'&.Mui-focused': { color: '#38a169' },
+									fontWeight: 500
 								}}>组织角色</InputLabel>
 								<Select
 									value={filterRole}
@@ -2054,37 +2527,105 @@ export default function UsersPage() {
 									onChange={e => setFilterRole(e.target.value)}
 									sx={{
 										backgroundColor: 'white',
-										borderRadius: '8px',
+										borderRadius: '12px',
+										boxShadow: '0 2px 8px rgba(56, 161, 105, 0.08)',
+										transition: 'all 0.2s ease',
 										'& .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#c6f6d5'
+											borderColor: '#c6f6d5',
+											borderWidth: '1.5px'
 										},
-										'&:hover .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#9ae6b4'
+										'&:hover': {
+											transform: 'translateY(-1px)',
+											boxShadow: '0 4px 16px rgba(56, 161, 105, 0.15)',
+											'& .MuiOutlinedInput-notchedOutline': {
+												borderColor: '#9ae6b4'
+											}
 										},
-										'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#38a169',
-											borderWidth: '2px'
+										'&.Mui-focused': {
+											transform: 'translateY(-1px)',
+											boxShadow: '0 4px 20px rgba(56, 161, 105, 0.2)',
+											'& .MuiOutlinedInput-notchedOutline': {
+												borderColor: '#38a169',
+												borderWidth: '2px'
+											}
 										},
 										'& .MuiSelect-select': {
 											color: '#1a202c',
-											fontWeight: 500
+											fontWeight: 600,
+											padding: '10px 14px',
+											textAlign: 'center',
+											display: 'flex',
+											alignItems: 'center',
+											justifyContent: 'center'
+										},
+										'& .MuiSelect-icon': {
+											color: '#38a169',
+											transition: 'transform 0.2s ease'
+										},
+										'&.Mui-focused .MuiSelect-icon': {
+											transform: 'rotate(180deg)'
 										}
+									}}
+									MenuProps={{
+										PaperProps: {
+											sx: {
+												borderRadius: '12px',
+												boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+												border: '1px solid #c6f6d5',
+												mt: 1,
+												maxHeight: 300,
+												'& .MuiList-root': {
+													padding: '8px'
+												}
+											}
+										},
+										anchorOrigin: {
+											vertical: 'bottom',
+											horizontal: 'left'
+										},
+										transformOrigin: {
+											vertical: 'top',
+											horizontal: 'left'
+										},
+										disablePortal: false
 									}}
 								>
 									<MenuItem value="" sx={{
 										fontStyle: 'italic',
 										color: '#a0aec0',
-										'&:hover': { backgroundColor: '#f0fff4' }
-									}}>全部</MenuItem>
+										fontWeight: 500,
+										borderRadius: '8px',
+										margin: '4px 8px',
+										transition: 'all 0.2s ease',
+										'&:hover': { 
+											backgroundColor: '#f0fff4',
+											transform: 'translateX(4px)',
+											color: '#38a169'
+										}
+									}}>全部角色</MenuItem>
 									{ORG_ROLES.map(r => (
 										<MenuItem key={r} value={r} sx={{
 											color: '#1a202c',
-											'&:hover': { backgroundColor: '#f0fff4' },
+											fontWeight: 500,
+											borderRadius: '8px',
+											margin: '4px 8px',
+											transition: 'all 0.2s ease',
+											'&:hover': { 
+												backgroundColor: '#f0fff4',
+												transform: 'translateX(4px)',
+												boxShadow: '0 2px 8px rgba(56, 161, 105, 0.1)'
+											},
 											'&.Mui-selected': { 
 												backgroundColor: '#c6f6d5',
-												'&:hover': { backgroundColor: '#9ae6b4' }
+												fontWeight: 600,
+												'&:hover': { 
+													backgroundColor: '#9ae6b4',
+													transform: 'translateX(4px)'
+												}
 											}
-										}}>{r}</MenuItem>
+										}}>
+											{r}
+										</MenuItem>
 									))}
 								</Select>
 							</FormControl>
