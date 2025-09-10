@@ -99,7 +99,6 @@ export default function ClassCreatePage() {
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
       <Box sx={{
         p: 3,
-        backgroundColor: '#fafbfc',
         minHeight: '100vh'
       }}>
         {/* 页面头部 */}

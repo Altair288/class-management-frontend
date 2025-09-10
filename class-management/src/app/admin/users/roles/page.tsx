@@ -445,7 +445,6 @@ export default function RolesManagementPage() {
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
       <Box sx={{
         p: 3,
-        backgroundColor: '#fafbfc',
         minHeight: '100vh'
       }}>
         {/* 页面头部 */}
@@ -985,14 +984,13 @@ export default function RolesManagementPage() {
           }}
         >
           <DialogTitle sx={{ 
-            pb: 1,
-            borderBottom: '1px solid #e8eaed',
+            pb: 2,
             fontWeight: 600,
             color: '#1a202c'
           }}>
             {dialogMode === 'create' ? '创建新角色' : '编辑角色'}
           </DialogTitle>
-          <DialogContent sx={{ pt: 3 }}>
+          <DialogContent sx={{ mt: 3, pt: 3, pb: 2 }}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
               <TextField
                 label="角色名称"

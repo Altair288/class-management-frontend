@@ -141,6 +141,12 @@ function findSelectedKeys(
 export default function Sidebar({ open }: { open: boolean }) {
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
+  const [isClient, setIsClient] = useState(false);
+
+  // 确保组件在客户端水合完成后再渲染
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // 选中项和父级项
   const { selectedKey, parentKey } = findSelectedKeys(menu, pathname);
@@ -152,8 +158,8 @@ export default function Sidebar({ open }: { open: boolean }) {
     }
   }, [parentKey]);
 
-  // 如果侧边栏关闭则不渲染
-  if (!open) return null;
+  // 如果侧边栏关闭或还未完成客户端水合则不渲染
+  if (!open || !isClient) return null;
 
   const handleToggle = (key: string) => {
     setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -204,7 +210,7 @@ export default function Sidebar({ open }: { open: boolean }) {
                 return (
                   <Box key={item.key}>
                     {item.href ? (
-                      <Link href={item.href} passHref legacyBehavior>
+                      <Link href={item.href}>
                         <ListItemButton
                           selected={selectedKey === item.key}
                           sx={{
@@ -285,7 +291,7 @@ export default function Sidebar({ open }: { open: boolean }) {
                       <Collapse in={isOpen} timeout="auto" unmountOnExit>
                         <List disablePadding sx={{ pl: 3, py: 0.5 }}>
                           {item.children!.map((child) => (
-                            <Link href={child.href} passHref legacyBehavior key={child.key}>
+                            <Link href={child.href} key={child.key}>
                               <ListItemButton
                                 selected={selectedKey === child.key}
                                 sx={{

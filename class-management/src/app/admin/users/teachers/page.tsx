@@ -43,6 +43,7 @@ import {
 	AccountTree as AccountTreeIcon,
 	Person as PersonIcon,
 	Save as SaveIcon,
+	Warning as WarningIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
@@ -68,7 +69,7 @@ interface Teacher {
 	createdAt?: string;
 	// 将后端传回的 roles 原始数组保留 rawRoles，roles 维护为字符串数组（便于现有 UI includes 判断）
 	rawRoles?: TeacherRoleDTO[];
-	roles?: string[]; // 简化后的角色名数组
+	roles?: OrgRoleCode[]; // 现在存放角色 code
 	homeroomClassId?: number | null;
 	homeroomClassName?: string | null;
 	departmentId?: number | null;
@@ -95,13 +96,63 @@ interface ClassItem {
 	teacher?: { id: number | null; name: string | null | undefined } | null; // 班主任
 }
 
-// 组织角色常量
-const ORG_ROLES = ['班主任', '系部主任', '年级主任', '校长'];
+// === 新增：可分配审批角色 DTO（后端 assignable-roles & role-hierarchy 返回） ===
+interface RoleDTO {
+	id: number;
+	code: string;
+	displayName: string;
+	category: string; // 期望 "APPROVAL" 等
+	level: number;
+	sortOrder: number;
+	description?: string | null;
+	enabled: boolean;
+}
+
+interface ScopesDTO {
+	classes: { id: number; name: string; grade: string; departmentId?: number | null }[];
+	departments: { id: number; name: string; code: string }[];
+	grades: string[];
+}
+
+// === 角色代码常量 & Fallback 映射（与后端约定的 code，需要与后端保持一致） ===
+const ROLE_CODES = {
+	PRINCIPAL: 'PRINCIPAL',
+	GRADE_LEADER: 'GRADE_HEAD', // 修正：与后端保持一致
+	DEPARTMENT_HEAD: 'DEPT_HEAD', // 修正：与后端保持一致
+	HOMEROOM_TEACHER: 'HOMEROOM' // 修正：与后端保持一致
+} as const;
+
+type OrgRoleCode = typeof ROLE_CODES[keyof typeof ROLE_CODES];
+
+const FALLBACK_DISPLAY_NAME: Record<string, string> = {
+	[ROLE_CODES.PRINCIPAL]: '校长',
+	[ROLE_CODES.GRADE_LEADER]: '年级主任',
+	[ROLE_CODES.DEPARTMENT_HEAD]: '系部主任',
+	[ROLE_CODES.HOMEROOM_TEACHER]: '班主任'
+};
+
+// 根据当前可分配角色构造 displayName->code 映射
+function buildDisplayToCode(assignableRoles?: RoleDTO[]): Record<string,string> {
+	const map: Record<string,string> = {};
+	if (assignableRoles) assignableRoles.forEach(r => { map[r.displayName] = r.code; });
+	Object.entries(FALLBACK_DISPLAY_NAME).forEach(([code, display]) => { if (!map[display]) map[display] = code; });
+	return map;
+}
+
+// 获取角色显示名（优先后端返回 displayName）
+function getRoleDisplayName(code: string, assignableRoles: RoleDTO[]): string {
+	const found = assignableRoles.find(r => r.code === code);
+	return found?.displayName || FALLBACK_DISPLAY_NAME[code] || code;
+}
 
 // ================= 工具函数 =================
 // 尽量使用宽松但非 any 的类型；后续可根据后端 Swagger 生成精确类型
-const mapDtoToTeacher = (dto: Partial<Teacher> & { roles?: TeacherRoleDTO[] }): Teacher => {
-	const roleNames = (dto.roles || []).map((r: TeacherRoleDTO) => r.role);
+const mapDtoToTeacher = (dto: Partial<Teacher> & { roles?: TeacherRoleDTO[] }, displayToCode?: Record<string,string>): Teacher => {
+	// 后端暂仍返回中文显示名 r.role; 通过映射转换为 code；若找不到则保留原字串（兼容新旧）
+	const roleCodes = (dto.roles || []).map((r: TeacherRoleDTO) => {
+		if (!displayToCode) return r.role as OrgRoleCode | string;
+		return (displayToCode[r.role] || r.role) as OrgRoleCode | string;
+	});
 	return {
 		id: dto.id,
 		name: dto.name,
@@ -115,7 +166,7 @@ const mapDtoToTeacher = (dto: Partial<Teacher> & { roles?: TeacherRoleDTO[] }): 
 		departmentName: dto.departmentName,
 		departmentCode: dto.departmentCode,
 		rawRoles: dto.roles || [],
-		roles: roleNames,
+		roles: roleCodes as OrgRoleCode[],
 	} as Teacher;
 };
 
@@ -125,21 +176,29 @@ export default function UsersPage() {
 	const [teachers, setTeachers] = useState<Teacher[]>([]);
 	const [classes, setClasses] = useState<ClassItem[]>([]);
 	const [departments, setDepartments] = useState<Department[]>([]);
+	// 新增：动态角色与层级、scopes
+	const [assignableRoles, setAssignableRoles] = useState<RoleDTO[]>([]);
+	const [gradesFromScope, setGradesFromScope] = useState<string[]>([]);
 	const [loading, setLoading] = useState(false);
 	// 错误信息直接通过 snackbar 呈现，不单独保留 state
 	const [search, setSearch] = useState('');
 	const [filterGrade, setFilterGrade] = useState<string>('');
 	const [filterDept, setFilterDept] = useState<string>('');
-	const [filterRole, setFilterRole] = useState<string>('');
+	const [filterRole, setFilterRole] = useState<string>(''); // 保存 code
 
 	// 编辑对话框
 	const [editDialog, setEditDialog] = useState(false);
 	const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-	const [roleDraft, setRoleDraft] = useState<string[]>([]);
+	const [roleDraft, setRoleDraft] = useState<OrgRoleCode[]>([]);
 	const [draftHomeroomClassId, setDraftHomeroomClassId] = useState<number | ''>('');
-	// 角色作用域草稿：key 为角色名
-	const [roleScopeDraft, setRoleScopeDraft] = useState<Record<string, { grade?: string; departmentId?: number | null }>>({});
+	// 角色作用域草稿：key 为角色 code
+	const [roleScopeDraft, setRoleScopeDraft] = useState<Record<OrgRoleCode, { grade?: string; departmentId?: number | null }>>({} as Record<OrgRoleCode, { grade?: string; departmentId?: number | null }>);
 	const [saving, setSaving] = useState(false);
+
+	// 确认对话框状态
+	const [confirmDialog, setConfirmDialog] = useState(false);
+	const [confirmMessage, setConfirmMessage] = useState('');
+	const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
 	// 内联作用域（用于非班主任的年级/系部主任指派）
 	const [gradeLeaderScopes, setGradeLeaderScopes] = useState<Record<number, string>>({});
 	const [departmentHeadScopes, setDepartmentHeadScopes] = useState<Record<number, number>>({});
@@ -158,56 +217,49 @@ export default function UsersPage() {
 	const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
 	const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
 
-	// 加载数据（教师改为真实接口，班级/系部仍用本地 mock）
+	// 加载数据
 	const loadAll = async () => {
 		try {
 			setLoading(true);
-			const teacherRes = await fetch('/api/teachers/management', { credentials: 'include' });
+			const [assignableRes, teacherRes, scopesRes] = await Promise.all([
+				fetch('/api/teachers/management/assignable-roles', { credentials: 'include' }),
+				fetch('/api/teachers/management', { credentials: 'include' }),
+				fetch('/api/teachers/management/scopes', { credentials: 'include' })
+			]);
+			let displayToCode: Record<string,string> = {};
+			if (assignableRes.ok) {
+				const data = await assignableRes.json();
+				if (Array.isArray(data)) setAssignableRoles(data as RoleDTO[]);
+				if (Array.isArray(data)) {
+					displayToCode = {};
+					(data as RoleDTO[]).forEach(r => { displayToCode[r.displayName] = r.code; });
+					Object.entries(FALLBACK_DISPLAY_NAME).forEach(([c,d]) => { if (!displayToCode[d]) displayToCode[d] = c; });
+				}
+			}
 			if (!teacherRes.ok) throw new Error('教师数据获取失败');
 			const teacherData = await teacherRes.json();
-			const mapped: Teacher[] = Array.isArray(teacherData) ? teacherData.map(mapDtoToTeacher) : [];
-			setTeachers(mapped);
-
-			// 系部真实接口
-			try {
-				const deptRes = await fetch('/api/departments', { credentials: 'include' });
-				if (deptRes.ok) {
-					const deptData = await deptRes.json();
-					if (Array.isArray(deptData)) {
-						setDepartments(deptData as Department[]);
-					} else {
-						setDepartments([]);
-					}
-				} else {
-					setDepartments([]);
+			interface TeacherDtoLikeBase { [k: string]: unknown; roles?: TeacherRoleDTO[] }
+			const mapped: Teacher[] = Array.isArray(teacherData) ? (teacherData as TeacherDtoLikeBase[]).map(dto => mapDtoToTeacher(dto as Partial<Teacher> & { roles?: TeacherRoleDTO[] }, displayToCode)) : [];
+			setTeachers(mapped as Teacher[]);
+			if (scopesRes.ok) {
+				const data: ScopesDTO = await scopesRes.json();
+				if (Array.isArray(data.classes)) {
+					const mappedClasses: ClassItem[] = data.classes.map(c => ({
+						id: c.id,
+						name: c.name,
+						grade: c.grade,
+						department: c.departmentId ? { id: c.departmentId, name: (data.departments.find(d => d.id === c.departmentId)?.name) || undefined } : null,
+						teacher: undefined
+					}));
+					setClasses(mappedClasses);
 				}
-			} catch {
-				setDepartments([]);
-			}
-
-			// 班级真实接口 ( /api/class/list )
-			try {
-				const classRes = await fetch('/api/class/list', { credentials: 'include' });
-				if (classRes.ok) {
-					const classData = await classRes.json();
-					if (Array.isArray(classData)) {
-						interface BackendClassListItem { id:number; name:string; grade:string; departmentId?:number|null; departmentName?:string|null; teacherId?:number|null; teacherName?:string|null }
-						const mappedClasses: ClassItem[] = (classData as BackendClassListItem[]).map(c => ({
-							id: c.id,
-							name: c.name,
-							grade: c.grade,
-							department: c.departmentId ? { id: c.departmentId, name: c.departmentName } : null,
-							teacher: c.teacherId ? { id: c.teacherId, name: c.teacherName } : null,
-						}));
-						setClasses(mappedClasses);
-					} else {
-						setClasses([]);
-					}
-				} else {
-					setClasses([]);
+				if (Array.isArray(data.departments)) {
+					const mappedDepts = data.departments.map(d => ({ id: d.id, name: d.name, code: d.code, enabled: true })) as Department[];
+					setDepartments(mappedDepts);
 				}
-			} catch {
-				setClasses([]);
+				if (Array.isArray(data.grades)) {
+					setGradesFromScope(data.grades);
+				}
 			}
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : '加载失败';
@@ -227,27 +279,30 @@ export default function UsersPage() {
 			setDepartmentHeads({});
 			return;
 		}
-		const p = teachers.find(t => t.roles?.includes('校长'));
+		const p = teachers.find(t => t.roles?.includes(ROLE_CODES.PRINCIPAL));
 		setPrincipalId(p ? p.id : null);
 		const gMap: Record<string, number | null> = {};
+		const d2c = buildDisplayToCode(assignableRoles);
 		teachers.forEach(t => {
-			// 优先从 rawRoles 中拿年级作用域
 			t.rawRoles?.forEach(r => {
-				if (r.role === '年级主任' && r.grade) gMap[r.grade] = t.id;
+				const code = d2c[r.role] || r.role;
+				if (code === ROLE_CODES.GRADE_LEADER && r.grade) gMap[r.grade] = t.id;
 			});
 		});
 		setGradeLeaders(gMap);
 		const dMap: Record<string, number | null> = {};
 		teachers.forEach(t => {
+			const d2c2 = buildDisplayToCode(assignableRoles);
 			t.rawRoles?.forEach(r => {
-				if (r.role === '系部主任') {
+				const code = d2c2[r.role] || r.role;
+				if (code === ROLE_CODES.DEPARTMENT_HEAD) {
 					const deptName = t.departmentName || departments.find(d => d.id === (r.departmentId ?? t.departmentId ?? -1))?.name;
 					if (deptName) dMap[deptName] = t.id;
 				}
 			});
 		});
 		setDepartmentHeads(dMap);
-	}, [teachers, departments]);
+	}, [teachers, departments, assignableRoles]);
 
 	// 过滤后的教师
 	const filteredTeachers = useMemo(() => {
@@ -256,12 +311,21 @@ export default function UsersPage() {
 			if (kw && !(`${t.name}${t.teacherNo}`.includes(kw))) return false;
 			if (filterGrade && t.grade !== filterGrade) return false;
 			if (filterDept && t.departmentName !== filterDept) return false;
-			if (filterRole && !(t.roles || []).includes(filterRole)) return false;
+			if (filterRole && !(t.roles || []).includes(filterRole as OrgRoleCode)) return false;
 			return true;
 		});
 	}, [teachers, search, filterGrade, filterDept, filterRole]);
 
-	const uniqueGrades = useMemo(() => Array.from(new Set(classes.map(c => c.grade))).sort(), [classes]);
+	const uniqueGrades = useMemo(() => {
+		const result = gradesFromScope.length ? [...gradesFromScope] : Array.from(new Set(classes.map(c => c.grade))).sort();
+		return result;
+	}, [gradesFromScope, classes]);
+
+	// 动态角色列表（仅展示可分配审批角色的显示名）
+	const roleDisplayList = useMemo(() => assignableRoles
+		.filter(r => r.enabled)
+		.sort((a,b) => a.level - b.level || a.sortOrder - b.sortOrder)
+		.map(r => ({ code: r.code, display: r.displayName })), [assignableRoles]);
 	const uniqueDepartments = useMemo(() => Array.from(new Set(departments.map(d => d.name))), [departments]);
 
 	// 组织结构构建： grade -> department -> classes
@@ -276,109 +340,161 @@ export default function UsersPage() {
 		return gradeMap;
 	}, [classes]);
 
+	// 获取教师的基本教学归属信息（排除行政角色的管理范围）
+	const getTeacherBasicInfo = (teacher: Teacher) => {
+		// 基本原则：
+		// 1. 如果是班主任，显示班主任班级的系部和年级
+		// 2. 如果不是班主任，显示教师本身的基本归属信息
+		// 3. 避免因担任行政职务而显示管理范围
+		
+		if (teacher.homeroomClassId && teacher.homeroomClassName) {
+			// 从班级信息中获取归属
+			const classInfo = classes.find(c => c.id === teacher.homeroomClassId);
+			if (classInfo) {
+				return {
+					departmentName: classInfo.department?.name || '未分配系部',
+					grade: classInfo.grade,
+					source: 'homeroom' // 来源：班主任班级
+				};
+			}
+		}
+		
+		// 使用教师的基本归属信息
+		return {
+			departmentName: teacher.departmentName || '—',
+			grade: teacher.grade || '—',
+			source: 'basic' // 来源：基本信息
+		};
+	};
+
 	const openEdit = (t: Teacher) => {
 		setEditingTeacher(t);
-		setRoleDraft([...(t.roles || [])]);
+		
+		// 将教师的角色显示名转换为角色代码用于对话框
+		const displayToCode = buildDisplayToCode(assignableRoles);
+		const roleCodes = (t.roles || []).map(displayName => displayToCode[displayName] || displayName);
+		setRoleDraft(roleCodes as OrgRoleCode[]);
+		
 		setDraftHomeroomClassId(t.homeroomClassId || '');
-		// 初始化作用域：如果已有年级主任/系部主任角色，预填 grade / department
-		const scope: Record<string, { grade?: string; departmentId?: number | null }> = {};
-		if (t.roles?.includes('年级主任')) scope['年级主任'] = { grade: t.grade || '' };
-		if (t.roles?.includes('系部主任')) scope['系部主任'] = { departmentId: t.departmentId || null };
+		const scope: Record<OrgRoleCode, { grade?: string; departmentId?: number | null }> = {} as Record<OrgRoleCode, { grade?: string; departmentId?: number | null }>;
+		// 从 t.rawRoles 中恢复 scope（兼容旧数据）
+		t.rawRoles?.forEach(r => {
+			const code = displayToCode[r.role] || r.role;
+			if (code === ROLE_CODES.GRADE_LEADER && r.grade) scope[code as OrgRoleCode] = { grade: r.grade };
+			if (code === ROLE_CODES.DEPARTMENT_HEAD && r.departmentId) scope[code as OrgRoleCode] = { departmentId: r.departmentId };
+		});
 		setRoleScopeDraft(scope);
 		setEditDialog(true);
 	};
 
-	const toggleRoleDraft = (role: string) => {
+	const toggleRoleDraft = (roleCode: OrgRoleCode) => {
 		setRoleDraft(prev => {
-			if (prev.includes(role)) {
-				// remove
+			if (prev.includes(roleCode)) {
 				setRoleScopeDraft(sc => {
-					if (!sc[role]) return sc;
-					const copy = { ...sc };
-					delete copy[role];
-					return copy;
+					if (!sc[roleCode]) return sc;
+					const copy = { ...sc } as Record<OrgRoleCode, { grade?: string; departmentId?: number | null }>; delete copy[roleCode]; return copy;
 				});
-				if (role === '班主任') setDraftHomeroomClassId('');
-				return prev.filter(r => r !== role);
+				if (roleCode === ROLE_CODES.HOMEROOM_TEACHER) setDraftHomeroomClassId('');
+				return prev.filter(r => r !== roleCode) as OrgRoleCode[];
 			}
-			// add
-			if (role === '年级主任' && editingTeacher && editingTeacher.grade) {
-				setRoleScopeDraft(sc => ({ ...sc, [role]: { ...(sc[role]||{}), grade: editingTeacher.grade || '' } }));
+			if (roleCode === ROLE_CODES.GRADE_LEADER && editingTeacher && editingTeacher.grade) {
+				setRoleScopeDraft(sc => ({ ...sc, [roleCode]: { ...(sc[roleCode]||{}), grade: editingTeacher.grade || '' } }) as typeof sc);
 			}
-			if (role === '系部主任' && editingTeacher && editingTeacher.departmentId) {
-				setRoleScopeDraft(sc => ({ ...sc, [role]: { ...(sc[role]||{}), departmentId: editingTeacher.departmentId || null } }));
+			if (roleCode === ROLE_CODES.DEPARTMENT_HEAD && editingTeacher && editingTeacher.departmentId) {
+				setRoleScopeDraft(sc => ({ ...sc, [roleCode]: { ...(sc[roleCode]||{}), departmentId: editingTeacher.departmentId || null } }) as typeof sc);
 			}
-			return [...prev, role];
+			return [...prev, roleCode] as OrgRoleCode[];
 		});
 	};
 
-	const buildRolePayload = (teacher: Teacher, selectedRoles: string[]) => {
-		// 根据角色类型构造作用域字段（示例：年级主任 -> grade; 系部主任 -> departmentId; 班主任在 homeroomClassId 字段体现，可选保留一个 class 作用域角色）
+	const buildRolePayload = (teacher: Teacher, selectedRoles: OrgRoleCode[]) => {
 		const existing = teacher.rawRoles || [];
-		return selectedRoles.map(r => {
-			const existed = existing.find(er => er.role === r);
-			if (r === '班主任') {
-				return {
-					id: existed?.id,
-					role: r,
-					classId: draftHomeroomClassId === '' ? null : Number(draftHomeroomClassId),
-					departmentId: null,
-					grade: null,
-					enabled: true,
-				};
+		const displayToCode = buildDisplayToCode();
+		return selectedRoles.map(rCode => {
+			// 找对应 rawRole id：raw 中可能是 displayName
+			const existed = existing.find(er => {
+				const code = displayToCode[er.role] || er.role; return code === rCode; });
+			if (rCode === ROLE_CODES.HOMEROOM_TEACHER) {
+				return { id: existed?.id, role: rCode, classId: draftHomeroomClassId === '' ? null : Number(draftHomeroomClassId), departmentId: null, grade: null, enabled: true };
 			}
-			if (r === '年级主任') {
-				return {
-					id: existed?.id,
-					role: r,
-					classId: null,
-					departmentId: null,
-					grade: roleScopeDraft['年级主任']?.grade || teacher.grade || null,
-					enabled: true,
-				};
+			if (rCode === ROLE_CODES.GRADE_LEADER) {
+				return { id: existed?.id, role: rCode, classId: null, departmentId: null, grade: roleScopeDraft[rCode]?.grade || teacher.grade || null, enabled: true };
 			}
-			if (r === '系部主任') {
-				return {
-					id: existed?.id,
-					role: r,
-					classId: null,
-					departmentId: roleScopeDraft['系部主任']?.departmentId ?? teacher.departmentId ?? null,
-					grade: null,
-					enabled: true,
-				};
+			if (rCode === ROLE_CODES.DEPARTMENT_HEAD) {
+				return { id: existed?.id, role: rCode, classId: null, departmentId: roleScopeDraft[rCode]?.departmentId ?? teacher.departmentId ?? null, grade: null, enabled: true };
 			}
-			if (r === '校长') {
-				return {
-					id: existed?.id,
-					role: r,
-					classId: null,
-					departmentId: null,
-					grade: null,
-					enabled: true,
-				};
+			if (rCode === ROLE_CODES.PRINCIPAL) {
+				return { id: existed?.id, role: rCode, classId: null, departmentId: null, grade: null, enabled: true };
 			}
-			return {
-				id: existed?.id,
-				role: r,
-				classId: null,
-				departmentId: null,
-				grade: null,
-				enabled: true,
-			};
+			return { id: existed?.id, role: rCode, classId: null, departmentId: null, grade: null, enabled: true };
 		});
 	};
 
 	const saveTeacherRoles = async () => {
 		if (!editingTeacher) return;
 		setSaving(true);
-		if (roleDraft.includes('班主任') && !draftHomeroomClassId) {
+		if (roleDraft.includes(ROLE_CODES.HOMEROOM_TEACHER) && !draftHomeroomClassId) {
 			setSnackbar({ open: true, message: '请选择班主任对应的班级', severity: 'error' });
 			setSaving(false);
 			return;
 		}
-		const homeroomClassId = roleDraft.includes('班主任') ? (draftHomeroomClassId === '' ? null : Number(draftHomeroomClassId)) : null;
-		const rolesPayload = buildRolePayload(editingTeacher, roleDraft);
+		if (roleDraft.includes(ROLE_CODES.GRADE_LEADER) && !roleScopeDraft[ROLE_CODES.GRADE_LEADER]?.grade) {
+			setSnackbar({ open: true, message: '请选择年级主任负责的年级', severity: 'error' });
+			setSaving(false);
+			return;
+		}
+		if (roleDraft.includes(ROLE_CODES.DEPARTMENT_HEAD) && !roleScopeDraft[ROLE_CODES.DEPARTMENT_HEAD]?.departmentId) {
+			setSnackbar({ open: true, message: '请选择系部主任负责的系部', severity: 'error' });
+			setSaving(false);
+			return;
+		}
+
 		try {
+			// 1. 额外的角色一致性验证
+			const validationError = validateRoleConsistency();
+			if (validationError) {
+				setSnackbar({ open: true, message: validationError, severity: 'error' });
+				setSaving(false);
+				return;
+			}
+
+			// 2. 检查是否有角色冲突，需要用户确认
+			const conflicts = await checkRoleConflicts();
+			if (conflicts.length > 0) {
+				const conflictMessage = `检测到角色冲突，将执行以下转移操作：\n\n${conflicts.join('\n')}\n\n是否继续？`;
+				
+				// 使用自定义确认对话框
+				setConfirmMessage(conflictMessage);
+				setConfirmCallback(() => async () => {
+					await proceedWithSave();
+				});
+				setConfirmDialog(true);
+				setSaving(false);
+				return;
+			}
+
+			// 没有冲突，直接保存
+			await proceedWithSave();
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : '保存失败';
+			setSnackbar({ open: true, message: msg, severity: 'error' });
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	// 实际的保存逻辑
+	const proceedWithSave = async () => {
+		if (!editingTeacher) return;
+
+		try {
+			// 2. 处理唯一角色的转移：先从其他教师移除，再分配给当前教师
+			await handleUniqueRoleTransfers();
+
+			// 3. 保存当前教师的角色
+			const homeroomClassId = roleDraft.includes(ROLE_CODES.HOMEROOM_TEACHER) ? (draftHomeroomClassId === '' ? null : Number(draftHomeroomClassId)) : null;
+			const rolesPayload = buildRolePayload(editingTeacher, roleDraft);
+			
 			const res = await fetch(`/api/teachers/management/${editingTeacher.id}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
@@ -387,16 +503,18 @@ export default function UsersPage() {
 			});
 			if (!res.ok) throw new Error('保存失败');
 			const updated = await res.json();
-			const mapped = mapDtoToTeacher(updated);
+			const displayToCode = buildDisplayToCode(assignableRoles);
+			const mapped = mapDtoToTeacher(updated, displayToCode);
 			setTeachers(prev => prev.map(t => t.id === mapped.id ? mapped : t));
+			
 			// 同步内联作用域缓存
-			if (roleDraft.includes('年级主任')) {
-				setGradeLeaderScopes(sc => ({ ...sc, [mapped.id]: roleScopeDraft['年级主任']?.grade || mapped.grade || '' }));
+			if (roleDraft.includes(ROLE_CODES.GRADE_LEADER)) {
+				setGradeLeaderScopes(sc => ({ ...sc, [mapped.id]: roleScopeDraft[ROLE_CODES.GRADE_LEADER]?.grade || mapped.grade || '' }));
 			} else {
 				setGradeLeaderScopes(sc => { if (sc[mapped.id]) { const c = { ...sc }; delete c[mapped.id]; return c; } return sc; });
 			}
-			if (roleDraft.includes('系部主任')) {
-				const deptId = roleScopeDraft['系部主任']?.departmentId ?? mapped.departmentId ?? null;
+			if (roleDraft.includes(ROLE_CODES.DEPARTMENT_HEAD)) {
+				const deptId = roleScopeDraft[ROLE_CODES.DEPARTMENT_HEAD]?.departmentId ?? mapped.departmentId ?? null;
 				if (deptId) setDepartmentHeadScopes(sc => ({ ...sc, [mapped.id]: deptId }));
 			} else {
 				setDepartmentHeadScopes(sc => { if (sc[mapped.id]) { const c = { ...sc }; delete c[mapped.id]; return c; } return sc; });
@@ -406,8 +524,283 @@ export default function UsersPage() {
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : '保存失败';
 			setSnackbar({ open: true, message: msg, severity: 'error' });
-		} finally {
-			setSaving(false);
+			throw e; // 重新抛出错误
+		}
+	};
+
+	// 验证角色一致性
+	const validateRoleConsistency = (): string | null => {
+		if (!editingTeacher) return null;
+
+		// 检查班主任和系部主任角色的一致性
+		if (roleDraft.includes(ROLE_CODES.HOMEROOM_TEACHER) && 
+			roleDraft.includes(ROLE_CODES.DEPARTMENT_HEAD)) {
+			
+			const homeroomClassId = draftHomeroomClassId ? Number(draftHomeroomClassId) : null;
+			const deptHeadDeptId = roleScopeDraft[ROLE_CODES.DEPARTMENT_HEAD]?.departmentId;
+			
+			if (homeroomClassId && deptHeadDeptId) {
+				const homeroomClass = classes.find(c => c.id === homeroomClassId);
+				if (homeroomClass && homeroomClass.department?.id !== deptHeadDeptId) {
+					const homeroomDeptName = departments.find(d => d.id === homeroomClass.department?.id)?.name || '未知系部';
+					const deptHeadDeptName = departments.find(d => d.id === deptHeadDeptId)?.name || '未知系部';
+					return `角色冲突：不能同时担任 ${homeroomDeptName} 的班主任和 ${deptHeadDeptName} 的系部主任。请确保班主任和系部主任属于同一系部。`;
+				}
+			}
+		}
+
+		// 检查系部主任是否与其他已存在的同系部班主任冲突
+		if (roleDraft.includes(ROLE_CODES.DEPARTMENT_HEAD)) {
+			const targetDeptId = roleScopeDraft[ROLE_CODES.DEPARTMENT_HEAD]?.departmentId;
+			if (targetDeptId) {
+				// 查找该系部是否有其他班主任也担任其他系部的系部主任
+				const potentialConflicts = teachers.filter(t => {
+					if (t.id === editingTeacher.id) return false;
+					
+					// 该教师是班主任，其班级属于目标系部，但同时担任其他系部主任
+					if (t.roles?.includes(ROLE_CODES.HOMEROOM_TEACHER) && 
+						t.roles?.includes(ROLE_CODES.DEPARTMENT_HEAD) && 
+						t.homeroomClassId) {
+						
+						const teacherClass = classes.find(c => c.id === t.homeroomClassId);
+						if (teacherClass && teacherClass.department?.id === targetDeptId) {
+							const teacherDeptHeadDeptId = departmentHeadScopes[t.id] || t.departmentId;
+							if (teacherDeptHeadDeptId && teacherDeptHeadDeptId !== targetDeptId) {
+								return true;
+							}
+						}
+					}
+					return false;
+				});
+
+				if (potentialConflicts.length > 0) {
+					const deptName = departments.find(d => d.id === targetDeptId)?.name || '未知系部';
+					const conflictNames = potentialConflicts.map(t => t.name).join('、');
+					return `角色冲突检测：${deptName} 中的班主任 ${conflictNames} 同时担任其他系部主任，这可能导致管理混乱。请先解决这些角色冲突。`;
+				}
+			}
+		}
+
+		return null;
+	};
+
+	// 检查角色冲突
+	const checkRoleConflicts = async (): Promise<string[]> => {
+		if (!editingTeacher) return [];
+
+		const conflicts: string[] = [];
+
+		// 校长角色冲突
+		if (roleDraft.includes(ROLE_CODES.PRINCIPAL)) {
+			const currentPrincipal = teachers.find(t => t.id !== editingTeacher.id && t.roles?.includes(ROLE_CODES.PRINCIPAL));
+			if (currentPrincipal) {
+				conflicts.push(`• 校长角色：${currentPrincipal.name} → ${editingTeacher.name}`);
+			}
+		}
+
+		// 班主任角色冲突（按班级）
+		if (roleDraft.includes(ROLE_CODES.HOMEROOM_TEACHER) && draftHomeroomClassId) {
+			const currentHomeroom = teachers.find(t => 
+				t.id !== editingTeacher.id && 
+				t.homeroomClassId === Number(draftHomeroomClassId)
+			);
+			if (currentHomeroom) {
+				const className = classes.find(c => c.id === Number(draftHomeroomClassId))?.name || '未知班级';
+				conflicts.push(`• ${className} 班主任：${currentHomeroom.name} → ${editingTeacher.name}`);
+			}
+		}
+
+		// 年级主任角色冲突（按年级）
+		if (roleDraft.includes(ROLE_CODES.GRADE_LEADER)) {
+			const targetGrade = roleScopeDraft[ROLE_CODES.GRADE_LEADER]?.grade;
+			if (targetGrade) {
+				const currentGradeLeader = teachers.find(t => 
+					t.id !== editingTeacher.id && 
+					t.roles?.includes(ROLE_CODES.GRADE_LEADER) &&
+					(gradeLeaderScopes[t.id] === targetGrade || t.grade === targetGrade)
+				);
+				if (currentGradeLeader) {
+					conflicts.push(`• ${targetGrade}年级主任：${currentGradeLeader.name} → ${editingTeacher.name}`);
+				}
+			}
+		}
+
+		// 系部主任角色冲突（按系部）
+		if (roleDraft.includes(ROLE_CODES.DEPARTMENT_HEAD)) {
+			const targetDeptId = roleScopeDraft[ROLE_CODES.DEPARTMENT_HEAD]?.departmentId;
+			if (targetDeptId) {
+				// 查找所有可能与该系部相关的教师
+				const conflictingTeachers = teachers.filter(t => {
+					if (t.id === editingTeacher.id) return false;
+					
+					// 1. 直接担任该系部主任的教师
+					if (t.roles?.includes(ROLE_CODES.DEPARTMENT_HEAD) &&
+						(departmentHeadScopes[t.id] === targetDeptId || t.departmentId === targetDeptId)) {
+						return true;
+					}
+					
+					// 2. 班主任所在班级属于该系部的教师（也可能产生冲突）
+					if (t.roles?.includes(ROLE_CODES.HOMEROOM_TEACHER) && t.homeroomClassId) {
+						const homeroomClass = classes.find(c => c.id === t.homeroomClassId);
+						if (homeroomClass && homeroomClass.department?.id === targetDeptId) {
+							// 检查该班主任是否也想担任或已经担任其他系部的系部主任
+							const hasOtherDeptHeadRole = t.roles?.includes(ROLE_CODES.DEPARTMENT_HEAD) &&
+								(departmentHeadScopes[t.id] !== targetDeptId && t.departmentId !== targetDeptId);
+							if (hasOtherDeptHeadRole) {
+								return true;
+							}
+						}
+					}
+					
+					return false;
+				});
+				
+				if (conflictingTeachers.length > 0) {
+					const deptName = departments.find(d => d.id === targetDeptId)?.name || '未知系部';
+					conflictingTeachers.forEach(teacher => {
+						if (teacher.roles?.includes(ROLE_CODES.DEPARTMENT_HEAD)) {
+							conflicts.push(`• ${deptName} 系部主任：${teacher.name} → ${editingTeacher.name}`);
+						}
+						// 如果班主任在该系部但担任其他系部主任，需要额外提醒
+						if (teacher.roles?.includes(ROLE_CODES.HOMEROOM_TEACHER) && teacher.homeroomClassId) {
+							const homeroomClass = classes.find(c => c.id === teacher.homeroomClassId);
+							if (homeroomClass && homeroomClass.department?.id === targetDeptId && 
+								teacher.roles?.includes(ROLE_CODES.DEPARTMENT_HEAD)) {
+								const otherDeptId = departmentHeadScopes[teacher.id] || teacher.departmentId;
+								const otherDeptName = departments.find(d => d.id === otherDeptId)?.name || '其他系部';
+								conflicts.push(`• 注意：${teacher.name} 是 ${deptName} 班主任但担任 ${otherDeptName} 系部主任，可能存在角色冲突`);
+							}
+						}
+					});
+				}
+			}
+		}
+
+		return conflicts;
+	};
+
+	// 处理唯一角色的转移
+	const handleUniqueRoleTransfers = async () => {
+		if (!editingTeacher) return;
+
+		const promises: Promise<void>[] = [];
+
+		// 校长角色转移
+		if (roleDraft.includes(ROLE_CODES.PRINCIPAL)) {
+			const currentPrincipal = teachers.find(t => t.id !== editingTeacher.id && t.roles?.includes(ROLE_CODES.PRINCIPAL));
+			if (currentPrincipal) {
+				promises.push(removeRoleFromTeacher(currentPrincipal, ROLE_CODES.PRINCIPAL));
+			}
+		}
+
+		// 班主任角色转移（按班级）
+		if (roleDraft.includes(ROLE_CODES.HOMEROOM_TEACHER) && draftHomeroomClassId) {
+			const currentHomeroom = teachers.find(t => 
+				t.id !== editingTeacher.id && 
+				t.homeroomClassId === Number(draftHomeroomClassId)
+			);
+			if (currentHomeroom) {
+				promises.push(removeRoleFromTeacher(currentHomeroom, ROLE_CODES.HOMEROOM_TEACHER));
+			}
+		}
+
+		// 年级主任角色转移（按年级）
+		if (roleDraft.includes(ROLE_CODES.GRADE_LEADER)) {
+			const targetGrade = roleScopeDraft[ROLE_CODES.GRADE_LEADER]?.grade;
+			if (targetGrade) {
+				const currentGradeLeader = teachers.find(t => 
+					t.id !== editingTeacher.id && 
+					t.roles?.includes(ROLE_CODES.GRADE_LEADER) &&
+					(gradeLeaderScopes[t.id] === targetGrade || t.grade === targetGrade)
+				);
+				if (currentGradeLeader) {
+					promises.push(removeRoleFromTeacher(currentGradeLeader, ROLE_CODES.GRADE_LEADER));
+				}
+			}
+		}
+
+		// 系部主任角色转移（按系部）
+		if (roleDraft.includes(ROLE_CODES.DEPARTMENT_HEAD)) {
+			const targetDeptId = roleScopeDraft[ROLE_CODES.DEPARTMENT_HEAD]?.departmentId;
+			if (targetDeptId) {
+				// 查找所有需要移除系部主任角色的教师
+				const conflictingTeachers = teachers.filter(t => {
+					if (t.id === editingTeacher.id) return false;
+					
+					// 直接担任该系部主任的教师
+					return t.roles?.includes(ROLE_CODES.DEPARTMENT_HEAD) &&
+						(departmentHeadScopes[t.id] === targetDeptId || t.departmentId === targetDeptId);
+				});
+				
+				// 移除所有冲突的系部主任角色
+				conflictingTeachers.forEach(teacher => {
+					promises.push(removeRoleFromTeacher(teacher, ROLE_CODES.DEPARTMENT_HEAD));
+				});
+				
+				// 额外检查：如果当前教师要担任的系部主任职位与其班主任所在系部不一致，给出警告
+				// if (roleDraft.includes(ROLE_CODES.HOMEROOM_TEACHER) && draftHomeroomClassId) {
+				// 	const homeroomClass = classes.find(c => c.id === Number(draftHomeroomClassId));
+				// 	if (homeroomClass && homeroomClass.department?.id !== targetDeptId) {
+				// 		console.warn(`警告：${editingTeacher.name} 担任系部主任的系部与其班主任所在系部不一致`);
+				// 	}
+				// }
+			}
+		}
+
+		// 并行执行所有角色移除操作
+		await Promise.all(promises);
+	};
+
+	// 从教师移除特定角色
+	const removeRoleFromTeacher = async (teacher: Teacher, roleToRemove: OrgRoleCode) => {
+		const newRoles = (teacher.roles || []).filter(r => {
+			const displayToCode = buildDisplayToCode();
+			const code = displayToCode[r] || r;
+			return code !== roleToRemove;
+		});
+		
+		const newRolesPayload = buildRolePayload(teacher, newRoles as OrgRoleCode[]);
+		const newHomeroomClassId = roleToRemove === ROLE_CODES.HOMEROOM_TEACHER ? null : teacher.homeroomClassId;
+
+		const res = await fetch(`/api/teachers/management/${teacher.id}`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'include',
+			body: JSON.stringify({ 
+				homeroomClassId: newHomeroomClassId, 
+				roles: newRolesPayload 
+			})
+		});
+		
+		if (!res.ok) throw new Error(`移除角色失败: ${teacher.name}`);
+		
+		const updated = await res.json();
+		const displayToCode = buildDisplayToCode(assignableRoles);
+		const mapped = mapDtoToTeacher(updated, displayToCode);
+		
+		// 更新本地状态
+		setTeachers(prev => prev.map(t => t.id === mapped.id ? mapped : t));
+		
+		// 清理缓存
+		if (roleToRemove === ROLE_CODES.GRADE_LEADER) {
+			setGradeLeaderScopes(sc => { 
+				if (sc[mapped.id]) { 
+					const c = { ...sc }; 
+					delete c[mapped.id]; 
+					return c; 
+				} 
+				return sc; 
+			});
+		}
+		if (roleToRemove === ROLE_CODES.DEPARTMENT_HEAD) {
+			setDepartmentHeadScopes(sc => { 
+				if (sc[mapped.id]) { 
+					const c = { ...sc }; 
+					delete c[mapped.id]; 
+					return c; 
+				} 
+				return sc; 
+			});
 		}
 	};
 
@@ -417,18 +810,10 @@ export default function UsersPage() {
 		const existing = t.rawRoles || [];
 		return (t.roles || []).map(r => {
 			const existed = existing.find(er => er.role === r);
-			if (r === '班主任') {
-				return { id: existed?.id, role: r, classId: t.homeroomClassId || null, departmentId: null, grade: null, enabled: true };
-			}
-			if (r === '年级主任') {
-				return { id: existed?.id, role: r, classId: null, departmentId: null, grade: gradeLeaderScopes[t.id] || t.grade || null, enabled: true };
-			}
-			if (r === '系部主任') {
-				return { id: existed?.id, role: r, classId: null, departmentId: departmentHeadScopes[t.id] || t.departmentId || null, grade: null, enabled: true };
-			}
-			if (r === '校长') {
-				return { id: existed?.id, role: r, classId: null, departmentId: null, grade: null, enabled: true };
-			}
+			if (r === ROLE_CODES.HOMEROOM_TEACHER) return { id: existed?.id, role: r, classId: t.homeroomClassId || null, departmentId: null, grade: null, enabled: true };
+			if (r === ROLE_CODES.GRADE_LEADER) return { id: existed?.id, role: r, classId: null, departmentId: null, grade: gradeLeaderScopes[t.id] || t.grade || null, enabled: true };
+			if (r === ROLE_CODES.DEPARTMENT_HEAD) return { id: existed?.id, role: r, classId: null, departmentId: departmentHeadScopes[t.id] || t.departmentId || null, grade: null, enabled: true };
+			if (r === ROLE_CODES.PRINCIPAL) return { id: existed?.id, role: r, classId: null, departmentId: null, grade: null, enabled: true };
 			return { id: existed?.id, role: r, classId: null, departmentId: null, grade: null, enabled: true };
 		});
 	};
@@ -450,13 +835,14 @@ export default function UsersPage() {
 		});
 		if (!res.ok) throw new Error('保存失败');
 		const updated = await res.json();
-		const mapped = mapDtoToTeacher(updated);
+		const displayToCode = buildDisplayToCode(assignableRoles);
+		const mapped = mapDtoToTeacher(updated, displayToCode);
 		setTeachers(prev => prev.map(pt => pt.id === mapped.id ? mapped : pt));
 	};
 
 	// ========== 可视化配置：内部更新工具 ==========
-	const updateTeacherRoleSet = (teacherId: number | null, role: string, scopeFilter?: (t: Teacher) => boolean) => {
-		// 移除冲突角色（仅匹配 scopeFilter，不再因为 teacherId 为 null 而全局移除）
+	const updateTeacherRoleSet = (teacherId: number | null, role: OrgRoleCode, scopeFilter?: (t: Teacher) => boolean) => {
+		// 移除冲突角色（仅匹配 scopeFilter）
 		if (scopeFilter) {
 			setTeachers(prev => prev.map(t => {
 				if (scopeFilter(t) && t.roles?.includes(role)) {
@@ -465,7 +851,7 @@ export default function UsersPage() {
 				return t;
 			}));
 		}
-		// 指派新教师
+		// 指派新教师（若不存在则追加该角色代码）
 		if (teacherId) {
 			setTeachers(prev => prev.map(t => t.id === teacherId ? {
 				...t,
@@ -480,9 +866,9 @@ export default function UsersPage() {
 
 		// 乐观更新：撤销只移除旧的；指派先移除旧，再给新教师添加
 		if (!newId && oldId) {
-			updateTeacherRoleSet(oldId, '校长', t => t.id === oldId);
+			updateTeacherRoleSet(oldId, ROLE_CODES.PRINCIPAL, t => t.id === oldId);
 		} else {
-			updateTeacherRoleSet(newId, '校长', t => !!t.roles?.includes('校长'));
+			updateTeacherRoleSet(newId, ROLE_CODES.PRINCIPAL, t => !!t.roles?.includes(ROLE_CODES.PRINCIPAL));
 		}
 		setPrincipalId(newId);
 		setSnackbar({ open: true, message: '已更新校长 (保存中...)', severity: 'info' });
@@ -490,17 +876,17 @@ export default function UsersPage() {
 			if (oldId) {
 				const oldTeacher = teachers.find(t => t.id === oldId);
 				if (oldTeacher) {
-					const remain = (oldTeacher.roles || []).filter(r => r !== '校长');
+					const remain = (oldTeacher.roles || []).filter(r => r !== ROLE_CODES.PRINCIPAL);
 					const payload = buildInlineRolesPayload({ ...oldTeacher, roles: remain });
-					await persistTeacherWithPayload(oldTeacher, (oldTeacher.roles||[]).includes('班主任') ? (oldTeacher.homeroomClassId || null) : null, payload);
+					await persistTeacherWithPayload(oldTeacher, (oldTeacher.roles||[]).includes(ROLE_CODES.HOMEROOM_TEACHER) ? (oldTeacher.homeroomClassId || null) : null, payload);
 				}
 			}
 			if (newId) {
 				const newTeacher = teachers.find(t => t.id === newId);
 				if (newTeacher) {
-					const base = buildInlineRolesPayload(newTeacher).filter(r => r.role !== '校长');
-					base.push({ id: undefined, role: '校长', classId: null, departmentId: null, grade: null, enabled: true });
-					await persistTeacherWithPayload(newTeacher, (newTeacher.roles||[]).includes('班主任') ? (newTeacher.homeroomClassId || null) : null, base);
+					const base = buildInlineRolesPayload(newTeacher).filter(r => r.role !== ROLE_CODES.PRINCIPAL);
+					base.push({ id: undefined, role: ROLE_CODES.PRINCIPAL, classId: null, departmentId: null, grade: null, enabled: true });
+					await persistTeacherWithPayload(newTeacher, (newTeacher.roles||[]).includes(ROLE_CODES.HOMEROOM_TEACHER) ? (newTeacher.homeroomClassId || null) : null, base);
 				}
 			}
 			setSnackbar({ open: true, message: '校长已保存', severity: 'success' });
@@ -516,10 +902,11 @@ export default function UsersPage() {
 
 		// 本地 optimistic：如果是撤销，只移除 oldId 的角色；如果是指派，移除该年级原负责人角色再给新教师添加
 		if (!newId && oldId) {
-			updateTeacherRoleSet(oldId, '年级主任', t => t.id === oldId);
+			updateTeacherRoleSet(oldId, ROLE_CODES.GRADE_LEADER, t => t.id === oldId);
 		} else {
-			updateTeacherRoleSet(newId, '年级主任', t => {
-				const roleEntry = t.rawRoles?.find(r => r.role === '年级主任');
+			updateTeacherRoleSet(newId, ROLE_CODES.GRADE_LEADER, t => {
+				const displayToCode = buildDisplayToCode(assignableRoles);
+				const roleEntry = t.rawRoles?.find(r => (displayToCode[r.role] || r.role) === ROLE_CODES.GRADE_LEADER);
 				const g = roleEntry?.grade || gradeLeaderScopes[t.id];
 				return g === grade;
 			});
@@ -537,17 +924,17 @@ export default function UsersPage() {
 			if (oldId) {
 				const oldTeacher = teachers.find(t => t.id === oldId);
 				if (oldTeacher) {
-					const remainingRoles = (oldTeacher.roles || []).filter(r => r !== '年级主任');
+					const remainingRoles = (oldTeacher.roles || []).filter(r => r !== ROLE_CODES.GRADE_LEADER);
 					const payloadRoles = buildInlineRolesPayload({ ...oldTeacher, roles: remainingRoles });
-					await persistTeacherWithPayload(oldTeacher, (oldTeacher.roles||[]).includes('班主任') ? (oldTeacher.homeroomClassId || null) : null, payloadRoles);
+					await persistTeacherWithPayload(oldTeacher, (oldTeacher.roles||[]).includes(ROLE_CODES.HOMEROOM_TEACHER) ? (oldTeacher.homeroomClassId || null) : null, payloadRoles);
 				}
 			}
 			if (newId) {
 				const newTeacher = teachers.find(t => t.id === newId);
 				if (newTeacher) {
-					const baseRoles = buildInlineRolesPayload(newTeacher).filter(r => r.role !== '年级主任');
-					baseRoles.push({ id: undefined, role: '年级主任', classId: null, departmentId: null, grade, enabled: true });
-					await persistTeacherWithPayload(newTeacher, (newTeacher.roles||[]).includes('班主任') ? (newTeacher.homeroomClassId || null) : null, baseRoles);
+					const baseRoles = buildInlineRolesPayload(newTeacher).filter(r => r.role !== ROLE_CODES.GRADE_LEADER);
+					baseRoles.push({ id: undefined, role: ROLE_CODES.GRADE_LEADER, classId: null, departmentId: null, grade, enabled: true });
+					await persistTeacherWithPayload(newTeacher, (newTeacher.roles||[]).includes(ROLE_CODES.HOMEROOM_TEACHER) ? (newTeacher.homeroomClassId || null) : null, baseRoles);
 				}
 			}
 			setSnackbar({ open: true, message: `${grade}年级主任已保存`, severity: 'success' });
@@ -563,10 +950,11 @@ export default function UsersPage() {
 		const deptObj = departments.find(d => d.name === deptName);
 
 		if (!newId && oldId) {
-			updateTeacherRoleSet(oldId, '系部主任', t => t.id === oldId);
+			updateTeacherRoleSet(oldId, ROLE_CODES.DEPARTMENT_HEAD, t => t.id === oldId);
 		} else {
-			updateTeacherRoleSet(newId, '系部主任', t => {
-				const roleEntry = t.rawRoles?.find(r => r.role === '系部主任');
+			updateTeacherRoleSet(newId, ROLE_CODES.DEPARTMENT_HEAD, t => {
+				const displayToCode = buildDisplayToCode(assignableRoles);
+				const roleEntry = t.rawRoles?.find(r => (displayToCode[r.role] || r.role) === ROLE_CODES.DEPARTMENT_HEAD);
 				const dId = roleEntry?.departmentId || departmentHeadScopes[t.id];
 				return dId && deptObj?.id ? dId === deptObj.id : false;
 			});
@@ -581,17 +969,17 @@ export default function UsersPage() {
 			if (oldId) {
 				const oldTeacher = teachers.find(t => t.id === oldId);
 				if (oldTeacher) {
-					const remain = (oldTeacher.roles || []).filter(r => r !== '系部主任');
+					const remain = (oldTeacher.roles || []).filter(r => r !== ROLE_CODES.DEPARTMENT_HEAD);
 					const payload = buildInlineRolesPayload({ ...oldTeacher, roles: remain });
-					await persistTeacherWithPayload(oldTeacher, (oldTeacher.roles||[]).includes('班主任') ? (oldTeacher.homeroomClassId || null) : null, payload);
+					await persistTeacherWithPayload(oldTeacher, (oldTeacher.roles||[]).includes(ROLE_CODES.HOMEROOM_TEACHER) ? (oldTeacher.homeroomClassId || null) : null, payload);
 				}
 			}
 			if (newId && deptObj?.id) {
 				const newTeacher = teachers.find(t => t.id === newId);
 				if (newTeacher) {
-					const base = buildInlineRolesPayload(newTeacher).filter(r => r.role !== '系部主任');
-					base.push({ id: undefined, role: '系部主任', classId: null, departmentId: deptObj.id, grade: null, enabled: true });
-					await persistTeacherWithPayload(newTeacher, (newTeacher.roles||[]).includes('班主任') ? (newTeacher.homeroomClassId || null) : null, base);
+					const base = buildInlineRolesPayload(newTeacher).filter(r => r.role !== ROLE_CODES.DEPARTMENT_HEAD);
+					base.push({ id: undefined, role: ROLE_CODES.DEPARTMENT_HEAD, classId: null, departmentId: deptObj.id, grade: null, enabled: true });
+					await persistTeacherWithPayload(newTeacher, (newTeacher.roles||[]).includes(ROLE_CODES.HOMEROOM_TEACHER) ? (newTeacher.homeroomClassId || null) : null, base);
 				}
 			}
 			setSnackbar({ open: true, message: `${deptName}系部主任已保存`, severity: 'success' });
@@ -609,7 +997,7 @@ export default function UsersPage() {
 		// 乐观本地更新
 		setTeachers(prev => prev.map(t => {
 			if (t.homeroomClassId === classId && t.id !== newId) {
-				return { ...t, homeroomClassId: undefined, homeroomClassName: undefined, roles: (t.roles || []).filter(r => r !== '班主任') };
+				return { ...t, homeroomClassId: undefined, homeroomClassName: undefined, roles: (t.roles || []).filter(r => r !== ROLE_CODES.HOMEROOM_TEACHER) };
 			}
 			return t;
 		}));
@@ -617,7 +1005,7 @@ export default function UsersPage() {
 			const cls = classes.find(c => c.id === classId);
 			setTeachers(prev => prev.map(t => t.id === newId ? {
 				...t,
-				roles: t.roles ? (t.roles.includes('班主任') ? t.roles : [...t.roles, '班主任']) : ['班主任'],
+				roles: t.roles ? (t.roles.includes(ROLE_CODES.HOMEROOM_TEACHER) ? t.roles : [...t.roles, ROLE_CODES.HOMEROOM_TEACHER]) : [ROLE_CODES.HOMEROOM_TEACHER],
 				homeroomClassId: classId,
 				homeroomClassName: cls?.name || undefined,
 				grade: cls?.grade || t.grade,
@@ -629,7 +1017,7 @@ export default function UsersPage() {
 			if (oldId) {
 				const oldTeacher = teachers.find(t => t.id === oldId);
 				if (oldTeacher) {
-					const remain = (oldTeacher.roles || []).filter(r => r !== '班主任');
+					const remain = (oldTeacher.roles || []).filter(r => r !== ROLE_CODES.HOMEROOM_TEACHER);
 					const payload = buildInlineRolesPayload({ ...oldTeacher, roles: remain });
 					await persistTeacherWithPayload(oldTeacher, null, payload);
 				}
@@ -637,8 +1025,8 @@ export default function UsersPage() {
 			if (newId) {
 				const newTeacher = teachers.find(t => t.id === newId);
 				if (newTeacher) {
-					const base = buildInlineRolesPayload(newTeacher).filter(r => r.role !== '班主任');
-					base.push({ id: undefined, role: '班主任', classId: classId, departmentId: null, grade: null, enabled: true });
+					const base = buildInlineRolesPayload(newTeacher).filter(r => r.role !== ROLE_CODES.HOMEROOM_TEACHER);
+					base.push({ id: undefined, role: ROLE_CODES.HOMEROOM_TEACHER, classId: classId, departmentId: null, grade: null, enabled: true });
 					await persistTeacherWithPayload(newTeacher, classId, base);
 				}
 			}
@@ -699,7 +1087,7 @@ export default function UsersPage() {
 									borderBottom: '1px solid #e8eaed',
 									py: 2
 								}}>
-									所属系部
+									教学归属系部
 								</TableCell>
 								<TableCell sx={{
 									fontWeight: 600,
@@ -707,7 +1095,7 @@ export default function UsersPage() {
 									borderBottom: '1px solid #e8eaed',
 									py: 2
 								}}>
-									年级
+									教学归属年级
 								</TableCell>
 								<TableCell sx={{
 									fontWeight: 600,
@@ -776,14 +1164,38 @@ export default function UsersPage() {
 										</Typography>
 									</TableCell>
 									<TableCell sx={{ py: 2.5 }}>
-										<Typography variant="body2" sx={{ color: '#1a202c' }}>
-											{t.departmentName || '—'}
-										</Typography>
+										{(() => {
+											const basicInfo = getTeacherBasicInfo(t);
+											return (
+												<Box>
+													<Typography variant="body2" sx={{ color: '#1a202c' }}>
+														{basicInfo.departmentName}
+													</Typography>
+													{basicInfo.source === 'homeroom' && (
+														<Typography variant="caption" sx={{ color: '#a0aec0', fontSize: '11px' }}>
+															(来自班主任班级)
+														</Typography>
+													)}
+												</Box>
+											);
+										})()}
 									</TableCell>
 									<TableCell sx={{ py: 2.5 }}>
-										<Typography variant="body2" sx={{ color: '#1a202c' }}>
-											{t.grade || '—'}
-										</Typography>
+										{(() => {
+											const basicInfo = getTeacherBasicInfo(t);
+											return (
+												<Box>
+													<Typography variant="body2" sx={{ color: '#1a202c' }}>
+														{basicInfo.grade}
+													</Typography>
+													{basicInfo.source === 'homeroom' && (
+														<Typography variant="caption" sx={{ color: '#a0aec0', fontSize: '11px' }}>
+															(来自班主任班级)
+														</Typography>
+													)}
+												</Box>
+											);
+										})()}
 									</TableCell>
 									<TableCell sx={{ py: 2.5 }}>
 										<Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
@@ -799,19 +1211,22 @@ export default function UsersPage() {
 													}}
 												/>
 											)}
-											{(t.roles || []).map(r => (
-												<Chip
-													key={r}
-													label={r}
-													size="small"
-													sx={{
-														backgroundColor: r === '校长' ? '#fed7d7' : r === '年级主任' ? '#feebc8' : '#e2e8f0',
-														color: r === '校长' ? '#c53030' : r === '年级主任' ? '#c05621' : '#4a5568',
-														border: r === '校长' ? '1px solid #feb2b2' : r === '年级主任' ? '1px solid #fbd38d' : '1px solid #cbd5e0',
-														fontWeight: 500
-													}}
-												/>
-											))}
+											{(t.roles || []).map(r => {
+												const display = getRoleDisplayName(r, assignableRoles);
+												return (
+													<Chip
+														key={r}
+														label={display}
+														size="small"
+														sx={{
+															backgroundColor: r === ROLE_CODES.PRINCIPAL ? '#fed7d7' : r === ROLE_CODES.GRADE_LEADER ? '#feebc8' : '#e2e8f0',
+															color: r === ROLE_CODES.PRINCIPAL ? '#c53030' : r === ROLE_CODES.GRADE_LEADER ? '#c05621' : '#4a5568',
+															border: r === ROLE_CODES.PRINCIPAL ? '1px solid #feb2b2' : r === ROLE_CODES.GRADE_LEADER ? '1px solid #fbd38d' : '1px solid #cbd5e0',
+															fontWeight: 500
+														}}
+													/>
+												);
+											})}
 										</Box>
 									</TableCell>
 									<TableCell align="right" sx={{ py: 2.5 }}>
@@ -1440,7 +1855,7 @@ export default function UsersPage() {
 																	color: '#c05621'
 																}
 															}}>未指派</MenuItem>
-															{teachers.filter(t => !t.roles?.includes('校长')).map(t => (
+															{teachers.filter(t => !t.roles?.includes(ROLE_CODES.PRINCIPAL)).map(t => (
 																<MenuItem key={t.id} value={t.id} sx={{
 																	borderRadius: '8px',
 																	margin: '4px 8px',
@@ -1638,8 +2053,8 @@ export default function UsersPage() {
 																	transform: 'translateX(4px)',
 																	color: '#4a5568'
 																}
-															}}>未指派</MenuItem>
-															{teachers.filter(t => !t.roles?.includes('校长')).map(t => (
+															}}>全部系部</MenuItem>
+															{teachers.filter(t => !t.roles?.includes(ROLE_CODES.PRINCIPAL)).map(t => (
 																<MenuItem key={t.id} value={t.id} sx={{
 																	borderRadius: '8px',
 																	margin: '4px 8px',
@@ -1860,7 +2275,7 @@ export default function UsersPage() {
 																					>
 																						<MenuItem value=""><em>未指派</em></MenuItem>
 																						{teachers.filter(t =>
-																							!t.roles?.includes('校长') &&
+																							!t.roles?.includes(ROLE_CODES.PRINCIPAL) &&
 																							(!t.homeroomClassId || t.homeroomClassId === c.id)
 																						).map(t => (
 																							<MenuItem key={t.id} value={t.id}>
@@ -2165,7 +2580,6 @@ export default function UsersPage() {
 		<motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 			<Box sx={{
 				p: 3,
-				backgroundColor: '#fafbfc',
 				minHeight: '100vh'
 			}}>
 				<Box sx={{
@@ -2370,7 +2784,7 @@ export default function UsersPage() {
 										margin: '4px 8px',
 										transition: 'all 0.2s ease',
 										'&:hover': { 
-											backgroundColor: '#fffaf0',
+											backgroundColor: '#fff5f5',
 											transform: 'translateX(4px)',
 											color: '#c05621'
 										}
@@ -2383,7 +2797,7 @@ export default function UsersPage() {
 											margin: '4px 8px',
 											transition: 'all 0.2s ease',
 											'&:hover': { 
-												backgroundColor: '#fffaf0',
+												backgroundColor: '#fff5f5',
 												transform: 'translateX(4px)',
 												boxShadow: '0 2px 8px rgba(192, 86, 33, 0.1)'
 											},
@@ -2603,8 +3017,8 @@ export default function UsersPage() {
 											color: '#38a169'
 										}
 									}}>全部角色</MenuItem>
-									{ORG_ROLES.map(r => (
-										<MenuItem key={r} value={r} sx={{
+									{roleDisplayList.map(r => (
+										<MenuItem key={r.code} value={r.code} sx={{
 											color: '#1a202c',
 											fontWeight: 500,
 											borderRadius: '8px',
@@ -2624,7 +3038,7 @@ export default function UsersPage() {
 												}
 											}
 										}}>
-											{r}
+											{r.display}
 										</MenuItem>
 									))}
 								</Select>
@@ -2717,13 +3131,16 @@ export default function UsersPage() {
 									gridTemplateColumns: 'repeat(2, 1fr)',
 									gap: 2
 								}}>
-									{ORG_ROLES.map(r => (
+										{roleDisplayList.map(r => {
+											const roleCode = r.code as OrgRoleCode; // 后端返回的 code 与 OrgRoleCode 保持约定
+											const isChecked = roleDraft.includes(roleCode);
+											return (
 										<FormControlLabel
-											key={r}
+												key={roleCode}
 											control={
 												<Checkbox
-													checked={roleDraft.includes(r)}
-													onChange={() => toggleRoleDraft(r)}
+														checked={isChecked}
+														onChange={() => toggleRoleDraft(roleCode)}
 													sx={{
 														color: '#cbd5e0',
 														'&.Mui-checked': {
@@ -2734,100 +3151,168 @@ export default function UsersPage() {
 											}
 											label={
 												<Typography sx={{
-													fontWeight: 500,
-													color: roleDraft.includes(r) ? '#1a202c' : '#718096'
+														fontWeight: 500,
+														color: isChecked ? '#1a202c' : '#718096'
 												}}>
-													{r}
+													{r.display}
 												</Typography>
 											}
 											sx={{
-												border: '1px solid #e8eaed',
-												borderRadius: '8px',
-												p: 1.5,
-												m: 0,
-												backgroundColor: roleDraft.includes(r) ? '#f0f4f8' : 'white',
-												borderColor: roleDraft.includes(r) ? '#cbd5e0' : '#e8eaed'
+													border: '1px solid #e8eaed',
+													borderRadius: '8px',
+													p: 1.5,
+													m: 0,
+													backgroundColor: isChecked ? '#f0f4f8' : 'white',
+													borderColor: isChecked ? '#cbd5e0' : '#e8eaed'
 											}}
 										/>
-									))}
+										);
+										})}
 								</Box>
 							</Box>
 
-							{roleDraft.includes('班主任') && (
-								<FormControl size="small" fullWidth>
-									<InputLabel sx={{ color: '#718096' }}>班主任班级</InputLabel>
-									<Select
-										label="班主任班级"
-										value={draftHomeroomClassId}
-										onChange={e => setDraftHomeroomClassId(e.target.value as number)}
-										sx={{
-											borderRadius: '8px',
-											'& .MuiOutlinedInput-notchedOutline': {
-												borderColor: '#e8eaed'
-											},
-											'&:hover .MuiOutlinedInput-notchedOutline': {
-												borderColor: '#cbd5e0'
-											},
-											'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-												borderColor: '#4a5568'
-											}
-										}}
-									>
-										{classes.map(c => (
-											<MenuItem key={c.id} value={c.id}>
-												{c.name}（{c.grade} / {c.department?.name || '无系部'}）
-											</MenuItem>
-										))}
-									</Select>
-								</FormControl>
+							{roleDraft.includes(ROLE_CODES.HOMEROOM_TEACHER) && (
+								<Box>
+									<Typography variant="subtitle2" sx={{ mb: 1, color: '#1a202c', fontWeight: 600 }}>
+										班主任班级选择
+									</Typography>
+									<div style={{ fontSize: '12px', color: '#999', marginBottom: '8px' }}>
+										调试: 总班级数 {classes.length}, 当前值: {draftHomeroomClassId}, 
+										可用班级: {classes
+											.filter(c => {
+												const assigned = teachers.find(t => t.homeroomClassId === c.id);
+												return !assigned || assigned.id === editingTeacher?.id;
+											}).length}
+									</div>
+									<FormControl size="small" fullWidth>
+										<InputLabel sx={{ color: '#718096' }}>班主任班级</InputLabel>
+										<Select
+											label="班主任班级"
+											value={draftHomeroomClassId.toString()}
+											onChange={e => {
+												const val = e.target.value;
+												setDraftHomeroomClassId(val === '' ? '' : Number(val));
+											}}
+											sx={{
+												borderRadius: '8px',
+												'& .MuiOutlinedInput-notchedOutline': {
+													borderColor: '#e8eaed'
+												},
+												'&:hover .MuiOutlinedInput-notchedOutline': {
+													borderColor: '#cbd5e0'
+												},
+												'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+													borderColor: '#4a5568'
+												}
+											}}
+										>
+											<MenuItem value=""><em>请选择班级</em></MenuItem>
+											{classes
+												.filter(c => {
+													const assigned = teachers.find(t => t.homeroomClassId === c.id);
+													return !assigned || assigned.id === editingTeacher?.id;
+												})
+												.map(c => {
+													return (
+														<MenuItem key={c.id} value={c.id}>
+															{c.name}（{c.grade} / {c.department?.name || '无系部'}）
+														</MenuItem>
+													);
+												})}
+										</Select>
+									</FormControl>
+									<Typography variant="caption" sx={{ color: '#718096', mt: 1, display: 'block' }}>
+										可选班级数量: {classes.filter(c => {
+											const assigned = teachers.find(t => t.homeroomClassId === c.id);
+											return !assigned || assigned.id === editingTeacher?.id;
+										}).length} / 总班级数: {classes.length}
+									</Typography>
+									{classes.length === 0 && (
+										<Typography variant="caption" sx={{ color: '#e53e3e', mt: 1, display: 'block' }}>
+											暂无可选班级数据
+										</Typography>
+									)}
+								</Box>
 							)}
 
-							{roleDraft.includes('年级主任') && (
-								<FormControl size="small" fullWidth>
-									<InputLabel sx={{ color: '#718096' }}>负责年级</InputLabel>
-									<Select
-										label="负责年级"
-										value={roleScopeDraft['年级主任']?.grade || ''}
-										onChange={e => setRoleScopeDraft(prev => ({ ...prev, ['年级主任']: { ...(prev['年级主任']||{}), grade: e.target.value as string } }))}
-										sx={{
-											borderRadius: '8px',
-											'& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8eaed' },
-											'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e0' },
-											'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#c05621' }
-										}}
-									>
-										<MenuItem value=""><em>未指定</em></MenuItem>
-										{Array.from(new Set(classes.map(c => c.grade).filter(Boolean))).map(g => (
-											<MenuItem key={g as string} value={g as string}>{g}</MenuItem>
-										))}
-									</Select>
-								</FormControl>
+							{roleDraft.includes(ROLE_CODES.GRADE_LEADER) && (
+								<Box>
+									<Typography variant="subtitle2" sx={{ mb: 1, color: '#1a202c', fontWeight: 600 }}>
+										年级主任负责年级
+									</Typography>
+									<FormControl size="small" fullWidth>
+										<InputLabel sx={{ color: '#718096' }}>负责年级</InputLabel>
+										<Select
+											label="负责年级"
+											value={roleScopeDraft[ROLE_CODES.GRADE_LEADER]?.grade || ''}
+											onChange={e => {
+												setRoleScopeDraft(prev => ({ ...prev, [ROLE_CODES.GRADE_LEADER]: { ...(prev[ROLE_CODES.GRADE_LEADER]||{}), grade: e.target.value as string } }) as typeof prev);
+											}}
+											sx={{
+												borderRadius: '8px',
+												'& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8eaed' },
+												'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e0' },
+												'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#c05621' }
+											}}
+										>
+											<MenuItem value=""><em>请选择年级</em></MenuItem>
+											{uniqueGrades.map(g => {
+												return (
+													<MenuItem key={g} value={g}>{g}年级</MenuItem>
+												);
+											})}
+										</Select>
+									</FormControl>
+									<Typography variant="caption" sx={{ color: '#718096', mt: 1, display: 'block' }}>
+										可选年级数量: {uniqueGrades.length} / 年级列表: {uniqueGrades.join(', ') || '无'}
+									</Typography>
+									{uniqueGrades.length === 0 && (
+										<Typography variant="caption" sx={{ color: '#e53e3e', mt: 1, display: 'block' }}>
+											暂无可选年级数据
+										</Typography>
+									)}
+								</Box>
 							)}
 
-							{roleDraft.includes('系部主任') && (
-								<FormControl size="small" fullWidth>
-									<InputLabel sx={{ color: '#718096' }}>负责系部</InputLabel>
-									<Select
-										label="负责系部"
-										value={roleScopeDraft['系部主任']?.departmentId ?? ''}
-										onChange={e => {
-											const val = e.target.value as string | number;
-											const depId = (val === '' ? null : Number(val));
-											setRoleScopeDraft(prev => ({ ...prev, ['系部主任']: { ...(prev['系部主任']||{}), departmentId: depId } }));
-										}}
-										sx={{
-											borderRadius: '8px',
-											'& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8eaed' },
-											'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e0' },
-											'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#4a5568' }
-										}}
-									>
-										<MenuItem value=""><em>未指定</em></MenuItem>
-										{departments.map(d => (
-											<MenuItem key={d.id} value={d.id}>{d.name || d.code || d.id}</MenuItem>
-										))}
-									</Select>
-								</FormControl>
+							{roleDraft.includes(ROLE_CODES.DEPARTMENT_HEAD) && (
+								<Box>
+									<Typography variant="subtitle2" sx={{ mb: 1, color: '#1a202c', fontWeight: 600 }}>
+										系部主任负责系部
+									</Typography>
+									<FormControl size="small" fullWidth>
+										<InputLabel sx={{ color: '#718096' }}>负责系部</InputLabel>
+										<Select
+											label="负责系部"
+											value={roleScopeDraft[ROLE_CODES.DEPARTMENT_HEAD]?.departmentId ?? ''}
+											onChange={e => {
+												const val = e.target.value as string | number;
+												const depId = (val === '' ? null : Number(val));
+												setRoleScopeDraft(prev => ({ ...prev, [ROLE_CODES.DEPARTMENT_HEAD]: { ...(prev[ROLE_CODES.DEPARTMENT_HEAD]||{}), departmentId: depId } }) as typeof prev);
+											}}
+											sx={{
+												borderRadius: '8px',
+												'& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8eaed' },
+												'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e0' },
+												'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#4a5568' }
+											}}
+										>
+											<MenuItem value=""><em>请选择系部</em></MenuItem>
+											{departments.map(d => {
+												return (
+													<MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
+												);
+											})}
+										</Select>
+									</FormControl>
+									<Typography variant="caption" sx={{ color: '#718096', mt: 1, display: 'block' }}>
+										可选系部数量: {departments.length} / 系部列表: {departments.map(d => d.name).join(', ') || '无'}
+									</Typography>
+									{departments.length === 0 && (
+										<Typography variant="caption" sx={{ color: '#e53e3e', mt: 1, display: 'block' }}>
+											暂无可选系部数据
+										</Typography>
+									)}
+								</Box>
 							)}
 
 							<Alert
@@ -2878,6 +3363,92 @@ export default function UsersPage() {
 						}}
 					>
 						{saving ? '保存中...' : '保存'}
+					</Button>
+				</DialogActions>
+			</Dialog>
+
+			{/* 确认对话框 */}
+			<Dialog
+				open={confirmDialog}
+				onClose={() => setConfirmDialog(false)}
+				maxWidth="sm"
+				fullWidth
+				PaperProps={{
+					sx: {
+						borderRadius: '12px',
+						boxShadow: '0 10px 40px rgba(0,0,0,0.1)'
+					}
+				}}
+			>
+				<DialogTitle sx={{
+					p: 3,
+					pb: 1,
+					color: '#1a202c',
+					fontWeight: 600,
+					display: 'flex',
+					alignItems: 'center',
+					gap: 1
+				}}>
+					<WarningIcon sx={{ color: '#f6ad55' }} />
+					角色冲突确认
+				</DialogTitle>
+				<DialogContent sx={{ p: 3 }}>
+					<Typography sx={{ 
+						color: '#4a5568', 
+						lineHeight: 1.6,
+						whiteSpace: 'pre-line'
+					}}>
+						{confirmMessage}
+					</Typography>
+				</DialogContent>
+				<DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>
+					<Button
+						onClick={() => {
+							setConfirmDialog(false);
+							setConfirmCallback(null);
+							setSaving(false);
+						}}
+						sx={{
+							color: '#718096',
+							textTransform: 'none',
+							fontWeight: 500,
+							borderRadius: '8px',
+							px: 3
+						}}
+					>
+						取消
+					</Button>
+					<Button
+						variant="contained"
+						onClick={async () => {
+							setConfirmDialog(false);
+							if (confirmCallback) {
+								setSaving(true);
+								try {
+									await confirmCallback();
+								} catch {
+									// 错误已在 proceedWithSave 中处理
+								} finally {
+									setSaving(false);
+								}
+							}
+							setConfirmCallback(null);
+						}}
+						sx={{
+							boxShadow: 'none',
+							backgroundColor: '#f6ad55',
+							color: 'white',
+							textTransform: 'none',
+							fontWeight: 500,
+							borderRadius: '8px',
+							px: 3,
+							'&:hover': {
+								backgroundColor: '#ed8936',
+								boxShadow: 'none'
+							}
+						}}
+					>
+						确认转移
 					</Button>
 				</DialogActions>
 			</Dialog>
