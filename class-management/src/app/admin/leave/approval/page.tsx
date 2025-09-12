@@ -40,34 +40,59 @@ import { motion } from "framer-motion";
 // 与其他页面一致，走 Next.js 代理
 const API_BASE_URL = "/api";
 
-// 后端返回的请假单映射到前端 UI 的结构
-type UILeaveRequest = {
+// 审批步骤（新接口 approvals 元素）
+interface ApprovalStep {
   id: number;
-  studentNo: string;
+  stepOrder: number;
+  stepName: string;
+  roleCode: string;
+  roleDisplayName: string;
+  teacherId?: number | null; // 指派教师（可能为空表示角色下任意成员）
+  teacherName?: string | null;
+  status: string; // 待审批 / 已批准 / 已拒绝
+  comment?: string | null;
+  reviewedAt?: string | null;
+}
+
+// 后端新响应形状（最小必要字段）
+interface BackendLeaveRequest {
+  id: number;
+  studentId?: number;
+  studentName?: string;
+  studentNo?: string; // 若后端仍返回则使用
+  className?: string;
+  leaveTypeId?: number;
+  leaveTypeName?: string;
+  status?: string;
+  startDate?: string | number | Date;
+  endDate?: string | number | Date;
+  days?: number | string;
+  reason?: string;
+  createdAt?: string | number | Date;
+  reviewedAt?: string | null;
+  currentStepName?: string | null;
+  pendingRoleCode?: string | null;
+  pendingRoleDisplayName?: string | null;
+  approvals?: ApprovalStep[];
+}
+
+// 前端用于渲染的结构
+interface UILeaveRequest {
+  id: number;
   studentName: string;
+  studentNo: string; // 可能为 "" 若后端不再提供
   className: string;
   typeName: string;
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
   days: number;
   reason: string;
-  status: string; // 后端：待审批 / 已批准 / 已拒绝 / 已撤销
+  status: string;
   createdAt?: string;
-};
-
-// 后端 LeaveRequest 响应的最小形状（我们只取用到的字段）
-type BackendLeaveRequest = {
-  id: number;
-  studentId?: number;
-  student?: { name?: string; studentNo?: string; clazz?: { name?: string } };
-  leaveTypeConfig?: { typeName?: string };
-  startDate?: string | number | Date;
-  endDate?: string | number | Date;
-  days?: number | string;
-  reason?: string;
-  status?: string;
-  createdAt?: string | number | Date;
-};
+  currentStepName?: string | null;
+  pendingRoleDisplayName?: string | null;
+  approvals: ApprovalStep[];
+}
 
 const typeColors: { [key: string]: string } = {
   '年假': '#1976d2',
@@ -87,7 +112,7 @@ export default function ApprovalPage() {
 
   // 角色与班级筛选
   const [userType, setUserType] = useState<string>(''); // 管理员/教师/学生
-  // const [teacherId, setTeacherId] = useState<number | null>(null); // 暂不直接使用
+  const [teacherId, setTeacherId] = useState<number | null>(null);
   const isAdmin = userType === '管理员';
   // const isTeacher = userType === '教师';
 
@@ -113,9 +138,9 @@ export default function ApprovalPage() {
           credentials: 'include',
         });
         if (!ures.ok) throw new Error(`获取当前用户失败 ${ures.status}`);
-        const uinfo: { userType: string; teacherId?: number } = await ures.json();
+  const uinfo: { userType: string; teacherId?: number } = await ures.json();
         setUserType(uinfo.userType);
-        // if (uinfo.teacherId) setTeacherId(uinfo.teacherId);
+  if (uinfo.teacherId) setTeacherId(uinfo.teacherId);
 
         // 管理员：加载班级用于筛选
         if (uinfo.userType === '管理员') {
@@ -126,20 +151,21 @@ export default function ApprovalPage() {
           }
         }
 
-        // 加载请假列表
-        let listRes: Response;
-        if (uinfo.userType === '管理员') {
-          listRes = await fetch(`${API_BASE_URL}/leave/all`, { credentials: 'include', signal: controller.signal });
-        } else if (uinfo.userType === '教师' && uinfo.teacherId) {
-          listRes = await fetch(`${API_BASE_URL}/leave/teacher/${uinfo.teacherId}`, { credentials: 'include', signal: controller.signal });
-        } else {
-          // 其他角色暂不显示
-          setRequests([]);
-          setLoading(false);
-          return;
-        }
-        if (!listRes.ok) throw new Error(`获取请假列表失败 ${listRes.status}`);
-        const rawList: BackendLeaveRequest[] = await listRes.json();
+        // 加载请假列表（教师取待审批列表，管理员取全部）
+        const fetchList = async (): Promise<BackendLeaveRequest[]> => {
+          if (uinfo.userType === '管理员') {
+            const res = await fetch(`${API_BASE_URL}/leave/all`, { credentials: 'include', signal: controller.signal });
+            if (!res.ok) throw new Error(`获取请假列表失败 ${res.status}`);
+            return res.json();
+          } else if (uinfo.userType === '教师' && uinfo.teacherId) {
+            const res = await fetch(`${API_BASE_URL}/leave/teacher/${uinfo.teacherId}/pending`, { credentials: 'include', signal: controller.signal });
+            if (!res.ok) throw new Error(`获取请假列表失败 ${res.status}`);
+            return res.json();
+          } else {
+            return [];
+          }
+        };
+        const rawList: BackendLeaveRequest[] = await fetchList();
 
         // 映射为 UI 结构
         const mapDate = (v: string | number | Date | undefined) => {
@@ -148,19 +174,25 @@ export default function ApprovalPage() {
           if (Number.isNaN(d.getTime())) return '';
           return d.toISOString().slice(0, 10);
         };
-        const mapped: UILeaveRequest[] = rawList.map((r) => ({
-          id: r.id,
-          studentNo: r.student?.studentNo || String(r.studentId || ''),
-          studentName: r.student?.name || '-',
-          className: r.student?.clazz?.name || '-',
-          typeName: r.leaveTypeConfig?.typeName || '-',
-          startDate: mapDate(r.startDate),
-          endDate: mapDate(r.endDate),
-          days: typeof r.days === 'number' ? r.days : Number(r.days || 0),
-          reason: r.reason || '',
-          status: r.status || '-',
-          createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : undefined,
-        }));
+        const mapped: UILeaveRequest[] = rawList.map((r) => {
+          const approvals: ApprovalStep[] = (r.approvals || []).map(a => ({ ...a }));
+          return {
+            id: r.id,
+            studentName: r.studentName || '-',
+            studentNo: r.studentNo || String(r.studentId || ''),
+            className: r.className || '-',
+            typeName: r.leaveTypeName || '-',
+            startDate: mapDate(r.startDate),
+            endDate: mapDate(r.endDate),
+            days: typeof r.days === 'number' ? r.days : Number(r.days || 0),
+            reason: r.reason || '',
+            status: r.status || '-',
+            createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : undefined,
+            currentStepName: r.currentStepName || null,
+            pendingRoleDisplayName: r.pendingRoleDisplayName || null,
+            approvals,
+          };
+        });
         setRequests(mapped);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -173,7 +205,15 @@ export default function ApprovalPage() {
     return () => controller.abort();
   }, []);
 
-  // 过滤后的请求（仅显示待审批）
+  // 判断当前教师是否可对该请求执行审批操作
+  const canAct = (req: UILeaveRequest): boolean => {
+    if (req.status !== '待审批') return false;
+    if (!teacherId) return false;
+    // 只要 approvals 中存在一个待审批且 teacherId 匹配即可
+    return req.approvals.some(a => a.status === '待审批' && a.teacherId === teacherId);
+  };
+
+  // 过滤后的请求（仅显示待审批）；显示逻辑仍旧只展示待审批列表
   const filteredRequests = useMemo(() => {
     return requests.filter((request) => {
       const matchType = !filterType || request.typeName === filterType;
@@ -182,21 +222,64 @@ export default function ApprovalPage() {
         request.studentNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         request.className.toLowerCase().includes(searchTerm.toLowerCase());
       const matchClass = !isAdmin || !filterClassId || !!(request.className && classes.find(c => c.id === filterClassId && request.className === c.name));
+      // 对教师端：后端已返回待审批列表；管理员端仍显示全部但这里保留待审批过滤以聚焦处理任务
       return matchType && matchSearch && matchClass && request.status === '待审批';
     });
   }, [requests, filterType, searchTerm, filterClassId, isAdmin, classes]);
 
+  // 抽取刷新函数（单条或批量操作后使用）
+  const refreshList = async () => {
+    if (!userType) return;
+    try {
+      setLoading(true);
+      let url: string | null = null;
+      if (userType === '管理员') url = `${API_BASE_URL}/leave/all`;
+      else if (userType === '教师' && teacherId) url = `${API_BASE_URL}/leave/teacher/${teacherId}/pending`;
+      if (!url) { setRequests([]); return; }
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error(`刷新失败 ${res.status}`);
+      const raw: BackendLeaveRequest[] = await res.json();
+      const mapDate = (v: string | number | Date | undefined) => {
+        if (!v) return '';
+        const d = new Date(v); if (Number.isNaN(d.getTime())) return ''; return d.toISOString().slice(0,10);
+      };
+      const mapped: UILeaveRequest[] = raw.map(r => ({
+        id: r.id,
+        studentName: r.studentName || '-',
+        studentNo: r.studentNo || String(r.studentId || ''),
+        className: r.className || '-',
+        typeName: r.leaveTypeName || '-',
+        startDate: mapDate(r.startDate),
+        endDate: mapDate(r.endDate),
+        days: typeof r.days === 'number' ? r.days : Number(r.days || 0),
+        reason: r.reason || '',
+        status: r.status || '-',
+        createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : undefined,
+        currentStepName: r.currentStepName || null,
+        pendingRoleDisplayName: r.pendingRoleDisplayName || null,
+        approvals: (r.approvals || []).map(a => ({...a}))
+      }));
+      setRequests(mapped);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedRequests(filteredRequests.map(req => req.id));
+      // 仅可选择可操作项
+      setSelectedRequests(filteredRequests.filter(r => canAct(r)).map(req => req.id));
     } else {
       setSelectedRequests([]);
     }
   };
 
   const handleSelectRequest = (id: number, checked: boolean) => {
+    const req = filteredRequests.find(r => r.id === id);
     if (checked) {
-      setSelectedRequests([...selectedRequests, id]);
+      if (req && canAct(req)) setSelectedRequests(prev => [...prev, id]);
     } else {
       setSelectedRequests(selectedRequests.filter(reqId => reqId !== id));
     }
@@ -208,38 +291,44 @@ export default function ApprovalPage() {
   };
 
   const handleApproval = (request: UILeaveRequest, action: 'approve' | 'reject') => {
+    if (!canAct(request)) return; // 防止直接调用
     setSelectedRequest(request);
     setApprovalAction(action);
     setApprovalDialog(true);
   };
 
   const handleBatchApproval = (action: 'approve' | 'reject') => {
-    if (selectedRequests.length === 0) return;
-    // 批量审批
-    const doReq = async () => {
-      await Promise.all(
-        selectedRequests.map(id => fetch(`${API_BASE_URL}/leave/${id}/approve?approved=${action === 'approve' ? 'true' : 'false'}`, {
-          method: 'PUT',
+    if (selectedRequests.length === 0 || !teacherId) return;
+    const actionableIds = selectedRequests.slice();
+    (async () => {
+      try {
+        const endpoint = action === 'approve' ? 'approve' : 'reject';
+        const res = await fetch(`${API_BASE_URL}/leave/batch/${endpoint}?approverId=${teacherId}`, {
+          method: 'POST',
           credentials: 'include',
-        }))
-      );
-      // 本地更新状态
-      setRequests(prev => prev.map(r => selectedRequests.includes(r.id) ? { ...r, status: action === 'approve' ? '已批准' : '已拒绝' } : r));
-      setSelectedRequests([]);
-    };
-    void doReq();
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: actionableIds, comments: approvalRemark })
+        });
+        if (!res.ok) throw new Error(`批量操作失败 ${res.status}`);
+        // 返回的是处理后的 DTO 列表，直接刷新
+        await refreshList();
+        setSelectedRequests([]);
+      } catch (e) {
+        console.error(e);
+        alert('批量操作失败');
+      }
+    })();
   };
 
   const submitApproval = async () => {
-    if (!selectedRequest) return;
+    if (!selectedRequest || !teacherId) return;
     try {
-      // 使用兼容端点，避免必须传 approverId
-      const res = await fetch(`${API_BASE_URL}/leave/${selectedRequest.id}/approve?approved=${approvalAction === 'approve' ? 'true' : 'false'}` , {
-        method: 'PUT',
-        credentials: 'include',
-      });
+      const endpoint = approvalAction === 'approve' ? 'approve' : 'reject';
+      const url = `${API_BASE_URL}/leave/${selectedRequest.id}/${endpoint}?approverId=${teacherId}&comments=${encodeURIComponent(approvalRemark || '')}`;
+      const res = await fetch(url, { method: 'POST', credentials: 'include' });
       if (!res.ok) throw new Error(`提交失败 ${res.status}`);
-      setRequests(prev => prev.map(req => req.id === selectedRequest.id ? { ...req, status: approvalAction === 'approve' ? '已批准' : '已拒绝' } : req));
+      // 单条返回最新 DTO，刷新整体列表避免状态不一致
+      await refreshList();
       setApprovalDialog(false);
       setApprovalRemark('');
       setSelectedRequest(null);
@@ -427,12 +516,19 @@ export default function ApprovalPage() {
                   <TableCell sx={{ fontWeight: 600 }}>请假类型</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>请假时间</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>天数</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>当前步骤</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>待审批角色</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>进度</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>状态</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>操作</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredRequests.map((item) => (
+                {filteredRequests.map((item) => {
+                  const totalSteps = item.approvals.length;
+                  const approvedSteps = item.approvals.filter(a => a.status === '已批准').length;
+                  const actionable = canAct(item);
+                  return (
                   <TableRow 
                     key={item.id} 
                     hover
@@ -442,6 +538,7 @@ export default function ApprovalPage() {
                       <Checkbox
                         checked={selectedRequests.includes(item.id)}
                         onChange={(e) => handleSelectRequest(item.id, e.target.checked)}
+                        disabled={!actionable}
                       />
                     </TableCell>
                     <TableCell>
@@ -473,6 +570,17 @@ export default function ApprovalPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
+                      <Typography variant="body2" sx={{ color: '#555' }}>{item.currentStepName || '-'}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip size="small" label={item.pendingRoleDisplayName || '-'} variant="outlined" />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        {approvedSteps}/{totalSteps || 0}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
                       <Chip size="small" label={item.status} />
                     </TableCell>
                     <TableCell>
@@ -485,28 +593,32 @@ export default function ApprovalPage() {
                             <VisibilityIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="批准">
-                          <IconButton 
-                            size="small" 
-                            color="success"
-                            onClick={() => handleApproval(item, 'approve')}
-                          >
-                            <CheckIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="拒绝">
-                          <IconButton 
-                            size="small" 
-                            color="error"
-                            onClick={() => handleApproval(item, 'reject')}
-                          >
-                            <CloseIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        {actionable && (
+                          <>
+                            <Tooltip title="批准">
+                              <IconButton 
+                                size="small" 
+                                color="success"
+                                onClick={() => handleApproval(item, 'approve')}
+                              >
+                                <CheckIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="拒绝">
+                              <IconButton 
+                                size="small" 
+                                color="error"
+                                onClick={() => handleApproval(item, 'reject')}
+                              >
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
-                ))}
+                );})}
               </TableBody>
             </Table>
           </TableContainer>
@@ -563,6 +675,18 @@ export default function ApprovalPage() {
                     disabled
                     fullWidth
                   />
+                  <TextField
+                    label="当前步骤"
+                    value={selectedRequest.currentStepName || ''}
+                    disabled
+                    fullWidth
+                  />
+                  <TextField
+                    label="待审批角色"
+                    value={selectedRequest.pendingRoleDisplayName || ''}
+                    disabled
+                    fullWidth
+                  />
                 </Box>
                 <TextField
                   label="请假原因"
@@ -572,6 +696,40 @@ export default function ApprovalPage() {
                   multiline
                   rows={3}
                 />
+                {/* 审批进度列表 */}
+                {selectedRequest.approvals.length > 0 && (
+                  <Box sx={{ mt: 3 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>审批步骤</Typography>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>序号</TableCell>
+                          <TableCell>步骤名称</TableCell>
+                          <TableCell>角色</TableCell>
+                          <TableCell>审批教师</TableCell>
+                          <TableCell>状态</TableCell>
+                          <TableCell>时间</TableCell>
+                          <TableCell>备注</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {selectedRequest.approvals
+                          .sort((a,b) => a.stepOrder - b.stepOrder)
+                          .map(step => (
+                            <TableRow key={step.id}>
+                              <TableCell>{step.stepOrder}</TableCell>
+                              <TableCell>{step.stepName}</TableCell>
+                              <TableCell>{step.roleDisplayName}</TableCell>
+                              <TableCell>{step.teacherName || '-'}</TableCell>
+                              <TableCell>{step.status}</TableCell>
+                              <TableCell>{step.reviewedAt ? step.reviewedAt : '-'}</TableCell>
+                              <TableCell>{step.comment || '-'}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                )}
               </Box>
             )}
           </DialogContent>
