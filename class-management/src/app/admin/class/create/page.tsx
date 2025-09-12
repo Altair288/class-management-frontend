@@ -37,6 +37,10 @@ export default function ClassCreatePage() {
   const [className, setClassName] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [departments, setDepartments] = useState<{id:number; name:string}[]>([]);
+  const [departmentId, setDepartmentId] = useState<number | ''>('');
+  const [depLoading, setDepLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // 年级下拉
   useEffect(() => {
@@ -44,6 +48,21 @@ export default function ClassCreatePage() {
     const arr = [];
     for (let y = 2020; y <= now; y++) arr.push(y);
     setGradeOptions(arr.reverse());
+  }, []);
+
+  // 加载系部列表
+  useEffect(() => {
+    const loadDepartments = async () => {
+      setDepLoading(true);
+      try {
+        const res = await axios.get('/api/department/list');
+        setDepartments(res.data || []);
+      } catch (e) {
+        console.error('加载系部失败', e);
+      }
+      setDepLoading(false);
+    };
+    loadDepartments();
   }, []);
 
   // 自动加年份前缀
@@ -72,16 +91,24 @@ export default function ClassCreatePage() {
       alert("请输入班级名称");
       return;
     }
+    if (!departmentId) {
+      setFormError('请选择系部');
+      return;
+    }
+
+    setFormError(null);
 
     setLoading(true);
     try {
       await axios.post("/api/class/create", {
         name: className,
         grade: year,
+        departmentId: departmentId,
       });
       setSuccess(true);
       setTimeout(() => {
         setClassName("");
+        setDepartmentId('');
         setSuccess(false);
       }, 3000);
     } catch (e: unknown) {
@@ -92,7 +119,7 @@ export default function ClassCreatePage() {
   };
 
   const handleGoToTeacherManagement = () => {
-    router.push("/admin/users");
+    router.push("/admin/users/teachers");
   };
 
   return (
@@ -364,6 +391,24 @@ export default function ClassCreatePage() {
                         placeholder: "例如: 计算机1班"
                       }}
                     />
+                  </Box>
+                  <Box sx={{ gridColumn: { xs: '1', md: 'span 2' } }}>
+                    <FormControl fullWidth required>
+                      <InputLabel>系部</InputLabel>
+                      <Select
+                        label="系部"
+                        value={departmentId === '' ? '' : departmentId}
+                        onChange={e => setDepartmentId(Number(e.target.value))}
+                        disabled={depLoading}
+                      >
+                        {departments.map(d => (
+                          <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    {formError && (
+                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>{formError}</Typography>
+                    )}
                   </Box>
                 </Box>
 

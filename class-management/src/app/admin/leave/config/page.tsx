@@ -43,14 +43,26 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 
+// 可分配角色 DTO（来自教师管理模块接口 /api/teachers/management/assignable-roles）
+interface AssignableRoleDTO {
+  id: number;
+  code: string;          // 例如 HOMEROOM / DEPT_HEAD / GRADE_HEAD
+  displayName: string;   // 中文显示名
+  category?: string;
+  level?: number;
+  sortOrder?: number;
+  description?: string | null;
+  enabled?: boolean;
+}
+
 // API 基础 URL（走 Next.js 代理，避免 CORS 与环境差异）
 const API_BASE_URL = "/api";
 
-// API 调用函数
+// API 调用函数（修复后）
 const leaveTypeApi = {
   // 获取所有请假类型（包括已停用的）
   getAllLeaveTypes: async (): Promise<LeaveType[]> => {
-  const response = await fetch(`${API_BASE_URL}/leave/config/all`, { credentials: 'include' });
+    const response = await fetch(`${API_BASE_URL}/leave/config/all`, { credentials: 'include' });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       throw new Error(`加载失败 ${response.status}: ${text || response.statusText}`);
@@ -60,7 +72,7 @@ const leaveTypeApi = {
 
   // 获取激活的请假类型
   getActiveLeaveTypes: async (): Promise<LeaveType[]> => {
-  const response = await fetch(`${API_BASE_URL}/leave/config/active`, { credentials: 'include' });
+    const response = await fetch(`${API_BASE_URL}/leave/config/active`, { credentials: 'include' });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       throw new Error(`加载激活类型失败 ${response.status}: ${text || response.statusText}`);
@@ -72,10 +84,8 @@ const leaveTypeApi = {
   createLeaveType: async (leaveType: Omit<LeaveType, 'id' | 'createdAt' | 'updatedAt'>): Promise<LeaveType> => {
     const response = await fetch(`${API_BASE_URL}/leave/config`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-  credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(leaveType),
     });
     if (!response.ok) {
@@ -89,10 +99,8 @@ const leaveTypeApi = {
   updateLeaveType: async (id: number, leaveType: Omit<LeaveType, 'createdAt' | 'updatedAt'>): Promise<LeaveType> => {
     const response = await fetch(`${API_BASE_URL}/leave/config/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-  credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(leaveType),
     });
     if (!response.ok) {
@@ -106,7 +114,7 @@ const leaveTypeApi = {
   deleteLeaveType: async (id: number): Promise<void> => {
     const response = await fetch(`${API_BASE_URL}/leave/config/${id}`, {
       method: 'DELETE',
-  credentials: 'include',
+      credentials: 'include',
     });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -118,7 +126,7 @@ const leaveTypeApi = {
   activateLeaveType: async (id: number): Promise<LeaveType> => {
     const response = await fetch(`${API_BASE_URL}/leave/config/${id}/activate`, {
       method: 'POST',
-  credentials: 'include',
+      credentials: 'include',
     });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -131,7 +139,7 @@ const leaveTypeApi = {
   deactivateLeaveType: async (id: number): Promise<LeaveType> => {
     const response = await fetch(`${API_BASE_URL}/leave/config/${id}/deactivate`, {
       method: 'POST',
-  credentials: 'include',
+      credentials: 'include',
     });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -242,7 +250,13 @@ const workflowsApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(s),
+      body: JSON.stringify({
+        stepName: s.stepName,
+        roleCode: s.roleCode,
+        stepOrder: s.stepOrder,
+        autoApprove: s.autoApprove,
+        enabled: s.enabled,
+      }),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -255,7 +269,13 @@ const workflowsApi = {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(s),
+      body: JSON.stringify({
+        stepName: s.stepName,
+        roleCode: s.roleCode,
+        stepOrder: s.stepOrder,
+        autoApprove: s.autoApprove,
+        enabled: s.enabled,
+      }),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -307,7 +327,8 @@ type BackendWorkflowStep = {
   workflowId: number;
   stepOrder: number;
   stepName: string;
-  approverRole: string;
+  roleCode: string;            // 后端角色编码
+  roleDisplayName: string;     // 可直接展示
   autoApprove: boolean;
   enabled: boolean;
 };
@@ -369,7 +390,7 @@ export default function ConfigPage() {
   const [stepDialogOpen, setStepDialogOpen] = useState(false);
   const [stepSaving, setStepSaving] = useState(false);
   const [activeWorkflowId, setActiveWorkflowId] = useState<number | null>(null);
-  const [stepForm, setStepForm] = useState<Partial<BackendWorkflowStep>>({ stepOrder: 1, stepName: '', approverRole: '', autoApprove: false, enabled: true });
+  const [stepForm, setStepForm] = useState<Partial<BackendWorkflowStep>>({ stepOrder: 1, stepName: '', roleCode: '', autoApprove: false, enabled: true });
   const [editDialog, setEditDialog] = useState(false);
   const [selectedLeaveType, setSelectedLeaveType] = useState<LeaveType | null>(null);
   const [loading, setLoading] = useState(false);
@@ -396,6 +417,11 @@ export default function ConfigPage() {
     notifyOnRejection: true,
     reminderBeforeLeave: 3,
   });
+
+  // 可分配审批角色列表（下拉用）
+  const [assignableRoles, setAssignableRoles] = useState<AssignableRoleDTO[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [rolesError, setRolesError] = useState<string | null>(null);
 
   // 加载请假类型数据
   const loadLeaveTypes = async () => {
@@ -458,6 +484,33 @@ export default function ConfigPage() {
         setWfError(msg);
       } finally {
         setWfLoading(false);
+      }
+    })();
+
+    // 加载可分配审批角色
+    (async () => {
+      try {
+        setRolesLoading(true);
+        setRolesError(null);
+        const res = await fetch('/api/teachers/management/assignable-roles', { credentials: 'include' });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(text || res.statusText);
+        }
+        const data: AssignableRoleDTO[] = await res.json();
+        // 只保留 enabled 的，按 level/ sortOrder 排序
+        const sorted = [...data]
+          .filter(r => r.enabled !== false)
+          .sort((a,b) => {
+            const l = (a.level ?? 0) - (b.level ?? 0);
+            return l !== 0 ? l : (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+          });
+        setAssignableRoles(sorted);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '加载可分配角色失败';
+        setRolesError(msg);
+      } finally {
+        setRolesLoading(false);
       }
     })();
   }, []);
@@ -556,7 +609,7 @@ export default function ConfigPage() {
     const current = wfSteps[workflowId] || [];
     const nextOrder = current.length > 0 ? Math.max(...current.map(s => s.stepOrder)) + 1 : 1;
     setActiveWorkflowId(workflowId);
-    setStepForm({ id: undefined, workflowId, stepOrder: nextOrder, stepName: '', approverRole: '', autoApprove: false, enabled: true });
+  setStepForm({ id: undefined, workflowId, stepOrder: nextOrder, stepName: '', roleCode: '', autoApprove: false, enabled: true });
     setStepDialogOpen(true);
   };
 
@@ -591,7 +644,13 @@ export default function ConfigPage() {
       setSnackbarOpen(true);
       setStepDialogOpen(false);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '请重试';
+      let msg = e instanceof Error ? e.message : '请重试';
+      if (/stepOrder/i.test(msg) && /存在|exist/i.test(msg)) {
+        msg = '步骤序号已存在，请换一个未使用的序号';
+      }
+      if (/roleCode/i.test(msg) && /无效|invalid/i.test(msg)) {
+        msg = '角色编码无效，请在下拉中选择有效角色';
+      }
       setSnackbarMessage(`保存步骤失败：${msg}`);
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
@@ -1007,9 +1066,19 @@ export default function ConfigPage() {
                     <Typography variant="body2" sx={{ color: '#6c757d' }}>
                       {workflow.description || '—'}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#6c757d' }}>
+                    <Typography variant="caption" sx={{ color: '#6c757d', display:'block' }}>
                       编码：{workflow.workflowCode}
                     </Typography>
+                    {(() => {
+                      const steps = wfSteps[workflow.id] || [];
+                      if (!steps.length) return null;
+                      const autoCount = steps.filter(s => s.autoApprove).length;
+                      return (
+                        <Typography variant="caption" sx={{ color: '#6c757d' }}>
+                          步骤数：{steps.length}（自动通过：{autoCount}）
+                        </Typography>
+                      );
+                    })()}
                   </Box>
                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <Chip
@@ -1040,13 +1109,13 @@ export default function ConfigPage() {
                     (wfSteps[workflow.id] || []).map((s, index) => (
                       <Box key={s.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Chip
-                          label={`步骤${s.stepOrder}: ${s.stepName}（${s.approverRole}${s.autoApprove ? '·自动通过' : ''}）`}
+                          label={`步骤${s.stepOrder}: ${s.stepName}（${s.roleDisplayName || s.roleCode}${s.autoApprove ? '·自动通过' : ''}）`}
                           size="small"
                           variant="outlined"
+                          clickable
+                          onClick={() => handleEditStep(workflow.id, s)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleEditStep(workflow.id, s); }}
                         />
-                        <IconButton size="small" onClick={() => handleEditStep(workflow.id, s)}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
                         <IconButton size="small" color="error" onClick={() => handleDeleteStep(workflow.id, s)}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -1421,7 +1490,17 @@ export default function ConfigPage() {
         </Dialog>
 
         {/* 编辑/新增 步骤 对话框 */}
-        <Dialog open={stepDialogOpen} onClose={() => setStepDialogOpen(false)} maxWidth="sm" fullWidth>
+        <Dialog open={stepDialogOpen} onClose={() => setStepDialogOpen(false)} maxWidth="sm" fullWidth
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              // 避免空值提交
+              if (!stepSaving && stepForm.stepName && stepForm.roleCode) {
+                e.preventDefault();
+                handleSaveStep();
+              }
+            }
+          }}
+        >
           <DialogTitle>{stepForm.id ? '编辑步骤' : '新增步骤'}</DialogTitle>
           <DialogContent>
             <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1437,13 +1516,25 @@ export default function ConfigPage() {
                 onChange={(e) => setStepForm(f => ({ ...f, stepName: e.target.value }))}
                 fullWidth
               />
-              <TextField
-                label="审批角色"
-                value={stepForm.approverRole || ''}
-                onChange={(e) => setStepForm(f => ({ ...f, approverRole: e.target.value }))}
-                fullWidth
-                helperText="如：CLASS_TEACHER, GRADE_LEADER, ADMIN 等"
-              />
+              <FormControl fullWidth>
+                <InputLabel id="role-code-select-label">审批角色</InputLabel>
+                <Select
+                  labelId="role-code-select-label"
+                  label="审批角色"
+                  value={stepForm.roleCode || ''}
+                  onChange={(e) => setStepForm(f => ({ ...f, roleCode: e.target.value as string }))}
+                >
+                  <MenuItem value=""><em>未选择</em></MenuItem>
+                  {rolesLoading && <MenuItem disabled value="__loading">加载中…</MenuItem>}
+                  {/* 平铺显示：显示名称（CODE） */}
+                  {assignableRoles.map(r => (
+                    <MenuItem key={r.code} value={r.code}>{r.displayName}（{r.code}）</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {rolesError && (
+                <Alert severity="error">加载角色失败：{rolesError}</Alert>
+              )}
               <FormControlLabel
                 control={<Switch checked={!!stepForm.autoApprove} onChange={(e) => setStepForm(f => ({ ...f, autoApprove: e.target.checked }))} />}
                 label="自动通过"

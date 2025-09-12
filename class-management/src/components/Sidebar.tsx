@@ -15,8 +15,8 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import ClassOutlinedIcon from '@mui/icons-material/ClassOutlined';
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PersonIcon from "@mui/icons-material/Person";
-import ScoreIcon from "@mui/icons-material/Score";
-import NotificationsIcon from "@mui/icons-material/Notifications";
+// import ScoreIcon from "@mui/icons-material/Score";
+// import NotificationsIcon from "@mui/icons-material/Notifications";
 import SupervisorAccountIcon from "@mui/icons-material/SupervisorAccount";
 import Link from "next/link";
 
@@ -60,30 +60,30 @@ const menu = [
         href: "/admin/credits",
         key: "credits",
       },
-      {
-        text: "管理待定（占位）",
-        icon: <ScoreIcon />,
-        href: "/admin/grades",
-        key: "grades",
-      },
-      {
-        text: "管理待定（占位）",
-        icon: <NotificationsIcon />,
-        href: "/admin/notice",
-        key: "notice",
-      },
-      {
-        text: "管理待定（占位）",
-        icon: <ScoreIcon />,
-        href: "/admin/grades2",
-        key: "grades2",
-      },
-      {
-        text: "管理待定（占位）",
-        icon: <NotificationsIcon />,
-        href: "/admin/notice2",
-        key: "notice2",
-      },
+      // {
+      //   text: "管理待定（占位）",
+      //   icon: <ScoreIcon />,
+      //   href: "/admin/grades",
+      //   key: "grades",
+      // },
+      // {
+      //   text: "管理待定（占位）",
+      //   icon: <NotificationsIcon />,
+      //   href: "/admin/notice",
+      //   key: "notice",
+      // },
+      // {
+      //   text: "管理待定（占位）",
+      //   icon: <ScoreIcon />,
+      //   href: "/admin/grades2",
+      //   key: "grades2",
+      // },
+      // {
+      //   text: "管理待定（占位）",
+      //   icon: <NotificationsIcon />,
+      //   href: "/admin/notice2",
+      //   key: "notice2",
+      // },
     ],
   },
   {

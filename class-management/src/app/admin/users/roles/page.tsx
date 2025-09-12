@@ -458,12 +458,13 @@ export default function RolesManagementPage() {
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <SecurityIcon sx={{ mr: 2, color: '#3182ce', fontSize: 32 }} />
+              <SecurityIcon sx={{ ml: 1,mr: 2, color: '#3182ce', fontSize: 32 }} />
               <Box>
                 <Typography variant="h4" sx={{
                   fontWeight: 600,
                   color: '#1a202c',
-                  letterSpacing: '-0.025em'
+                  letterSpacing: '-0.025em',
+                  mt: 2
                 }}>
                   角色管理
                 </Typography>
@@ -484,7 +485,7 @@ export default function RolesManagementPage() {
                 backgroundColor: '#3182ce',
                 borderRadius: '8px',
                 fontWeight: 600,
-                px: 3,
+                px: 4,
                 py: 1.5,
                 '&:hover': {
                   backgroundColor: '#2c5282'

@@ -688,7 +688,7 @@ export default function AuthPage() {
                 rgba(245,246,253,0.7) 20%, 
                 rgba(245,246,253,0.2) 50%, 
                 rgba(245,246,253,0) 100%),
-              url('http://arch.altair288.eu.org:8888/i/2025/05/15/e71lug.jpg')
+              url('https://arch.altair288.eu.org:3001/i/6a37db98-65d9-4cb9-986f-7a23de8aa904.jpg')
               `,
               backgroundSize: "cover",
               backgroundPosition: "center",
