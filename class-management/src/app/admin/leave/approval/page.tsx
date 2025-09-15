@@ -28,6 +28,7 @@ import {
   IconButton,
   Tooltip,
   Alert,
+  Snackbar,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -123,6 +124,8 @@ export default function ApprovalPage() {
   const [selectedRequest, setSelectedRequest] = useState<UILeaveRequest | null>(null);
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
   const [approvalRemark, setApprovalRemark] = useState('');
+  // Snackbar 状态：区分单条 / 批量 与不同时长
+  const [snackbar, setSnackbar] = useState<{open:boolean; message:string; severity:'success'|'error'|'warning'|'info'; duration:number}>({open:false,message:'',severity:'success',duration:4000});
 
   // 加载当前用户角色 + 基础数据
   useEffect(() => {
@@ -313,9 +316,21 @@ export default function ApprovalPage() {
         // 返回的是处理后的 DTO 列表，直接刷新
         await refreshList();
         setSelectedRequests([]);
+        setApprovalRemark('');
+        setSnackbar({
+          open: true,
+          message: `已${action === 'approve' ? '批准' : '拒绝'} ${actionableIds.length} 条请假申请`,
+          severity: action === 'approve' ? 'success' : 'warning',
+          duration: 7000
+        });
       } catch (e) {
         console.error(e);
-        alert('批量操作失败');
+        setSnackbar({
+          open: true,
+          message: '批量操作失败，请稍后重试',
+          severity: 'error',
+          duration: 6000,
+        });
       }
     })();
   };
@@ -332,9 +347,20 @@ export default function ApprovalPage() {
       setApprovalDialog(false);
       setApprovalRemark('');
       setSelectedRequest(null);
+      setSnackbar({
+        open: true,
+        message: `已${approvalAction === 'approve' ? '批准' : '拒绝'} ${selectedRequest.studentName} 的${selectedRequest.typeName}申请`,
+        severity: approvalAction === 'approve' ? 'success' : 'warning',
+        duration: 5000,
+      });
     } catch (e) {
       console.error(e);
-      alert('审批提交失败，请稍后重试');
+      setSnackbar({
+        open: true,
+        message: '审批提交失败，请稍后重试',
+        severity: 'error',
+        duration: 6000,
+      });
     }
   };
 
@@ -776,6 +802,21 @@ export default function ApprovalPage() {
           </DialogActions>
         </Dialog>
       </Box>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={snackbar.duration}
+        onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%', boxShadow: 3 }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </motion.div>
   );
 }
