@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Box, Typography, CircularProgress, useTheme } from "@mui/material";
 
 // 主页面重定向到管理后台
 export default function HomePage() {
+  const theme = useTheme();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
@@ -19,40 +21,33 @@ export default function HomePage() {
   }
 
   return (
-    <div className="redirect-container">
-      <div className="redirect-content">
-        <h2>正在跳转到管理系统...</h2>
-        <div className="spinner"></div>
-      </div>
-      <style jsx>{`
-        .redirect-container {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          background-color: #f8f9fa;
-        }
-        .redirect-content {
-          text-align: center;
-        }
-        .redirect-content h2 {
-          color: #6c757d;
-          margin-bottom: 10px;
-        }
-        .spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid #e9ecef;
-          border-top: 4px solid #007bff;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto;
-        }
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "100vh",
+        bgcolor: theme.palette.background.default,
+        transition: 'background-color 0.3s ease'
+      }}
+    >
+      <Box sx={{ textAlign: "center" }}>
+        <Typography 
+          variant="h4" 
+          sx={{ 
+            color: theme.palette.text.secondary, 
+            mb: 2 
+          }}
+        >
+          正在跳转到管理系统...
+        </Typography>
+        <CircularProgress 
+          size={40}
+          sx={{ 
+            color: theme.palette.primary.main
+          }} 
+        />
+      </Box>
+    </Box>
   );
 }

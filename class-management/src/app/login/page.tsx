@@ -3,11 +3,9 @@
 import { useState, useEffect } from "react";
 import {
   Box, Button, Card, CardContent, Typography, TextField, Tabs, Tab,
-  CircularProgress, Alert, Stack
+  CircularProgress, Alert, Stack, useTheme, alpha
 } from "@mui/material";
-import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import theme from "@/themes/theme";
 import Image from "next/image";
 import axios from "axios";
 import { useRouter } from "next/navigation";
@@ -23,6 +21,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 type UserType = "STUDENT" | "TEACHER" | "PARENT" | "ADMIN";
 
 export default function AuthPage() {
+  const theme = useTheme();
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -225,18 +224,96 @@ export default function AuthPage() {
     }
   };
   return (
-    <ThemeProvider theme={theme}>
+    <>
       <CssBaseline />
-      <Box sx={{ minHeight: "100vh", display: "flex" }}>
-        {/* 左侧表单 */}
-        <Box flex={1} display="flex" flexDirection="column" justifyContent="center" alignItems="center" sx={{ position: "relative", overflow: "hidden" }}>
-          {/* <FluidBackground /> */}
-          <Box width={400}>
+      {/* 统一背景容器 */}
+      <Box 
+        sx={{ 
+          minHeight: "100vh",
+          position: 'relative',
+          bgcolor: theme.palette.background.default,
+          transition: 'background-color 0.3s ease',
+        }}
+      >
+        {/* 背景图片覆盖整个容器 */}
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `url('https://arch.altair288.eu.org:3001/i/6a37db98-65d9-4cb9-986f-7a23de8aa904.jpg')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: `blur(2px) brightness(${theme.palette.mode === 'dark' ? '0.5' : '1.1'}) contrast(${theme.palette.mode === 'dark' ? '1.1' : '1.2'})`,
+            opacity: theme.palette.mode === 'dark' ? 0.25 : 0.35,
+            transition: 'filter 0.3s ease, opacity 0.3s ease',
+            zIndex: 0,
+          }}
+        />
+        
+        {/* 整体毛玻璃渗透层 */}
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            background: `radial-gradient(circle at 25% 50%, ${alpha(theme.palette.primary.main, 0.06)} 0%, transparent 65%),
+                        radial-gradient(circle at 75% 50%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 65%),
+                        linear-gradient(135deg, 
+                          ${alpha(theme.palette.background.default, 0.5)} 0%,
+                          ${alpha(theme.palette.background.paper, 0.3)} 50%,
+                          ${alpha(theme.palette.background.default, 0.6)} 100%)`,
+            backdropFilter: 'blur(0.5px)',
+            WebkitBackdropFilter: 'blur(0.5px)',
+            zIndex: 1,
+          }}
+        />
+
+        {/* 主要内容区 - flex布局 */}
+        <Box sx={{ 
+          position: 'relative',
+          zIndex: 2,
+          minHeight: "100vh", 
+          display: "flex",
+        }}>
+          {/* 左侧表单 - 无独立背景 */}
+          <Box 
+            flex={1} 
+            display="flex" 
+            flexDirection="column" 
+            justifyContent="center" 
+            alignItems="center" 
+            sx={{ 
+              position: "relative",
+              // 完全透明，依赖统一背景
+            }}
+          >
+            <Box width={400} sx={{ position: 'relative' }}>
             <Box display="flex" alignItems="center" justifyContent="center" mb={4} onClick={handleLogoClick} sx={{ cursor: "pointer" }}>
               <Image src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="logo" width={40} height={40} unoptimized />
               <Typography variant="h4" fontWeight={700} color="primary" ml={1}>ClassAble</Typography>
             </Box>
-            <Card sx={{ borderRadius: 3, boxShadow: 6 }}>
+              <Card sx={{ 
+                borderRadius: 4, 
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? `0 8px 32px ${alpha(theme.palette.common.black, 0.3)}, 
+                     0 0 0 1px ${alpha(theme.palette.primary.main, 0.15)}` 
+                  : `0 8px 32px ${alpha(theme.palette.grey[400], 0.12)},
+                     0 0 0 1px ${alpha(theme.palette.primary.main, 0.06)}`,
+                // 强化毛玻璃效果
+                bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.15 : 0.4),
+                backdropFilter: 'blur(24px) saturate(1.8) brightness(1.1)',
+                WebkitBackdropFilter: 'blur(24px) saturate(1.8) brightness(1.1)',
+                border: `1px solid ${alpha(theme.palette.common.white, theme.palette.mode === 'dark' ? 0.08 : 0.2)}`,
+                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  transform: 'translateY(-6px) scale(1.02)',
+                  boxShadow: theme.palette.mode === 'dark' 
+                    ? `0 24px 48px ${alpha(theme.palette.common.black, 0.4)}, 
+                       0 0 0 1px ${alpha(theme.palette.primary.main, 0.25)}` 
+                    : `0 24px 48px ${alpha(theme.palette.grey[400], 0.18)},
+                       0 0 0 1px ${alpha(theme.palette.primary.main, 0.12)}`,
+                  bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.2 : 0.5),
+                }
+              }}>
               <CardContent>
                 <Typography variant="h5" align="center" fontWeight={700} mb={2}>
                   {isLogin ? "Sign In" : "Sign Up"}
@@ -659,55 +736,29 @@ export default function AuthPage() {
             </Typography>
           </Box>
         </Box>
-        {/* 右侧品牌介绍 */}
-        <Box
-          flex={1}
-          sx={{
-            position: "relative",
-            display: { xs: "none", md: "flex" },
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            px: 8,
-            overflow: "hidden",
-            minHeight: "100vh",
-          }}
-        >
-          {/* 背景图片并虚化 */}
+          {/* 右侧品牌介绍 - 无独立背景 */}
           <Box
-            sx={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              zIndex: 0,
-              backgroundImage: `
-              linear-gradient(
-                to right, 
-                rgba(255, 255, 255, 1) 0%, 
-                rgba(245,246,253,0.7) 20%, 
-                rgba(245,246,253,0.2) 50%, 
-                rgba(245,246,253,0) 100%),
-              url('https://arch.altair288.eu.org:3001/i/6a37db98-65d9-4cb9-986f-7a23de8aa904.jpg')
-              `,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              filter: "blur(1px)",
-              opacity: 0.4,
-              margin: "0px", // Add negative margin to counteract the blur boundar
-            }}
-          />
-          {/* 内容区加zIndex提升，避免被背景遮盖 */}
-          <Box
+            flex={1}
             sx={{
               position: "relative",
-              zIndex: 1,
-              display: "flex",
+              display: { xs: "none", md: "flex" },
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
+              px: 8,
+              // 完全透明，依赖统一背景
             }}
           >
+            {/* 内容区 */}
+            <Box
+              sx={{
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
             <Image src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" alt="logo" width={60} height={60} unoptimized />
             <Typography variant="h4" color="primary" fontWeight={700} mt={2}>
               ClassAble
@@ -715,9 +766,10 @@ export default function AuthPage() {
             <Typography color="text.secondary" mt={2} fontSize={18} align="center" maxWidth={400}>
               平台用于无缝数据管理和用户洞察，助力学校高效运营，解锁实时分析与灵活功能。
             </Typography>
+            </Box>
           </Box>
         </Box>
       </Box>
-    </ThemeProvider>
+    </>
   );
 }

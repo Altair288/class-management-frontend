@@ -2,14 +2,20 @@
 
 import { useState } from "react";
 import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material/styles";
 import Topbar from "./Topbar";
 import Sidebar from "./Sidebar";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const theme = useTheme();
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f5f7fa" }}>
+    <Box sx={{ 
+      minHeight: "100vh", 
+      bgcolor: theme.palette.background.default,
+      transition: 'background-color 0.3s ease'
+    }}>
       <Topbar onMenuClick={() => setSidebarOpen(v => !v)} />
       <Sidebar open={sidebarOpen} />
       <Box

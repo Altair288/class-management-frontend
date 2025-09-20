@@ -31,6 +31,7 @@ import {
   ListItem,
   ListItemText,
   ListItemAvatar,
+  useTheme,
 } from "@mui/material";
 import {
   Send as SendIcon,
@@ -116,6 +117,7 @@ const typeColor = (code: string) => {
 };
 
 export default function LeaveApplyPage() {
+  const theme = useTheme();
   const [currentUser, setCurrentUser] = useState<CurrentUserInfo | null>(null);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
 
@@ -342,63 +344,70 @@ export default function LeaveApplyPage() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
-        {/* 页面标题 */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: '#212529', mb: 1 }}>
-            请假申请
-          </Typography>
-          <Typography variant="body2" sx={{ color: '#6c757d' }}>
-            填写详细信息提交您的请假申请
-          </Typography>
-        </Box>
+    <Box sx={{ 
+      minHeight: '100vh', 
+      bgcolor: theme.palette.background.default,
+      transition: 'background-color 0.3s ease' 
+    }}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
+          {/* 页面标题 */}
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 700, 
+              color: theme.palette.text.primary, 
+              mb: 1 
+            }}>
+              请假申请
+            </Typography>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              填写详细信息提交您的请假申请
+            </Typography>
+          </Box>
 
-        {/* 用户信息卡片 */}
-        <Card sx={{ mb: 3, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Avatar sx={{ bgcolor: '#1976d2', width: 50, height: 50 }}>
-                <PersonIcon />
-              </Avatar>
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  {currentUser?.studentName || currentUser?.userId || '-'}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#6c757d' }}>
-                  {currentUser?.userType || ''} · {currentUser?.className || ''}
-                </Typography>
+          {/* 用户信息卡片 */}
+          <Card sx={{ mb: 3, borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                <Avatar sx={{ bgcolor: theme.palette.primary.main, width: 50, height: 50 }}>
+                  <PersonIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                    {currentUser?.studentName || currentUser?.userId || '-'}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    {currentUser?.userType || ''} · {currentUser?.className || ''}
+                  </Typography>
+                </Box>
               </Box>
-            </Box>
-            <Divider sx={{ my: 2 }} />
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
-              <Box>
-                <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
-                  直属教师
-                </Typography>
-                <Typography variant="body1">{currentUser?.teacherName || '-'}</Typography>
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
+                <Box>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                    直属教师
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>{currentUser?.teacherName || '-'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                    手机
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>{currentUser?.phone || '-'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                    邮箱
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>{currentUser?.email || '-'}</Typography>
+                </Box>
               </Box>
-              <Box>
-                <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
-                  手机
-                </Typography>
-                <Typography variant="body1">{currentUser?.phone || '-'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
-                  邮箱
-                </Typography>
-                <Typography variant="body1">{currentUser?.email || '-'}</Typography>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
+            </CardContent>
+          </Card>        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
           {/* 左侧表单 */}
           <Box>
             <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
@@ -741,7 +750,8 @@ export default function LeaveApplyPage() {
             申请提交成功！您可以在审批处理页面查看申请状态。
           </Alert>
         </Snackbar>
-      </Box>
-    </motion.div>
+        </Box>
+      </motion.div>
+    </Box>
   );
 }

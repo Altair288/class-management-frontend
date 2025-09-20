@@ -9,6 +9,7 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Collapse from "@mui/material/Collapse";
+import { useTheme, alpha } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
@@ -140,6 +141,7 @@ function findSelectedKeys(
 
 export default function Sidebar({ open }: { open: boolean }) {
   const pathname = usePathname();
+  const theme = useTheme();
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
   const [isClient, setIsClient] = useState(false);
 
@@ -169,9 +171,9 @@ export default function Sidebar({ open }: { open: boolean }) {
     <Box
       sx={{
         width: 240,
-        bgcolor: "#fff",
+        bgcolor: theme.palette.background.paper,
         height: "calc(100vh - 64px)", // 减去Topbar的高度
-        borderRight: "1px solid #e0e0e0",
+        borderRight: `1px solid ${theme.palette.divider}`,
         position: "fixed",
         left: 0,
         top: 64, // 调整为与Topbar高度对齐，避免叠加
@@ -179,24 +181,23 @@ export default function Sidebar({ open }: { open: boolean }) {
         zIndex: 1100,
         display: "flex",
         flexDirection: "column",
-        boxShadow: 3,
+        boxShadow: theme.shadows[3],
       }}
     >
 
       <Box sx={{ flex: 1, overflowY: "auto", pt: 1 }}>
         {menu.map((section) => (
           <Box key={section.section} sx={{ mb: 2 }}>
-            <Typography
+                        <Typography
               variant="caption"
               sx={{
-                color: "#666",
+                color: theme.palette.text.secondary,
                 px: 2,
                 mb: 1,
                 fontWeight: 600,
                 letterSpacing: 0.5,
                 textTransform: "uppercase",
                 fontSize: "0.75rem",
-                display: "block",
               }}
             >
               {section.section}
@@ -219,19 +220,23 @@ export default function Sidebar({ open }: { open: boolean }) {
                             borderRadius: 1.5,
                             minHeight: 40,
                             ...(selectedKey === item.key && {
-                              bgcolor: "primary.50",
-                              color: "primary.main",
-                              boxShadow: "0 2px 4px rgba(0,123,255,0.1)",
+                              bgcolor: alpha(theme.palette.primary.main, 0.1),
+                              color: theme.palette.primary.main,
+                              boxShadow: `0 2px 4px ${alpha(theme.palette.primary.main, 0.2)}`,
                             }),
                             "&:hover": {
-                              bgcolor: selectedKey === item.key ? "primary.50" : "#f8f9fa",
+                              bgcolor: selectedKey === item.key 
+                                ? alpha(theme.palette.primary.main, 0.1) 
+                                : theme.palette.action.hover,
                             },
                           }}
                         >
                           <ListItemIcon
                             sx={{
                               minWidth: 36,
-                              color: selectedKey === item.key ? "primary.main" : "#888",
+                              color: selectedKey === item.key 
+                                ? theme.palette.primary.main 
+                                : theme.palette.text.secondary,
                               justifyContent: "center",
                             }}
                           >
@@ -259,19 +264,23 @@ export default function Sidebar({ open }: { open: boolean }) {
                           borderRadius: 1.5,
                           minHeight: 40,
                           ...(isSelected && {
-                            bgcolor: "primary.50",
-                            color: "primary.main",
-                            boxShadow: "0 2px 4px rgba(0,123,255,0.1)",
+                            bgcolor: alpha(theme.palette.primary.main, 0.08),
+                            color: theme.palette.primary.main,
+                            boxShadow: `0 2px 4px ${alpha(theme.palette.primary.main, 0.15)}`,
                           }),
                           "&:hover": {
-                            bgcolor: isSelected ? "primary.50" : "#f8f9fa",
+                            bgcolor: isSelected 
+                              ? alpha(theme.palette.primary.main, 0.1) 
+                              : theme.palette.action.hover,
                           },
                         }}
                       >
                         <ListItemIcon
                           sx={{
                             minWidth: 36,
-                            color: isSelected ? "primary.main" : "#888",
+                            color: isSelected 
+                              ? theme.palette.primary.main 
+                              : theme.palette.text.secondary,
                             justifyContent: "center",
                           }}
                         >
@@ -300,12 +309,14 @@ export default function Sidebar({ open }: { open: boolean }) {
                                   borderRadius: 1.5,
                                   minHeight: 36,
                                   ...(selectedKey === child.key && {
-                                    bgcolor: "primary.50",
-                                    color: "primary.main",
-                                    boxShadow: "0 2px 4px rgba(0,123,255,0.1)",
+                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                    color: theme.palette.primary.main,
+                                    boxShadow: `0 2px 4px ${alpha(theme.palette.primary.main, 0.2)}`,
                                   }),
                                   "&:hover": {
-                                    bgcolor: selectedKey === child.key ? "primary.50" : "#f8f9fa",
+                                    bgcolor: selectedKey === child.key 
+                                      ? alpha(theme.palette.primary.main, 0.1) 
+                                      : theme.palette.action.hover,
                                   },
                                 }}
                               >

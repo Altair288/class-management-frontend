@@ -34,6 +34,8 @@ import {
   // FormControl,
   // InputLabel,
   TableSortLabel,
+  useTheme,
+  alpha,
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import {
@@ -56,6 +58,8 @@ type ClassInfo = {
 type Student = { id: number; name: string; studentNo: string; phone?: string | null; email?: string | null };
 
 export default function ClassManagePage() {
+  const theme = useTheme();
+  
   const [classList, setClassList] = useState<ClassInfo[]>([]);
   const [stats, setStats] = useState({
     totalClasses: 0,
@@ -444,7 +448,7 @@ export default function ClassManagePage() {
           boxShadow: 1,
           px: { xs: 2, md: 4 },
           py: { xs: 2, md: 3 },
-          bgcolor: "#fff",
+          bgcolor: theme.palette.background.paper,
           minHeight: 160,
           display: "flex",
           alignItems: "center",
@@ -507,7 +511,13 @@ export default function ClassManagePage() {
             timeout="auto"
             unmountOnExit
           >
-            <Paper sx={{ mt: 3, p: 2, borderRadius: 2, bgcolor: "#fff" }}>
+            <Paper sx={{ 
+              mt: 3, 
+              p: 2, 
+              borderRadius: 2, 
+              bgcolor: theme.palette.background.paper,
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+            }}>
               <Typography variant="subtitle1" fontWeight={600} mb={1}>
                 班级成员
               </Typography>
@@ -616,7 +626,7 @@ export default function ClassManagePage() {
                 mt={2}
                 mb={2}
                 p={2}
-                border="1px solid #e0e0e0"
+                border={`1px solid ${alpha(theme.palette.divider, 0.5)}`}
                 borderRadius={2}
               >
                 <Typography fontWeight={600} mb={1}>
@@ -659,7 +669,12 @@ export default function ClassManagePage() {
                   </Button>
                 </Stack>
               </Box>
-              <Box mt={2} p={2} border="1px solid #e0e0e0" borderRadius={2}>
+              <Box 
+                mt={2} 
+                p={2} 
+                border={`1px solid ${alpha(theme.palette.divider, 0.5)}`} 
+                borderRadius={2}
+              >
                 <Typography fontWeight={600} mb={1}>
                   批量添加成员（Excel导入）
                 </Typography>
@@ -732,7 +747,11 @@ export default function ClassManagePage() {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f5f7fa" }}>
+    <Box sx={{ 
+      minHeight: "100vh", 
+      bgcolor: theme.palette.background.default,
+      transition: 'background-color 0.3s ease'
+    }}>
       <Typography variant="h4" fontWeight={700} mb={4} color="primary">
         班级管理
       </Typography>
@@ -755,10 +774,11 @@ export default function ClassManagePage() {
             sx={{ 
               height: '100%',
               borderRadius: 1,
-              border: '1px solid #e0e0e0',
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              bgcolor: theme.palette.background.paper,
               boxShadow: 'none',
               '&:hover': {
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                boxShadow: theme.shadows[4],
                 transition: 'box-shadow 0.2s'
               }
             }}
@@ -770,19 +790,19 @@ export default function ClassManagePage() {
                     width: 40, // 减小图标容器尺寸
                     height: 40,
                     borderRadius: 1.5,
-                    backgroundColor: '#e8f5e8',
+                    backgroundColor: alpha(theme.palette.success.main, 0.1),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <SchoolIcon sx={{ color: '#28a745', fontSize: 20 }} />
+                  <SchoolIcon sx={{ color: theme.palette.success.main, fontSize: 20 }} />
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Typography 
                     variant="body2" 
                     sx={{ 
-                      color: '#6c757d', 
+                      color: theme.palette.text.secondary, 
                       fontSize: '0.75rem',
                       fontWeight: 500,
                       mb: 0.5
@@ -794,7 +814,7 @@ export default function ClassManagePage() {
                     <Typography 
                       variant="h4" 
                       sx={{ 
-                        color: '#212529', 
+                        color: theme.palette.text.primary, 
                         fontWeight: 700,
                         fontSize: '1.75rem',
                         lineHeight: 1
@@ -805,7 +825,7 @@ export default function ClassManagePage() {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#6c757d',
+                        color: theme.palette.text.secondary,
                         fontSize: '0.75rem'
                       }}
                     >
@@ -829,10 +849,11 @@ export default function ClassManagePage() {
             sx={{ 
               height: '100%',
               borderRadius: 1,
-              border: '1px solid #e0e0e0',
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              bgcolor: theme.palette.background.paper,
               boxShadow: 'none',
               '&:hover': {
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                boxShadow: theme.shadows[4],
                 transition: 'box-shadow 0.2s'
               }
             }}
@@ -844,19 +865,19 @@ export default function ClassManagePage() {
                     width: 40,
                     height: 40,
                     borderRadius: 1.5,
-                    backgroundColor: '#e3f2fd',
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <GroupIcon sx={{ color: '#007bff', fontSize: 20 }} />
+                  <GroupIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Typography 
                     variant="body2" 
                     sx={{ 
-                      color: '#6c757d', 
+                      color: theme.palette.text.secondary, 
                       fontSize: '0.75rem',
                       fontWeight: 500,
                       mb: 0.5
@@ -868,7 +889,7 @@ export default function ClassManagePage() {
                     <Typography 
                       variant="h4" 
                       sx={{ 
-                        color: '#212529', 
+                        color: theme.palette.text.primary, 
                         fontWeight: 700,
                         fontSize: '1.75rem',
                         lineHeight: 1
@@ -879,7 +900,7 @@ export default function ClassManagePage() {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#6c757d',
+                        color: theme.palette.text.secondary,
                         fontSize: '0.75rem'
                       }}
                     >
@@ -903,10 +924,11 @@ export default function ClassManagePage() {
             sx={{ 
               height: '100%',
               borderRadius: 1,
-              border: '1px solid #e0e0e0',
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              bgcolor: theme.palette.background.paper,
               boxShadow: 'none',
               '&:hover': {
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                boxShadow: theme.shadows[4],
                 transition: 'box-shadow 0.2s'
               }
             }}
@@ -918,19 +940,19 @@ export default function ClassManagePage() {
                     width: 40,
                     height: 40,
                     borderRadius: 1.5,
-                    backgroundColor: '#fff3cd',
+                    backgroundColor: alpha(theme.palette.warning.main, 0.1),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <PersonIcon sx={{ color: '#ffc107', fontSize: 20 }} />
+                  <PersonIcon sx={{ color: theme.palette.warning.main, fontSize: 20 }} />
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Typography 
                     variant="body2" 
                     sx={{ 
-                      color: '#6c757d', 
+                      color: theme.palette.text.secondary, 
                       fontSize: '0.75rem',
                       fontWeight: 500,
                       mb: 0.5
@@ -942,7 +964,7 @@ export default function ClassManagePage() {
                     <Typography 
                       variant="h4" 
                       sx={{ 
-                        color: '#212529', 
+                        color: theme.palette.text.primary, 
                         fontWeight: 700,
                         fontSize: '1.75rem',
                         lineHeight: 1
@@ -953,7 +975,7 @@ export default function ClassManagePage() {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#6c757d',
+                        color: theme.palette.text.secondary,
                         fontSize: '0.75rem'
                       }}
                     >
@@ -977,7 +999,7 @@ export default function ClassManagePage() {
             sx={{ 
               height: '100%',
               borderRadius: 1,
-              border: '1px solid #e0e0e0',
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
               boxShadow: 'none',
               '&:hover': {
                 boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
@@ -992,19 +1014,19 @@ export default function ClassManagePage() {
                     width: 40,
                     height: 40,
                     borderRadius: 1.5,
-                    backgroundColor: '#ffebee',
+                    backgroundColor: alpha(theme.palette.error.main, 0.1),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <WarningIcon sx={{ color: '#dc3545', fontSize: 20 }} />
+                  <WarningIcon sx={{ color: theme.palette.error.main, fontSize: 20 }} />
                 </Box>
                 <Box sx={{ flex: 1 }}>
                   <Typography 
                     variant="body2" 
                     sx={{ 
-                      color: '#6c757d', 
+                      color: theme.palette.text.secondary, 
                       fontSize: '0.75rem',
                       fontWeight: 500,
                       mb: 0.5
@@ -1016,7 +1038,7 @@ export default function ClassManagePage() {
                     <Typography 
                       variant="h4" 
                       sx={{ 
-                        color: '#212529', 
+                        color: theme.palette.text.primary, 
                         fontWeight: 700,
                         fontSize: '1.75rem',
                         lineHeight: 1
@@ -1027,7 +1049,7 @@ export default function ClassManagePage() {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#6c757d',
+                        color: theme.palette.text.secondary,
                         fontSize: '0.75rem'
                       }}
                     >
@@ -1060,7 +1082,7 @@ export default function ClassManagePage() {
                   left: 0,
                   width: "100%",
                   height: "100%",
-                  background: "#c2c2c2ab",
+                  background: alpha(theme.palette.action.disabled, 0.3),
                   backdropFilter: "blur(10px) saturate(180%)",
                   WebkitBackdropFilter: "blur(10px) saturate(180%)",
                   zIndex: 150,

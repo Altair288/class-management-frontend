@@ -105,7 +105,7 @@ export default function NotificationPanel({
   );
 
   const list = (
-    <Box sx={{ maxHeight: isDashboard ? 260 : 400, overflowY: 'auto' }}>
+    <Box sx={{ maxHeight: isDashboard ? 365 : 400, overflowY: 'auto' }}>
       {loading && !initialized ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
           <CircularProgress size={24} />

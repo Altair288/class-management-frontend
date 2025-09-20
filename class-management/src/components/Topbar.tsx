@@ -10,9 +10,11 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
+import { useTheme, alpha } from "@mui/material/styles";
 import NotificationBadge from "./NotificationBadge";
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import { ThemeToggle } from "./ThemeToggle";
 
 interface UserInfo {
   id: number;
@@ -24,6 +26,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const router = useRouter();
+  const theme = useTheme();
 
   useEffect(() => {
     axios.get("/api/users/current")
@@ -54,19 +57,24 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
       sx={{
         height: 64,
         px: 3,
-        bgcolor: "#fff",
-        borderBottom: "1px solid #eee",
+        bgcolor: theme.palette.background.paper,
+        borderBottom: `1px solid ${theme.palette.divider}`,
         display: "flex",
         alignItems: "center",
         position: "sticky",
         top: 0,
         zIndex: 1201,
+        transition: 'background-color 0.3s ease, border-color 0.3s ease',
       }}
     >
       <IconButton onClick={onMenuClick} sx={{ mr: 2 }}>
         <MenuIcon />
       </IconButton>
-      <Typography variant="h6" fontWeight={700} sx={{ flex: 0, mr: 3 }}>
+      <Typography variant="h6" fontWeight={700} sx={{ 
+        flex: 0, 
+        mr: 3, 
+        color: theme.palette.text.primary 
+      }}>
         Dashboard
       </Typography>
       <Box sx={{ flex: 1 }}>
@@ -74,10 +82,16 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
           placeholder="Search here"
           sx={{
             marginLeft: 1.5,
-            bgcolor: "#f5f7fa",
+            bgcolor: theme.palette.action.hover,
+            color: theme.palette.text.primary,
             px: 1.5,
             py: 0.5,
-            borderRadius: 5,
+            borderRadius: 2,
+            transition: 'background-color 0.3s ease, color 0.3s ease',
+            '&::placeholder': {
+              color: theme.palette.text.secondary,
+              opacity: 1,
+            },
             height: 36,
             width: 200,
             fontSize: 15,
@@ -89,6 +103,9 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
         />
       </Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        {/* 主题切换 */}
+        <ThemeToggle size="small" />
+        
         {/* 消息通知 */}
         {user && user.id && (
           <NotificationBadge />
@@ -128,7 +145,10 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             <InfoOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
             个人信息 (占位)
           </MenuItem>
-          <MenuItem onClick={handleLogout} sx={{ mt: .5, borderTop: '1px solid #eee' }}>
+          <MenuItem onClick={handleLogout} sx={{ 
+            mt: .5, 
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}` 
+          }}>
             <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
             退出登录
           </MenuItem>

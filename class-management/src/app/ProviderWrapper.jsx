@@ -1,10 +1,10 @@
-import { ThemeProvider, CssBaseline } from '@mui/material';
-import theme from '../themes';
+'use client';
+
+import { ThemeProvider } from '../context/ThemeContext';
 
 export default function ProviderWrapper({ children }) {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline enableColorScheme />
+    <ThemeProvider>
       {children}
     </ThemeProvider>
   );
