@@ -10,6 +10,9 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
+import NotificationBadge from "./NotificationBadge";
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
 
 interface UserInfo {
   id: number;
@@ -79,16 +82,17 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             width: 200,
             fontSize: 15,
           }}
-          startAdornment={
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"
-              alt="search"
-              style={{ width: 16, height: 16, marginRight: 10 }}
-            />
-          }
+          startAdornment={(
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/React-icon.svg" alt="search" style={{ width: 16, height: 16, marginRight: 10 }} />
+          )}
         />
       </Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        {/* 消息通知 */}
+        {user && user.id && (
+          <NotificationBadge />
+        )}
         <IconButton onClick={handleAvatarClick} sx={{ p: 0 }}>
           <Avatar
             src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"
@@ -109,13 +113,24 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
           open={Boolean(anchorEl)}
           onClose={handleClose}
           PaperProps={{
-            sx: { mt: 1.5, minWidth: 240, borderRadius: 3, boxShadow: 3 },
+            sx: { mt: 1.5, minWidth: 240, borderRadius: 3, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', p: 1 }
           }}
         >
-          {/* ...其它菜单项... */}
-          <MenuItem onClick={handleLogout}>
+          <MenuItem disabled sx={{ flexDirection: 'column', alignItems: 'flex-start', gap: .5, opacity: 1, py: 1.5 }}>
+            <Typography fontSize={14} fontWeight={600}>{user?.username || '未登录'}</Typography>
+            <Typography fontSize={12} color="text.secondary">{user?.userType || '角色'}</Typography>
+          </MenuItem>
+          <MenuItem onClick={() => { handleClose(); router.push('/admin/notifications'); }}>
+            <MailOutlineIcon fontSize="small" sx={{ mr: 1 }} />
+            消息中心
+          </MenuItem>
+          <MenuItem onClick={() => { handleClose(); /* 预留个人信息页面 */ }}>
+            <InfoOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
+            个人信息 (占位)
+          </MenuItem>
+          <MenuItem onClick={handleLogout} sx={{ mt: .5, borderTop: '1px solid #eee' }}>
             <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
-            Logout
+            退出登录
           </MenuItem>
         </Menu>
       </Box>

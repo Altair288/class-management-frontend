@@ -501,20 +501,19 @@ export default function CreditsPage() {
               >
                 设置学分预警阈值，配置自动通知机制，及时发现和处理学分异常情况
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<TrendingUpIcon />}
-                href="/admin/credits/alerts"
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 500,
+              <Alert 
+                severity="info" 
+                sx={{ 
+                  maxWidth: 400, 
+                  mx: 'auto',
                   borderRadius: 1,
-                  px: 4,
-                  py: 1.5,
+                  '& .MuiAlert-message': {
+                    fontSize: '0.875rem'
+                  }
                 }}
               >
-                学生管理
-              </Button>
+                预警提醒功能待开发，敬请期待
+              </Alert>
             </Box>
           </TabPanel>
 

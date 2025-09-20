@@ -11,8 +11,30 @@ interface NotificationData {
   createdBy: number;
 }
 
+// 模板通知创建数据
+interface TemplateNotificationData {
+  type: string; // 后端枚举名，如 LEAVE_APPROVED
+  templateCode: string;
+  variables: Record<string, unknown>;
+  priority?: string; // NORMAL/HIGH
+  businessRefType?: string;
+  businessRefId?: string;
+  dedupeKey?: string;
+  recipients: number[]; // 用户ID列表
+}
+
 export async function createNotification(data: NotificationData) {
   const response = await fetch(`${BASE_URL}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return response.json();
+}
+
+// 使用模板创建通知
+export async function createTemplateNotification(data: TemplateNotificationData) {
+  const response = await fetch(`${BASE_URL}/create-template`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
