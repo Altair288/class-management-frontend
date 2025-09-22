@@ -129,59 +129,66 @@ export default function ClassCreatePage() {
         minHeight: '100vh'
       }}>
         {/* 页面头部 */}
-        <Box sx={{
+        <Box sx={(theme) => ({
           mb: 4,
           p: 3,
-          backgroundColor: 'white',
+          backgroundColor: theme.palette.background.paper,
           borderRadius: '12px',
-          border: '1px solid #e8eaed',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
-        }}>
+          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: theme.palette.mode === 'light' 
+            ? '0 1px 3px rgba(0,0,0,0.03)' 
+            : '0 1px 3px rgba(0,0,0,0.6)',
+          transition: 'background-color 0.3s, border-color 0.3s'
+        })}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <IconButton
               onClick={() => router.back()}
-              sx={{
+              sx={(theme) => ({
                 mr: 2,
-                color: '#4a5568',
+                color: theme.palette.text.secondary,
                 '&:hover': {
-                  backgroundColor: '#f7fafc',
+                  backgroundColor: theme.palette.action.hover,
                 }
-              }}
+              })}
             >
               <ArrowBackIcon />
             </IconButton>
-            <Typography variant="h4" sx={{
+            <Typography variant="h4" sx={(theme) => ({
               fontWeight: 600,
-              color: '#1a202c',
+              color: theme.palette.text.primary,
               letterSpacing: '-0.025em'
-            }}>
+            })}>
               创建班级
             </Typography>
           </Box>
-          <Typography variant="body1" sx={{
-            color: '#718096',
+          <Typography variant="body1" sx={(theme) => ({
+            color: theme.palette.text.secondary,
             lineHeight: 1.6
-          }}>
+          })}>
             创建新的班级信息，配置基本属性和设置
           </Typography>
         </Box>
 
         {/* 主要内容卡片 */}
         <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-          <Card sx={{
+          <Card sx={(theme) => ({
             borderRadius: '12px',
-            border: '1px solid #e8eaed',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: theme.palette.mode === 'light' 
+              ? '0 1px 3px rgba(0,0,0,0.03)' 
+              : '0 1px 3px rgba(0,0,0,0.6)',
             overflow: 'hidden',
-            position: 'relative'
-          }}>
+            position: 'relative',
+            backgroundColor: theme.palette.background.paper,
+            transition: 'background-color 0.3s, border-color 0.3s'
+          })}>
             {loading && (
-              <LinearProgress sx={{ 
-                backgroundColor: '#f7fafc',
+              <LinearProgress sx={(theme) => ({ 
+                backgroundColor: theme.palette.action.hover,
                 '& .MuiLinearProgress-bar': {
-                  backgroundColor: '#3182ce'
+                  backgroundColor: theme.palette.primary.main
                 }
-              }} />
+              })} />
             )}
             
             <CardContent sx={{ p: 4 }}>
@@ -196,12 +203,13 @@ export default function ClassCreatePage() {
                     <Alert 
                       severity="success" 
                       icon={<CheckCircleIcon fontSize="inherit" />}
-                      sx={{
+                      sx={(theme) => ({
                         borderRadius: '12px',
+                        background: theme.palette.mode === 'dark' ? 'rgba(46, 125, 50, 0.15)' : undefined,
                         '& .MuiAlert-icon': {
-                          color: '#4caf50'
+                          color: theme.palette.success.main
                         }
-                      }}
+                      })}
                     >
                       <AlertTitle sx={{ fontWeight: 600 }}>创建成功！</AlertTitle>
                       班级 &ldquo;{className}&rdquo; 已创建完成
@@ -213,13 +221,15 @@ export default function ClassCreatePage() {
                 <Alert 
                   severity="info" 
                   icon={<InfoIcon fontSize="inherit" />}
-                  sx={{
+                  sx={(theme) => ({
                     borderRadius: '12px',
-                    backgroundColor: '#e3f2fd',
+                    backgroundColor: theme.palette.mode === 'light' 
+                      ? theme.palette.info.light 
+                      : 'rgba(33,150,243,0.15)',
                     '& .MuiAlert-icon': {
-                      color: '#2196f3'
+                      color: theme.palette.info.main
                     }
-                  }}
+                  })}
                 >
                   <AlertTitle sx={{ fontWeight: 600 }}>关于教师分配</AlertTitle>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
@@ -247,59 +257,58 @@ export default function ClassCreatePage() {
                   </Box>
                 </Alert>
 
-                <Divider sx={{ borderColor: '#e8eaed' }} />
+                <Divider sx={(theme) => ({ borderColor: theme.palette.divider })} />
 
                 {/* Form */}
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
                   <Box>
                     <FormControl fullWidth>
-                      <InputLabel sx={{ 
-                        color: '#718096',
+                      <InputLabel sx={(theme) => ({ 
+                        color: theme.palette.text.secondary,
                         fontWeight: 500,
-                        '&.Mui-focused': { color: '#3182ce' }
-                      }}>年级</InputLabel>
+                        '&.Mui-focused': { color: theme.palette.primary.main }
+                      })}>年级</InputLabel>
                       <Select
                         label="年级"
                         value={year}
                         onChange={e => handleYearChange(Number(e.target.value))}
-                        sx={{
-                          backgroundColor: 'white',
+                        sx={(theme) => ({
+                          backgroundColor: theme.palette.background.paper,
                           borderRadius: '8px',
                           '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: '#e8eaed',
+                            borderColor: theme.palette.divider,
                             borderWidth: '1px'
                           },
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: '#90cdf4'
-                            }
+                          '&:hover .MuiOutlinedInput-notchedOutline': {
+                            borderColor: theme.palette.primary.light
                           },
-                          '&.Mui-focused': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: '#3182ce',
-                              borderWidth: '2px'
-                            }
+                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                            borderColor: theme.palette.primary.main,
+                            borderWidth: '2px'
                           },
                           '& .MuiSelect-select': {
-                            color: '#1a202c',
+                            color: theme.palette.text.primary,
                             fontWeight: 500,
                             padding: '12px 14px'
                           },
                           '& .MuiSelect-icon': {
-                            color: '#3182ce'
+                            color: theme.palette.primary.main
                           }
-                        }}
+                        })}
                         MenuProps={{
                           PaperProps: {
-                            sx: {
+                            sx: (theme) => ({
                               borderRadius: '8px',
-                              border: '1px solid #e8eaed',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              border: `1px solid ${theme.palette.divider}`,
+                              boxShadow: theme.palette.mode === 'light' 
+                                ? '0 4px 12px rgba(0,0,0,0.1)' 
+                                : '0 4px 12px rgba(0,0,0,0.6)',
                               mt: 1,
+                              backgroundColor: theme.palette.background.paper,
                               '& .MuiList-root': {
                                 padding: '8px'
                               }
-                            }
+                            })
                           }
                         }}
                       >
@@ -307,32 +316,36 @@ export default function ClassCreatePage() {
                           <MenuItem 
                             key={y} 
                             value={y}
-                            sx={{
+                            sx={(theme) => ({
                               borderRadius: '4px',
                               margin: '2px 4px',
                               '&:hover': { 
-                                backgroundColor: '#ebf8ff'
+                                backgroundColor: theme.palette.action.hover
                               },
                               '&.Mui-selected': { 
-                                backgroundColor: '#e3f2fd',
+                                backgroundColor: theme.palette.mode === 'light' 
+                                  ? theme.palette.action.selected 
+                                  : 'rgba(255,255,255,0.12)',
                                 fontWeight: 600,
                                 '&:hover': { 
-                                  backgroundColor: '#bbdefb'
+                                  backgroundColor: theme.palette.action.selected
                                 }
                               }
-                            }}
+                            })}
                           >
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography sx={{ fontWeight: 600, color: '#1a202c' }}>{y}级</Typography>
+                              <Typography sx={(theme) => ({ fontWeight: 600, color: theme.palette.text.primary })}>{y}级</Typography>
                               <Chip
                                 label="入学年份"
                                 size="small"
-                                sx={{
-                                  backgroundColor: '#ebf8ff',
-                                  color: '#3182ce',
+                                sx={(theme) => ({
+                                  backgroundColor: theme.palette.mode === 'light' 
+                                    ? theme.palette.primary.light + '33' 
+                                    : theme.palette.primary.main + '33',
+                                  color: theme.palette.primary.main,
                                   fontSize: '0.7rem',
                                   height: 20
-                                }}
+                                })}
                               />
                             </Box>
                           </MenuItem>
@@ -349,44 +362,40 @@ export default function ClassCreatePage() {
                       fullWidth
                       required
                       helperText="班级名称前会自动加上年份后两位数字"
-                      sx={{
+                      sx={(theme) => ({
                         '& .MuiOutlinedInput-root': {
-                          backgroundColor: 'white',
+                          backgroundColor: theme.palette.background.paper,
                           borderRadius: '8px',
                           '& fieldset': {
-                            borderColor: '#e8eaed',
+                            borderColor: theme.palette.divider,
                             borderWidth: '1px'
                           },
-                          '&:hover': {
-                            '& fieldset': {
-                              borderColor: '#90cdf4'
-                            }
+                          '&:hover fieldset': {
+                            borderColor: theme.palette.primary.light
                           },
-                          '&.Mui-focused': {
-                            '& fieldset': {
-                              borderColor: '#3182ce',
-                              borderWidth: '2px'
-                            }
+                          '&.Mui-focused fieldset': {
+                            borderColor: theme.palette.primary.main,
+                            borderWidth: '2px'
                           }
                         },
                         '& .MuiInputBase-input': {
                           fontWeight: 500,
-                          color: '#1a202c',
+                          color: theme.palette.text.primary,
                           padding: '12px 14px'
                         },
                         '& .MuiInputLabel-root': {
-                          color: '#718096',
+                          color: theme.palette.text.secondary,
                           fontWeight: 500,
                           '&.Mui-focused': {
-                            color: '#2196f3'
+                            color: theme.palette.primary.main
                           }
                         },
                         '& .MuiFormHelperText-root': {
-                          color: '#718096',
+                          color: theme.palette.text.secondary,
                           fontSize: '0.75rem',
                           mt: 1
                         }
-                      }}
+                      })}
                       InputProps={{
                         placeholder: "例如: 计算机1班"
                       }}
@@ -413,29 +422,31 @@ export default function ClassCreatePage() {
                 </Box>
 
                 {/* Action Buttons */}
-                <Box sx={{ 
+                <Box sx={(theme) => ({ 
                   display: 'flex', 
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   pt: 3,
-                  borderTop: '1px solid #e2e8f0'
-                }}>
+                  borderTop: `1px solid ${theme.palette.divider}`
+                })}>
                   <Button
                     variant="outlined"
                     startIcon={<PersonAddIcon />}
                     onClick={handleGoToTeacherManagement}
-                    sx={{
+                    sx={(theme) => ({
                       borderRadius: '12px',
-                      borderColor: '#2196f3',
-                      color: '#2196f3',
+                      borderColor: theme.palette.primary.main,
+                      color: theme.palette.primary.main,
                       fontWeight: 600,
                       textTransform: 'none',
                       padding: '10px 20px',
                       '&:hover': {
-                        backgroundColor: '#e3f2fd',
-                        borderColor: '#1976d2'
+                        backgroundColor: theme.palette.mode === 'light' 
+                          ? theme.palette.primary.light + '33' 
+                          : theme.palette.primary.main + '22',
+                        borderColor: theme.palette.primary.dark
                       }
-                    }}
+                    })}
                   >
                     管理教师分配
                   </Button>
@@ -445,24 +456,29 @@ export default function ClassCreatePage() {
                     onClick={handleSubmit}
                     disabled={loading || !className.trim()}
                     size="large"
-                    sx={{
+                    sx={(theme) => ({
                       borderRadius: '12px',
-                      background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-                      boxShadow: '0 8px 24px rgba(33, 150, 243, 0.3)',
+                      background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.light} 90%)`,
+                      boxShadow: theme.palette.mode === 'light'
+                        ? `0 8px 24px ${theme.palette.primary.main}55`
+                        : `0 8px 24px ${theme.palette.primary.main}40`,
                       fontWeight: 600,
                       textTransform: 'none',
                       padding: '12px 32px',
                       minWidth: 160,
+                      transition: 'transform 0.2s, box-shadow 0.3s',
                       '&:hover': {
-                        background: 'linear-gradient(45deg, #1976D2 30%, #1E88E5 90%)',
-                        boxShadow: '0 12px 32px rgba(33, 150, 243, 0.4)',
+                        background: `linear-gradient(45deg, ${theme.palette.primary.dark} 30%, ${theme.palette.primary.main} 90%)`,
+                        boxShadow: theme.palette.mode === 'light'
+                          ? `0 12px 32px ${theme.palette.primary.main}66`
+                          : `0 12px 32px ${theme.palette.primary.main}55`,
                         transform: 'translateY(-2px)'
                       },
                       '&:disabled': {
-                        background: '#e0e0e0',
+                        background: theme.palette.action.disabledBackground,
                         boxShadow: 'none'
                       }
-                    }}
+                    })}
                   >
                     {loading ? "创建中..." : "创建班级"}
                   </Button>

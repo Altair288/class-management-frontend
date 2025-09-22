@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Box, Card, CardContent, Typography, LinearProgress } from "@mui/material";
+import { useTheme, alpha } from "@mui/material/styles";
 import {
   TrendingUp as TrendingUpIcon,
   Schedule as ScheduleIcon,
@@ -49,19 +50,21 @@ interface LeaveStatisticsResponse {
   }>;
 }
 
-// 类型颜色映射（与日历页面保持一致的风格）
-const typeColor = (code: string) => {
-  const colors: Record<string, { primary: string; bg: string }> = {
-    annual: { primary: "#007AFF", bg: "#E6F3FF" },
-    sick: { primary: "#34C759", bg: "#E6F7EA" },
-    personal: { primary: "#FF9500", bg: "#FFF2E6" },
-    emergency: { primary: "#FF3B30", bg: "#FFE6E6" },
-    default: { primary: "#8E8E93", bg: "#F2F2F7" },
-  };
-  return (colors[code] || colors.default).primary;
+// 类型颜色映射（使用接近系统语义主色，保留差异）
+const baseTypePalette: Record<string, string> = {
+  annual: "#007AFF",
+  sick: "#34C759",
+  personal: "#FF9500",
+  emergency: "#FF3B30",
+  default: "#8E8E93",
 };
 
+// 获取类型主色
+const typeColor = (code: string) => baseTypePalette[code] || baseTypePalette.default;
+
+
 export default function LeaveDashboard() {
+  const theme = useTheme();
   const [stats, setStats] = useState<LeaveStats>({
     totalRequests: 0,
     pendingRequests: 0,
@@ -126,10 +129,10 @@ export default function LeaveDashboard() {
         {/* 页面标题和时间选择 */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: '#212529', mb: 1 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
               请假仪表板
             </Typography>
-            <Typography variant="body2" sx={{ color: '#6c757d' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               查看请假统计数据、趋势分析和关键指标
             </Typography>
           </Box>
@@ -137,139 +140,97 @@ export default function LeaveDashboard() {
 
         {/* 关键指标卡片 */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 3, mb: 4 }}>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 2,
-                    backgroundColor: '#e3f2fd',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <ScheduleIcon sx={{ color: '#1976d2', fontSize: 24 }} />
+          {[
+            {
+              label: '总请假数',
+              value: stats.totalRequests,
+              icon: <ScheduleIcon fontSize="inherit" />,
+              color: theme.palette.primary.main,
+            },
+            {
+              label: '待审批',
+              value: stats.pendingRequests,
+              icon: <AccessTimeIcon fontSize="inherit" />,
+              color: theme.palette.warning.main,
+            },
+            {
+              label: '已批准',
+              value: stats.approvedRequests,
+              icon: <CheckCircleIcon fontSize="inherit" />,
+              color: theme.palette.success.main,
+            },
+            {
+              label: '审批时长',
+              value: `${stats.avgApprovalTime}h`,
+              icon: <TrendingUpIcon fontSize="inherit" />,
+              color: theme.palette.secondary.main,
+            },
+          ].map((item, idx) => (
+            <Card
+              key={idx}
+              sx={{
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                boxShadow: 'none',
+                bgcolor: 'background.paper',
+                transition: 'background-color .25s ease, border-color .25s ease',
+                '&:hover': {
+                  boxShadow: theme.palette.mode === 'dark' ? '0 4px 14px -2px rgba(0,0,0,0.6)' : '0 4px 12px rgba(0,0,0,0.08)',
+                }
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 24,
+                      backgroundColor: alpha(item.color, theme.palette.mode === 'dark' ? 0.18 : 0.15),
+                      color: item.color,
+                    }}
+                  >
+                    {item.icon}
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                      {item.label}
+                    </Typography>
+                    <Typography variant="h4" sx={{ color: item.color, fontWeight: 700 }}>
+                      {item.value}
+                    </Typography>
+                  </Box>
                 </Box>
-                <Box>
-                  <Typography variant="body2" sx={{ color: '#6c757d', fontSize: '0.875rem' }}>
-                    总请假数
-                  </Typography>
-                  <Typography variant="h4" sx={{ color: '#1976d2', fontWeight: 700 }}>
-                    {stats.totalRequests}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 2,
-                    backgroundColor: '#fff3e0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <AccessTimeIcon sx={{ color: '#f57c00', fontSize: 24 }} />
-                </Box>
-                <Box>
-                  <Typography variant="body2" sx={{ color: '#6c757d', fontSize: '0.875rem' }}>
-                    待审批
-                  </Typography>
-                  <Typography variant="h4" sx={{ color: '#f57c00', fontWeight: 700 }}>
-                    {stats.pendingRequests}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 2,
-                    backgroundColor: '#e8f5e8',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <CheckCircleIcon sx={{ color: '#388e3c', fontSize: 24 }} />
-                </Box>
-                <Box>
-                  <Typography variant="body2" sx={{ color: '#6c757d', fontSize: '0.875rem' }}>
-                    已批准
-                  </Typography>
-                  <Typography variant="h4" sx={{ color: '#388e3c', fontWeight: 700 }}>
-                    {stats.approvedRequests}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 2,
-                    backgroundColor: '#f3e5f5',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <TrendingUpIcon sx={{ color: '#7b1fa2', fontSize: 24 }} />
-                </Box>
-                <Box>
-                  <Typography variant="body2" sx={{ color: '#6c757d', fontSize: '0.875rem' }}>
-                    审批时长
-                  </Typography>
-                  <Typography variant="h4" sx={{ color: '#7b1fa2', fontWeight: 700 }}>
-                    {stats.avgApprovalTime}h
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
         </Box>
 
         {/* 主要内容区域 */}
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 3 }}>
           {/* 请假类型分布 */}
-          <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none', height: '100%' }}>
+          <Card sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', boxShadow: 'none', height: '100%', bgcolor: 'background.paper' }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: '#212529', mb: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary', mb: 3 }}>
                 请假类型分布
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {leaveTypes.map((type, index) => (
                   <Box key={index}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500, color: '#212529' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                         {type.type}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#212529' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                           {type.count}次
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#6c757d', fontSize: '0.75rem' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
                           ({type.percentage}%)
                         </Typography>
                       </Box>
@@ -280,7 +241,7 @@ export default function LeaveDashboard() {
                       sx={{
                         height: 8,
                         borderRadius: 4,
-                        backgroundColor: '#e9ecef',
+                        backgroundColor: alpha(type.color, 0.15),
                         '& .MuiLinearProgress-bar': {
                           backgroundColor: type.color,
                           borderRadius: 4,
@@ -290,7 +251,7 @@ export default function LeaveDashboard() {
                   </Box>
                 ))}
                 {leaveTypes.length === 0 && (
-                  <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {loading ? '加载中…' : '暂无数据'}
                   </Typography>
                 )}

@@ -10,6 +10,7 @@ import {
   Tab,
   Alert,
 } from "@mui/material";
+import { alpha } from '@mui/material/styles';
 import {
   Dashboard as DashboardIcon,
   Assignment as AssignmentIcon,
@@ -68,56 +69,33 @@ interface LeaveStatisticsResponse {
   }>;
 }
 
+// 使用语义 palette key，渲染时动态取 theme 颜色并通过 alpha 生成浅色背景
 const quickActions = [
-  {
-    title: "总体仪表板",
-    description: "查看请假统计、趋势分析和关键指标",
-    icon: <DashboardIcon />,
-    color: "#1976d2",
-    bgColor: "#e3f2fd",
-    href: "/admin/leave/dashboard",
-  },
-  {
-    title: "审批处理",
-    description: "处理待审批请假申请，支持批量操作",
-    icon: <AssignmentIcon />,
-    color: "#f57c00",
-    bgColor: "#fff3e0",
-    href: "/admin/leave/approval",
-  },
-  {
-    title: "日历视图",
-    description: "查看请假日历，按日/周/月展示",
-    icon: <CalendarIcon />,
-    color: "#388e3c",
-    bgColor: "#e8f5e8",
-    href: "/admin/leave/calendar",
-  },
-  {
-    title: "员工详情",
-    description: "查看员工请假历史和余额情况",
-    icon: <GroupIcon />,
-    color: "#7b1fa2",
-    bgColor: "#f3e5f5",
-    href: "/admin/leave/employees",
-  },
-  {
-    title: "规则配置",
-    description: "设置请假类型、审批流程和权限",
-    icon: <SettingsIcon />,
-    color: "#d32f2f",
-    bgColor: "#ffebee",
-    href: "/admin/leave/config",
-  },
-  {
-    title: "审批日志",
-    description: "查看详细的审批轨迹和操作记录",
-    icon: <HistoryIcon />,
-    color: "#455a64",
-    bgColor: "#eceff1",
-    href: "/admin/leave/logs",
-  },
+  { title: "总体仪表板", description: "查看请假统计、趋势分析和关键指标", icon: <DashboardIcon />, palette: 'primary', href: "/admin/leave/dashboard" },
+  { title: "审批处理", description: "处理待审批请假申请，支持批量操作", icon: <AssignmentIcon />, palette: 'warning', href: "/admin/leave/approval" },
+  { title: "日历视图", description: "查看请假日历，按日/周/月展示", icon: <CalendarIcon />, palette: 'success', href: "/admin/leave/calendar" },
+  { title: "员工详情", description: "查看员工请假历史和余额情况", icon: <GroupIcon />, palette: 'secondary', href: "/admin/leave/employees" },
+  { title: "规则配置", description: "设置请假类型、审批流程和权限", icon: <SettingsIcon />, palette: 'error', href: "/admin/leave/config" },
+  { title: "审批日志", description: "查看详细的审批轨迹和操作记录", icon: <HistoryIcon />, palette: 'info', href: "/admin/leave/logs" },
 ];
+
+type SupportedPalette = 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
+
+import type { Theme } from '@mui/material/styles';
+interface PaletteColorLike { main?: string }
+const getMainColor = (theme: Theme, key: SupportedPalette) => {
+  // Theme.palette 没有统一的索引签名，这里通过已知 key 集合做类型收窄
+  const map: Record<SupportedPalette, PaletteColorLike | undefined> = {
+    primary: theme.palette.primary,
+    secondary: theme.palette.secondary,
+    success: theme.palette.success,
+    warning: theme.palette.warning,
+    error: theme.palette.error,
+    info: theme.palette.info,
+  };
+  const paletteSection = map[key];
+  return paletteSection?.main || theme.palette.primary.main;
+};
 
 export default function LeavePage() {
   const [tabValue, setTabValue] = useState(0);
@@ -155,10 +133,10 @@ export default function LeavePage() {
   }, []);
 
   const cards = [
-    { label: "总请假数", value: total, unit: "次", color: "#1976d2", bgColor: "#e3f2fd", icon: <ScheduleIcon /> },
-    { label: "待审批", value: pending, unit: "次", color: "#f57c00", bgColor: "#fff3e0", icon: <WarningIcon /> },
-    { label: "已批准", value: approved, unit: "次", color: "#388e3c", bgColor: "#e8f5e8", icon: <CheckCircleIcon /> },
-    { label: "审批时长", value: Number(avgHours.toFixed(1)), unit: "小时", color: "#7b1fa2", bgColor: "#f3e5f5", icon: <AssignmentIcon /> },
+    { label: "总请假数", value: total, unit: "次", palette: 'primary', icon: <ScheduleIcon /> },
+    { label: "待审批", value: pending, unit: "次", palette: 'warning', icon: <WarningIcon /> },
+    { label: "已批准", value: approved, unit: "次", palette: 'success', icon: <CheckCircleIcon /> },
+    { label: "审批时长", value: Number(avgHours.toFixed(1)), unit: "小时", palette: 'secondary', icon: <AssignmentIcon /> },
   ];
 
   return (
@@ -188,43 +166,55 @@ export default function LeavePage() {
               transition={{ delay: index * 0.1 }}
             >
               <Card 
-                sx={{ 
-                  height: '100%',
-                  borderRadius: 1,
-                  border: '1px solid #e0e0e0',
-                  boxShadow: 'none',
-                  '&:hover': {
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    transition: 'box-shadow 0.2s'
-                  }
+                sx={(theme) => { 
+                  const mainColor = getMainColor(theme, stat.palette as SupportedPalette);
+                  const bg = alpha(mainColor, theme.palette.mode === 'light' ? 0.10 : 0.25);
+                  return ({
+                    height: '100%',
+                    borderRadius: 1,
+                    border: `1px solid ${theme.palette.divider}`,
+                    boxShadow: 'none',
+                    backgroundColor: theme.palette.background.paper,
+                    transition: 'box-shadow 0.2s, border-color 0.2s',
+                    '&:hover': {
+                      boxShadow: theme.palette.mode === 'light' ? '0 2px 8px rgba(0,0,0,0.08)' : '0 2px 8px rgba(0,0,0,0.6)',
+                      borderColor: mainColor
+                    },
+                    '& ._statIconWrapper': {
+                      backgroundColor: bg
+                    },
+                    '& ._statLabel': {
+                      color: theme.palette.text.secondary
+                    },
+                    '& ._statValue': {
+                      color: mainColor
+                    },
+                    '& ._statUnit': {
+                      color: theme.palette.text.secondary
+                    }
+                  });
                 }}
               >
                 <CardContent sx={{ p: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Box sx={{ flex: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                        <Box
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 1,
-                            backgroundColor: stat.bgColor,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Box sx={{ color: stat.color, fontSize: 20 }}>
+                        <Box className="_statIconWrapper" sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                          <Box className="_statIcon" sx={(theme) => ({ fontSize: 20, color: getMainColor(theme, stat.palette as SupportedPalette) })}>
                             {stat.icon}
                           </Box>
                         </Box>
                         <Typography 
                           variant="body2" 
-                          sx={{ 
-                            color: '#6c757d', 
-                            fontSize: '0.875rem',
-                            fontWeight: 500,
-                          }}
+                          className="_statLabel"
+                          sx={{ fontSize: '0.875rem', fontWeight: 500 }}
                         >
                           {stat.label}
                         </Typography>
@@ -232,21 +222,15 @@ export default function LeavePage() {
                       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
                         <Typography 
                           variant="h3" 
-                          sx={{ 
-                            color: stat.color, 
-                            fontWeight: 700,
-                            fontSize: '2.5rem',
-                            lineHeight: 1
-                          }}
+                          className="_statValue"
+                          sx={{ fontWeight: 700, fontSize: '2.5rem', lineHeight: 1 }}
                         >
                           {stat.value}
                         </Typography>
                         <Typography 
                           variant="body2" 
-                          sx={{ 
-                            color: '#6c757d',
-                            fontSize: '0.875rem'
-                          }}
+                          className="_statUnit"
+                          sx={{ fontSize: '0.875rem' }}
                         >
                           {stat.unit}
                         </Typography>
@@ -260,8 +244,8 @@ export default function LeavePage() {
         </Box>
 
         {/* 功能模块导航 */}
-        <Card sx={{ borderRadius: 1, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-          <Box sx={{ borderBottom: '1px solid #e0e0e0' }}>
+        <Card sx={(theme) => ({ borderRadius: 1, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: theme.palette.background.paper })}>
+          <Box sx={(theme) => ({ borderBottom: `1px solid ${theme.palette.divider}` })}>
             <Tabs 
               value={tabValue} 
               onChange={handleTabChange}
@@ -293,56 +277,65 @@ export default function LeavePage() {
                   transition={{ delay: index * 0.1 }}
                 >
                   <Card
-                    sx={{
-                      height: '100%',
-                      borderRadius: 2,
-                      border: '1px solid #e9ecef',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        borderColor: action.color,
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      },
+                    sx={(theme) => {
+                      const mainColor = getMainColor(theme, action.palette as SupportedPalette);
+                      const bg = alpha(mainColor, theme.palette.mode === 'light' ? 0.12 : 0.25);
+                      return {
+                        height: '100%',
+                        borderRadius: 2,
+                        border: `1px solid ${theme.palette.divider}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.25s',
+                        backgroundColor: theme.palette.background.paper,
+                        '&:hover': {
+                          borderColor: mainColor,
+                          transform: 'translateY(-2px)',
+                          boxShadow: theme.palette.mode === 'light' ? '0 4px 12px rgba(0,0,0,0.12)' : '0 4px 12px rgba(0,0,0,0.6)',
+                        },
+                        '& ._qaIconWrapper': {
+                          backgroundColor: bg
+                        },
+                        '& ._qaTitle': {
+                          color: theme.palette.text.primary
+                        },
+                        '& ._qaDesc': {
+                          color: theme.palette.text.secondary
+                        },
+                        '& ._qaIcon': {
+                          color: mainColor
+                        }
+                      }
                     }}
                     component={Link}
                     href={action.href}
                   >
                     <CardContent sx={{ p: 3 }}>
                       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
-                        <Box
-                          sx={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 2,
-                            backgroundColor: action.bgColor,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Box sx={{ color: action.color, fontSize: 24 }}>
+                        <Box className="_qaIconWrapper" sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>
+                          <Box className="_qaIcon" sx={{ fontSize: 24 }}>
                             {action.icon}
                           </Box>
                         </Box>
                         <Box sx={{ flex: 1 }}>
                           <Typography 
                             variant="h6" 
-                            sx={{ 
-                              color: '#212529', 
-                              fontWeight: 600,
-                              mb: 1
-                            }}
+                            className="_qaTitle"
+                            sx={{ fontWeight: 600, mb: 1 }}
                           >
                             {action.title}
                           </Typography>
                           <Typography 
                             variant="body2" 
-                            sx={{ 
-                              color: '#6c757d',
-                              lineHeight: 1.6
-                            }}
+                            className="_qaDesc"
+                            sx={{ lineHeight: 1.6 }}
                           >
                             {action.description}
                           </Typography>
@@ -358,32 +351,32 @@ export default function LeavePage() {
           <TabPanel value={tabValue} index={1}>
             <Box sx={{ p: 4, textAlign: 'center' }}>
               <Box 
-                sx={{ 
+                sx={(theme) => ({ 
                   width: 64,
                   height: 64,
-                  backgroundColor: '#f8f9fa',
+                  backgroundColor: theme.palette.action.hover,
                   borderRadius: 2,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   mx: 'auto',
                   mb: 3
-                }}
+                })}
               >
-                <AssignmentIcon sx={{ fontSize: 32, color: '#6c757d' }} />
+                <AssignmentIcon sx={(theme) => ({ fontSize: 32, color: theme.palette.text.secondary })} />
               </Box>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#212529' }}>
+              <Typography variant="h6" gutterBottom sx={(theme) => ({ fontWeight: 600, color: theme.palette.text.primary })}>
                 快速操作面板
               </Typography>
               <Typography 
                 variant="body2" 
-                sx={{ 
-                  color: '#6c757d', 
+                sx={(theme) => ({ 
+                  color: theme.palette.text.secondary, 
                   mb: 3,
                   maxWidth: 400,
                   mx: 'auto',
                   lineHeight: 1.6
-                }}
+                })}
               >
                 这里将提供常用的快速操作功能，如批量审批、紧急请假处理等
               </Typography>

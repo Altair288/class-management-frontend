@@ -4,7 +4,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import MenuIcon from "@mui/icons-material/Menu";
-import InputBase from "@mui/material/InputBase";
+// import InputBase from "@mui/material/InputBase";
 import Avatar from "@mui/material/Avatar";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -78,7 +78,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
         Dashboard
       </Typography>
       <Box sx={{ flex: 1 }}>
-        <InputBase
+        {/* <InputBase
           placeholder="Search here"
           sx={{
             marginLeft: 1.5,
@@ -100,7 +100,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src="/React-icon.svg" alt="search" style={{ width: 16, height: 16, marginRight: 10 }} />
           )}
-        />
+        /> */}
       </Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
         {/* 主题切换 */}

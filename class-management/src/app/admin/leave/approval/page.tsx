@@ -36,6 +36,7 @@ import {
   Close as CloseIcon,
   Search as SearchIcon,
 } from "@mui/icons-material";
+import { alpha, useTheme } from '@mui/material/styles';
 import { motion } from "framer-motion";
 
 // 与其他页面一致，走 Next.js 代理
@@ -95,15 +96,17 @@ interface UILeaveRequest {
   approvals: ApprovalStep[];
 }
 
-const typeColors: { [key: string]: string } = {
-  '年假': '#1976d2',
-  '病假': '#f57c00',
-  '事假': '#388e3c',
-  '调休': '#7b1fa2',
-  '其他': '#d32f2f',
+// 请假类型与 palette key 的映射，便于深色模式适配
+const typePaletteMap: Record<string, 'primary' | 'warning' | 'success' | 'secondary' | 'error'> = {
+  '年假': 'primary',
+  '病假': 'warning',
+  '事假': 'success',
+  '调休': 'secondary',
+  '其他': 'error'
 };
 
 export default function ApprovalPage() {
+  const theme = useTheme();
   const [requests, setRequests] = useState<UILeaveRequest[]>([]);
   const [selectedRequests, setSelectedRequests] = useState<number[]>([]);
   const [filterType, setFilterType] = useState('');
@@ -365,15 +368,19 @@ export default function ApprovalPage() {
   };
 
   const getTypeChip = (type: string) => {
+    const paletteKey = typePaletteMap[type] || 'primary';
+    const mainColor = theme.palette[paletteKey].main;
+    const bg = alpha(mainColor, theme.palette.mode === 'light' ? 0.15 : 0.25);
     return (
       <Chip
         label={type}
         size="small"
         sx={{
-          backgroundColor: typeColors[type] || '#6c757d',
-          color: 'white',
+          backgroundColor: bg,
+          color: mainColor,
           fontWeight: 600,
           fontSize: '0.75rem',
+          borderRadius: '6px'
         }}
       />
     );
@@ -388,42 +395,42 @@ export default function ApprovalPage() {
       <Box sx={{ p: 3 }}>
         {/* 页面标题 */}
         <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: '#212529', mb: 1 }}>
+          <Typography variant="h4" sx={(theme) => ({ fontWeight: 700, color: theme.palette.text.primary, mb: 1 })}>
             审批处理
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6c757d' }}>
+          <Typography variant="body2" sx={(theme) => ({ color: theme.palette.text.secondary })}>
             处理待审批的请假申请，支持单个和批量操作
           </Typography>
         </Box>
 
   {/* 统计信息 */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2, mb: 4 }}>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+          <Card sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: theme.palette.background.paper })}>
             <CardContent sx={{ p: 2, textAlign: 'center' }}>
-              <Typography variant="h3" sx={{ color: '#f57c00', fontWeight: 700, mb: 1 }}>
+              <Typography variant="h3" sx={(theme) => ({ color: theme.palette.warning.main, fontWeight: 700, mb: 1 })}>
                 {filteredRequests.length}
               </Typography>
-              <Typography variant="body2" sx={{ color: '#6c757d' }}>
+              <Typography variant="body2" sx={(theme) => ({ color: theme.palette.text.secondary })}>
                 待审批申请
               </Typography>
             </CardContent>
           </Card>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+          <Card sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: theme.palette.background.paper })}>
             <CardContent sx={{ p: 2, textAlign: 'center' }}>
-              <Typography variant="h3" sx={{ color: '#d32f2f', fontWeight: 700, mb: 1 }}>
+              <Typography variant="h3" sx={(theme) => ({ color: theme.palette.error.main, fontWeight: 700, mb: 1 })}>
     {requests.length}
               </Typography>
-              <Typography variant="body2" sx={{ color: '#6c757d' }}>
+              <Typography variant="body2" sx={(theme) => ({ color: theme.palette.text.secondary })}>
     全部申请
               </Typography>
             </CardContent>
           </Card>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+          <Card sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: theme.palette.background.paper })}>
             <CardContent sx={{ p: 2, textAlign: 'center' }}>
-              <Typography variant="h3" sx={{ color: '#1976d2', fontWeight: 700, mb: 1 }}>
+              <Typography variant="h3" sx={(theme) => ({ color: theme.palette.primary.main, fontWeight: 700, mb: 1 })}>
                 {selectedRequests.length}
               </Typography>
-              <Typography variant="body2" sx={{ color: '#6c757d' }}>
+              <Typography variant="body2" sx={(theme) => ({ color: theme.palette.text.secondary })}>
                 已选择
               </Typography>
             </CardContent>
@@ -431,7 +438,7 @@ export default function ApprovalPage() {
         </Box>
 
         {/* 筛选和操作栏 */}
-        <Card sx={{ mb: 3, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+        <Card sx={(theme) => ({ mb: 3, borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: theme.palette.background.paper })}>
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 3 }}>
               <TextField
@@ -441,7 +448,7 @@ export default function ApprovalPage() {
                 size="small"
                 sx={{ minWidth: 250, flex: 1 }}
                 InputProps={{
-                  startAdornment: <SearchIcon sx={{ color: '#6c757d', mr: 1 }} />,
+                  startAdornment: <SearchIcon sx={(theme) => ({ color: theme.palette.text.secondary, mr: 1 })} />,
                 }}
               />
               {isAdmin && (
@@ -493,7 +500,7 @@ export default function ApprovalPage() {
 
             {/* 批量操作按钮 */}
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Typography variant="body2" sx={{ color: '#6c757d' }}>
+              <Typography variant="body2" sx={(theme) => ({ color: theme.palette.text.secondary })}>
                 批量操作:
               </Typography>
               <Button
@@ -521,7 +528,7 @@ export default function ApprovalPage() {
         </Card>
 
         {/* 请假申请列表 */}
-        <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+  <Card sx={(theme) => ({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: theme.palette.background.paper })}>
           {error && (
             <Box sx={{ p: 2 }}>
               <Alert severity="error">{error}</Alert>
@@ -530,7 +537,7 @@ export default function ApprovalPage() {
           <TableContainer>
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                <TableRow sx={(theme) => ({ backgroundColor: theme.palette.action.hover })}>
                   <TableCell padding="checkbox">
                     <Checkbox
                       checked={selectedRequests.length === filteredRequests.length && filteredRequests.length > 0}
@@ -576,7 +583,7 @@ export default function ApprovalPage() {
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
                             {item.studentName}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: '#6c757d' }}>
+                          <Typography variant="caption" sx={(theme) => ({ color: theme.palette.text.secondary })}>
                             {item.studentNo} · {item.className}
                           </Typography>
                         </Box>
@@ -596,7 +603,7 @@ export default function ApprovalPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" sx={{ color: '#555' }}>{item.currentStepName || '-'}</Typography>
+                      <Typography variant="body2" sx={(theme) => ({ color: theme.palette.text.secondary })}>{item.currentStepName || '-'}</Typography>
                     </TableCell>
                     <TableCell>
                       <Chip size="small" label={item.pendingRoleDisplayName || '-'} variant="outlined" />
@@ -651,7 +658,7 @@ export default function ApprovalPage() {
           
           {filteredRequests.length === 0 && (
             <Box sx={{ p: 4, textAlign: 'center' }}>
-              <Typography variant="body1" sx={{ color: '#6c757d' }}>
+              <Typography variant="body1" sx={(theme) => ({ color: theme.palette.text.secondary })}>
                 {loading ? '加载中...' : '暂无待审批的请假申请'}
               </Typography>
             </Box>

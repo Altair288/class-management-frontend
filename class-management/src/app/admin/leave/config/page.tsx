@@ -25,7 +25,6 @@ import {
   Tabs,
   Tab,
   Alert,
-  Slider,
   Snackbar,
   Select,
   MenuItem,
@@ -36,7 +35,6 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Save as SaveIcon,
   Schedule as ScheduleIcon,
   Group as GroupIcon,
   Notifications as NotificationsIcon,
@@ -1220,41 +1218,6 @@ export default function ConfigPage() {
             </Box>
           </CardContent>
         </Card>
-
-        <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-          <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-              提醒设置
-            </Typography>
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                请假前提醒时间: {notifications.reminderBeforeLeave} 天
-              </Typography>
-              <Slider
-                value={notifications.reminderBeforeLeave}
-                onChange={(e, value) => setNotifications({
-                  ...notifications,
-                  reminderBeforeLeave: value as number
-                })}
-                min={0}
-                max={7}
-                step={1}
-                marks
-                valueLabelDisplay="auto"
-              />
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            sx={{ borderRadius: 2, boxShadow: 'none' }}
-          >
-            保存设置
-          </Button>
-        </Box>
       </Box>
     );
   };

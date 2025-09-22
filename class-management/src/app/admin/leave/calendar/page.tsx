@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -17,6 +17,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
+import { alpha, useTheme } from '@mui/material/styles';
 import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
@@ -38,7 +39,7 @@ interface LeaveCalendarDTO {
   studentNo: string;
   leaveTypeCode: string; // annual/sick/personal/...
   leaveTypeName: string;
-  status: string; // 可能是中文：待审批/已批准/已拒绝
+  status: string; // 待审批/已批准/已拒绝
   startDate: string; // ISO 时间
   endDate: string;   // ISO 时间
 }
@@ -64,15 +65,11 @@ interface LeaveEvent {
 
 interface ClassSimple { id: number; name: string; grade: string }
 
-const statusConfig = {
-  待审批: { label: '待审批', color: '#FF9500', bgColor: '#FFF2E6' },
-  已批准: { label: '已批准', color: '#34C759', bgColor: '#E6F7EA' },
-  已拒绝: { label: '已拒绝', color: '#FF3B30', bgColor: '#FFE6E6' },
-} as const;
-type StatusKey = keyof typeof statusConfig;
-const getStatusInfo = (status: string) => {
-  const key = status as StatusKey;
-  return statusConfig[key] ?? { label: status, color: '#8E8E93', bgColor: '#F2F2F7' };
+// 状态使用主题 palette 映射
+const statusPaletteMap: Record<string, 'warning' | 'success' | 'error' | 'info'> = {
+  '待审批': 'warning',
+  '已批准': 'success',
+  '已拒绝': 'error'
 };
 
 const viewModes = [
@@ -82,6 +79,7 @@ const viewModes = [
 ];
 
 export default function CalendarPage() {
+  const theme = useTheme();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month');
   const [selectedEvent, setSelectedEvent] = useState<LeaveEvent | null>(null);
@@ -104,17 +102,34 @@ export default function CalendarPage() {
   const isoStartOfDay = (d: Date) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0)).toISOString();
   const isoEndOfDay = (d: Date) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999)).toISOString();
 
-  // 颜色：按类型代码 - 苹果风格配色
-  const typeColor = (code: string) => {
-    const colors = {
-      annual: { primary: '#007AFF', bg: '#E6F3FF' },
-      sick: { primary: '#34C759', bg: '#E6F7EA' },
-      personal: { primary: '#FF9500', bg: '#FFF2E6' },
-      emergency: { primary: '#FF3B30', bg: '#FFE6E6' },
-      default: { primary: '#8E8E93', bg: '#F2F2F7' }
+  // 请假类型映射 -> palette key
+  const typePaletteMap = useMemo<Record<string, 'primary' | 'success' | 'warning' | 'error' | 'info' | 'secondary'>>(()=>({
+    annual: 'primary',
+    sick: 'success',
+    personal: 'warning',
+    emergency: 'error'
+  }), []);
+  const typeColor = useCallback((code: string) => {
+    const key = typePaletteMap[code] || 'info';
+  // 通过索引访问 palette 动态键（受限于 TS 类型，可用断言）
+  const paletteSection = theme.palette[key as keyof typeof theme.palette] as { main: string };
+  const main = paletteSection.main;
+    return {
+      primary: main,
+      bg: alpha(main, theme.palette.mode === 'light' ? 0.15 : 0.28)
     };
-    return colors[code as keyof typeof colors] || colors.default;
-  };
+  }, [theme, typePaletteMap]);
+
+  const getStatusInfo = useCallback((status: string) => {
+    const key = statusPaletteMap[status] || 'info';
+  const paletteSection = theme.palette[key as keyof typeof theme.palette] as { main: string };
+  const main = paletteSection.main;
+    return {
+      label: status,
+      color: main,
+      bgColor: alpha(main, theme.palette.mode === 'light' ? 0.15 : 0.25)
+    };
+  }, [theme]);
 
   // 获取当前月份的所有日期
   const getDaysInMonth = (date: Date) => {
@@ -215,25 +230,25 @@ export default function CalendarPage() {
     const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
 
     return (
-      <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 2 }}>
+      <Box sx={(theme)=>({ backgroundColor: theme.palette.background.paper, borderRadius: 2 })}>
         {/* 星期标题 - 苹果风格 */}
-        <Box sx={{ 
+        <Box sx={(theme)=>({ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(7, 1fr)', 
-          borderBottom: '1px solid #F2F2F7',
-          backgroundColor: '#FBFBFD'
-        }}>
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          backgroundColor: theme.palette.action.hover
+        })}>
           {weekDays.map((day, index) => (
             <Box 
               key={day} 
-              sx={{ 
+              sx={(theme)=>({ 
                 p: 2, 
                 textAlign: 'center', 
                 fontWeight: 600, 
-                color: index === 0 || index === 6 ? '#FF3B30' : '#3C3C43',
+                color: index === 0 || index === 6 ? theme.palette.error.main : theme.palette.text.secondary,
                 fontSize: '0.875rem',
-                borderRight: index < 6 ? '1px solid #F2F2F7' : 'none'
-              }}
+                borderRight: index < 6 ? `1px solid ${theme.palette.divider}` : 'none'
+              })}
             >
               {day}
             </Box>
@@ -251,18 +266,18 @@ export default function CalendarPage() {
             return (
               <Box
                 key={index}
-                sx={{
+                sx={(theme)=>({
                   minHeight: 120,
-                  borderRight: (index % 7) < 6 ? '1px solid #F2F2F7' : 'none',
-                  borderBottom: row < 5 ? '1px solid #F2F2F7' : 'none',
-                  backgroundColor: dayInfo.isCurrentMonth ? '#FFFFFF' : '#FBFBFD',
+                  borderRight: (index % 7) < 6 ? `1px solid ${theme.palette.divider}` : 'none',
+                  borderBottom: row < 5 ? `1px solid ${theme.palette.divider}` : 'none',
+                  backgroundColor: dayInfo.isCurrentMonth ? theme.palette.background.paper : theme.palette.action.hover,
                   position: 'relative',
                   cursor: 'pointer',
                   transition: 'background-color 0.15s ease',
                   '&:hover': {
-                    backgroundColor: dayInfo.isCurrentMonth ? '#F8F9FB' : '#F2F2F7',
+                    backgroundColor: theme.palette.action.hover,
                   },
-                }}
+                })}
               >
                 <Box sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
                   {/* 日期数字 */}
@@ -275,12 +290,12 @@ export default function CalendarPage() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: isToday ? '#007AFF' : 'transparent',
+                        backgroundColor: isToday ? theme.palette.primary.main : 'transparent',
                         color: isToday 
-                          ? '#FFFFFF' 
+                          ? theme.palette.primary.contrastText 
                           : dayInfo.isCurrentMonth 
-                            ? (isWeekend ? '#FF3B30' : '#1C1C1E')
-                            : '#C7C7CC',
+                            ? (isWeekend ? theme.palette.error.main : theme.palette.text.primary)
+                            : theme.palette.text.disabled,
                         fontWeight: isToday ? 600 : 500,
                         fontSize: '0.875rem',
                         transition: 'all 0.15s ease',
@@ -309,7 +324,7 @@ export default function CalendarPage() {
                             py: 0.5,
                             borderRadius: 1,
                             backgroundColor: event.color.primary,
-                            color: '#FFFFFF',
+                            color: theme.palette.getContrastText(event.color.primary),
                             fontSize: '0.75rem',
                             fontWeight: 500,
                             cursor: 'pointer',
@@ -330,13 +345,13 @@ export default function CalendarPage() {
                     ))}
                     {dayEvents.length > 3 && (
                       <Box
-                        sx={{
+                        sx={(theme)=>({
                           px: 1,
                           py: 0.25,
-                          color: '#8E8E93',
+                          color: theme.palette.text.secondary,
                           fontSize: '0.7rem',
                           fontWeight: 500,
-                        }}
+                        })}
                       >
                         还有 {dayEvents.length - 3} 个
                       </Box>
@@ -365,14 +380,14 @@ export default function CalendarPage() {
     const today = new Date();
 
     return (
-      <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 2, overflow: 'hidden' }}>
+      <Box sx={(theme)=>({ backgroundColor: theme.palette.background.paper, borderRadius: 2, overflow: 'hidden' })}>
         {/* 星期标题 */}
-        <Box sx={{ 
+        <Box sx={(theme)=>({ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(7, 1fr)', 
-          borderBottom: '1px solid #F2F2F7',
-          backgroundColor: '#FBFBFD'
-        }}>
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          backgroundColor: theme.palette.action.hover
+        })}>
           {weekDays.map((day, index) => {
             const currentDay = days[index];
             const isToday = currentDay.toDateString() === today.toDateString();
@@ -381,32 +396,32 @@ export default function CalendarPage() {
             return (
               <Box 
                 key={day} 
-                sx={{ 
+                sx={(theme)=>({ 
                   p: 2, 
                   textAlign: 'center',
-                  borderRight: index < 6 ? '1px solid #F2F2F7' : 'none',
-                  backgroundColor: isToday ? '#007AFF' : 'transparent',
+                  borderRight: index < 6 ? `1px solid ${theme.palette.divider}` : 'none',
+                  backgroundColor: isToday ? theme.palette.primary.main : 'transparent',
                   transition: 'all 0.15s ease'
-                }}
+                })}
               >
                 <Typography 
                   variant="body2" 
-                  sx={{ 
+                  sx={(theme)=>({ 
                     fontWeight: 600, 
-                    color: isToday ? '#FFFFFF' : (isWeekend ? '#FF3B30' : '#3C3C43'),
+                    color: isToday ? theme.palette.primary.contrastText : (isWeekend ? theme.palette.error.main : theme.palette.text.secondary),
                     mb: 0.5,
                     fontSize: '0.875rem'
-                  }}
+                  })}
                 >
                   {day}
                 </Typography>
                 <Typography 
                   variant="h6" 
-                  sx={{ 
+                  sx={(theme)=>({ 
                     fontWeight: isToday ? 700 : 500,
-                    color: isToday ? '#FFFFFF' : '#1C1C1E',
+                    color: isToday ? theme.palette.primary.contrastText : theme.palette.text.primary,
                     fontSize: '1.25rem'
-                  }}
+                  })}
                 >
                   {currentDay.getDate()}
                 </Typography>
@@ -424,26 +439,26 @@ export default function CalendarPage() {
             return (
               <Box 
                 key={idx} 
-                sx={{ 
-                  borderRight: idx < 6 ? '1px solid #F2F2F7' : 'none',
-                  backgroundColor: isToday ? '#F8F9FB' : '#FFFFFF',
+                sx={(theme)=>({ 
+                  borderRight: idx < 6 ? `1px solid ${theme.palette.divider}` : 'none',
+                  backgroundColor: isToday ? theme.palette.action.hover : theme.palette.background.paper,
                   transition: 'background-color 0.15s ease',
                   '&:hover': {
-                    backgroundColor: '#F8F9FB'
+                    backgroundColor: theme.palette.action.hover
                   }
-                }}
+                })}
               >
                 <Box sx={{ p: 2, height: '100%' }}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, height: '100%' }}>
                     {dayEvents.length === 0 ? (
-                      <Box sx={{ 
+                      <Box sx={(theme)=>({ 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
                         height: '100%',
-                        color: '#C7C7CC',
+                        color: theme.palette.text.disabled,
                         fontSize: '0.875rem'
-                      }}>
+                      })}>
                         无安排
                       </Box>
                     ) : (
@@ -456,19 +471,19 @@ export default function CalendarPage() {
                         >
                           <Box
                             onClick={() => handleEventClick(ev)}
-                            sx={{
+                            sx={(theme)=>({
                               p: 1.5,
                               borderRadius: 2,
                               backgroundColor: ev.color.bg,
-                              border: `1px solid ${ev.color.primary}20`,
+                              border: `1px solid ${alpha(ev.color.primary,0.25)}`,
                               cursor: 'pointer',
                               transition: 'all 0.15s ease',
                               '&:hover': { 
                                 transform: 'translateY(-2px)',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                borderColor: `${ev.color.primary}40`
+                                boxShadow: theme.palette.mode==='light' ? '0 4px 12px rgba(0,0,0,0.12)' : '0 4px 12px rgba(0,0,0,0.6)',
+                                borderColor: `${alpha(ev.color.primary,0.4)}`
                               },
-                            }}
+                            })}
                           >
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                               <Box 
@@ -496,11 +511,11 @@ export default function CalendarPage() {
                             </Box>
                             <Typography 
                               variant="caption" 
-                              sx={{ 
-                                color: '#8E8E93',
+                              sx={(theme)=>({ 
+                                color: theme.palette.text.secondary,
                                 fontSize: '0.75rem',
                                 display: 'block'
-                              }}
+                              })}
                             >
                               {ev.leaveTypeName}
                             </Typography>
@@ -524,30 +539,30 @@ export default function CalendarPage() {
     const isToday = currentDate.toDateString() === today.toDateString();
     
     return (
-      <Box sx={{ backgroundColor: '#FFFFFF', borderRadius: 2, overflow: 'hidden' }}>
+      <Box sx={(theme)=>({ backgroundColor: theme.palette.background.paper, borderRadius: 2, overflow: 'hidden' })}>
         {/* 日期标题 */}
-        <Box sx={{ 
+        <Box sx={(theme)=>({ 
           p: 3, 
-          backgroundColor: isToday ? '#007AFF' : '#FBFBFD',
-          borderBottom: '1px solid #F2F2F7',
+          backgroundColor: isToday ? theme.palette.primary.main : theme.palette.action.hover,
+          borderBottom: `1px solid ${theme.palette.divider}`,
           textAlign: 'center'
-        }}>
+        })}>
           <Typography 
             variant="h4" 
-            sx={{ 
+            sx={(theme)=>({ 
               fontWeight: 700, 
-              color: isToday ? '#FFFFFF' : '#1C1C1E',
+              color: isToday ? theme.palette.primary.contrastText : theme.palette.text.primary,
               mb: 0.5
-            }}
+            })}
           >
             {currentDate.getDate()}
           </Typography>
           <Typography 
             variant="body2" 
-            sx={{ 
-              color: isToday ? '#FFFFFF' : '#8E8E93',
+            sx={(theme)=>({ 
+              color: isToday ? theme.palette.primary.contrastText : theme.palette.text.secondary,
               fontWeight: 500
-            }}
+            })}
           >
             {currentDate.getFullYear()}年{currentDate.getMonth() + 1}月
           </Typography>
@@ -556,11 +571,11 @@ export default function CalendarPage() {
         {/* 事件列表 */}
         <Box sx={{ p: 3 }}>
           {dayEvents.length === 0 ? (
-            <Box sx={{ 
+            <Box sx={(theme)=>({ 
               textAlign: 'center', 
               py: 8,
-              color: '#C7C7CC'
-            }}>
+              color: theme.palette.text.disabled
+            })}>
               <Typography variant="h6" sx={{ mb: 1, fontWeight: 500 }}>
                 无请假安排
               </Typography>
@@ -579,30 +594,31 @@ export default function CalendarPage() {
                 >
                   <Box
                     onClick={() => handleEventClick(ev)}
-                    sx={{
+                    sx={(theme)=>({
                       p: 3,
                       borderRadius: 3,
                       backgroundColor: ev.color.bg,
-                      border: `1px solid ${ev.color.primary}20`,
+                      border: `1px solid ${alpha(ev.color.primary,0.25)}`,
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       '&:hover': {
                         transform: 'translateY(-4px)',
-                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                        borderColor: `${ev.color.primary}40`
+                        boxShadow: theme.palette.mode==='light' ? '0 8px 24px rgba(0,0,0,0.16)' : '0 8px 24px rgba(0,0,0,0.7)',
+                        borderColor: `${alpha(ev.color.primary,0.4)}`
                       },
-                    }}
+                    })}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
                       {/* 头像 */}
                       <Avatar 
-                        sx={{ 
+                        sx={(theme)=>({ 
                           bgcolor: ev.color.primary, 
                           width: 56, 
                           height: 56,
                           fontSize: '1.25rem',
-                          fontWeight: 600
-                        }}
+                          fontWeight: 600,
+                          color: theme.palette.getContrastText(ev.color.primary)
+                        })}
                       >
                         {ev.studentName[0]}
                       </Avatar>
@@ -612,23 +628,24 @@ export default function CalendarPage() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                           <Typography 
                             variant="h6" 
-                            sx={{ 
+                            sx={(theme)=>({ 
                               fontWeight: 600, 
-                              color: '#1C1C1E',
+                              color: theme.palette.text.primary,
                               fontSize: '1.125rem'
-                            }}
+                            })}
                           >
                             {ev.studentName}
                           </Typography>
                           <Chip
                             label={ev.studentNo}
                             size="small"
-                            sx={{
-                              backgroundColor: '#F2F2F7',
-                              color: '#8E8E93',
+                            sx={(theme)=>({
+                              backgroundColor: theme.palette.action.hover,
+                              color: theme.palette.text.secondary,
                               fontSize: '0.75rem',
-                              height: 24
-                            }}
+                              height: 24,
+                              border: `1px solid ${theme.palette.divider}`
+                            })}
                           />
                         </Box>
                         
@@ -644,11 +661,11 @@ export default function CalendarPage() {
                             />
                             <Typography 
                               variant="body2" 
-                              sx={{ 
-                                color: ev.color.primary, 
-                                fontWeight: 600,
-                                fontSize: '0.9rem'
-                              }}
+                                sx={{ 
+                                  color: ev.color.primary, 
+                                  fontWeight: 600,
+                                  fontSize: '0.9rem'
+                                }}
                             >
                               {ev.leaveTypeName}
                             </Typography>
@@ -666,7 +683,7 @@ export default function CalendarPage() {
                                   fontWeight: 600,
                                   fontSize: '0.75rem',
                                   height: 24,
-                                  border: `1px solid ${info.color}20`
+                                  border: `1px solid ${alpha(info.color,0.25)}`
                                 }}
                               />
                             ); 
@@ -675,10 +692,10 @@ export default function CalendarPage() {
                         
                         <Typography 
                           variant="body2" 
-                          sx={{ 
-                            color: '#8E8E93',
+                          sx={(theme)=>({ 
+                            color: theme.palette.text.secondary,
                             fontSize: '0.875rem'
-                          }}
+                          })}
                         >
                           {ev.startYmd === ev.endYmd 
                             ? `单日请假：${ev.startYmd}` 
@@ -692,7 +709,7 @@ export default function CalendarPage() {
                         width: 24, 
                         height: 24, 
                         borderRadius: '50%',
-                        backgroundColor: `${ev.color.primary}15`,
+                        backgroundColor: alpha(ev.color.primary,0.15),
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
@@ -796,7 +813,7 @@ export default function CalendarPage() {
     })();
 
     return () => controller.abort();
-  }, [currentDate, viewMode, classFilter, statusFilter]);
+  }, [currentDate, viewMode, classFilter, statusFilter, typeColor]);
 
   return (
     <motion.div
@@ -804,15 +821,15 @@ export default function CalendarPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <Box sx={{ p: 3, backgroundColor: '#F8F9FB', minHeight: '100vh' }}>
+  <Box sx={(theme)=>({ p: 3, backgroundColor: theme.palette.background.default, minHeight: '100vh' })}>
         {/* 页面标题和控制栏 - 苹果风格 */}
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#1C1C1E', mb: 1 }}>
+              <Typography variant="h4" sx={(theme)=>({ fontWeight: 700, color: theme.palette.text.primary, mb: 1 })}>
                 请假日历
               </Typography>
-              <Typography variant="body2" sx={{ color: '#8E8E93', fontSize: '1rem' }}>
+              <Typography variant="body2" sx={(theme)=>({ color: theme.palette.text.secondary, fontSize: '1rem' })}>
                 查看学生请假安排和时间分布
               </Typography>
             </Box>
@@ -820,34 +837,34 @@ export default function CalendarPage() {
             {/* 视图切换和筛选 */}
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
               {/* 视图模式选择器 - 统一滑块风格 */}
-              <Box sx={{ 
+              <Box sx={(theme)=>({ 
                 display: 'flex', 
-                backgroundColor: '#F2F2F7',
+                backgroundColor: theme.palette.action.hover,
                 borderRadius: 8,
                 p: 0.5,
-                border: '1px solid #E5E5EA'
-              }}>
+                border: `1px solid ${theme.palette.divider}`
+              })}>
                 {viewModes.map((mode) => (
                   <Button
                     key={mode.value}
                     onClick={() => setViewMode(mode.value)}
-                    sx={{
+                    sx={(theme)=>({
                       px: 2.5,
                       py: 1,
                       minWidth: 60,
                       height: 30,
-                      backgroundColor: viewMode === mode.value ? '#FFFFFF' : 'transparent',
-                      color: viewMode === mode.value ? '#007AFF' : '#8E8E93',
+                      backgroundColor: viewMode === mode.value ? theme.palette.background.paper : 'transparent',
+                      color: viewMode === mode.value ? theme.palette.primary.main : theme.palette.text.secondary,
                       borderRadius: 3,
                       fontWeight: 600,
                       fontSize: '0.875rem',
                       transition: 'all 0.2s ease',
                       boxShadow: viewMode === mode.value ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                       '&:hover': {
-                        backgroundColor: viewMode === mode.value ? '#FFFFFF' : '#FFFFFF80',
-                        color: viewMode === mode.value ? '#007AFF' : '#007AFF',
+                        backgroundColor: viewMode === mode.value ? theme.palette.background.paper : theme.palette.action.hover,
+                        color: theme.palette.primary.main,
                       },
-                    }}
+                    })}
                   >
                     {mode.label}
                   </Button>
@@ -855,26 +872,26 @@ export default function CalendarPage() {
               </Box>
 
               <FormControl size="small" sx={{ minWidth: 120, height: 36 }}>
-                <InputLabel sx={{ color: '#8E8E93', fontSize: '0.875rem' }}>班级</InputLabel>
+                <InputLabel sx={(theme)=>({ color: theme.palette.text.secondary, fontSize: '0.875rem' })}>班级</InputLabel>
                 <Select
                   value={classFilter}
                   onChange={(e) => setClassFilter(e.target.value as number | "")}
                   label="班级"
-                  sx={{
+                  sx={(theme)=>({
                     height: 36,
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: theme.palette.background.paper,
                     borderRadius: 2,
                     fontSize: '0.875rem',
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#E5E5EA',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#007AFF',
+                      borderColor: theme.palette.primary.main,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#007AFF',
+                      borderColor: theme.palette.primary.main,
                     },
-                  }}
+                  })}
                 >
                   <MenuItem value="" sx={{ fontSize: '0.875rem' }}>全部班级</MenuItem>
                   {classes.map(c => (
@@ -884,26 +901,26 @@ export default function CalendarPage() {
               </FormControl>
 
               <FormControl size="small" sx={{ minWidth: 120, height: 36 }}>
-                <InputLabel sx={{ color: '#8E8E93', fontSize: '0.875rem' }}>状态</InputLabel>
+                <InputLabel sx={(theme)=>({ color: theme.palette.text.secondary, fontSize: '0.875rem' })}>状态</InputLabel>
                 <Select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as string | "")}
                   label="状态"
-                  sx={{
+                  sx={(theme)=>({
                     height: 36,
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: theme.palette.background.paper,
                     borderRadius: 2,
                     fontSize: '0.875rem',
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#E5E5EA',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#007AFF',
+                      borderColor: theme.palette.primary.main,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#007AFF',
+                      borderColor: theme.palette.primary.main,
                     },
-                  }}
+                  })}
                 >
                   <MenuItem value="" sx={{ fontSize: '0.875rem' }}>全部状态</MenuItem>
                   <MenuItem value="待审批" sx={{ fontSize: '0.875rem' }}>待审批</MenuItem>
@@ -915,34 +932,34 @@ export default function CalendarPage() {
           </Box>
 
           {/* 日历导航栏 - 苹果风格 */}
-          <Box sx={{ 
+          <Box sx={(theme)=>({ 
             p: 3, 
-            backgroundColor: '#FFFFFF',
+            backgroundColor: theme.palette.background.paper,
             borderRadius: 3,
-            border: '1px solid #F2F2F7',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-          }}>
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: theme.palette.mode==='light' ? '0 1px 3px rgba(0,0,0,0.06)' : '0 1px 3px rgba(0,0,0,0.6)'
+          })}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <IconButton 
                   onClick={navigatePrevious} 
                   size="small"
-                  sx={{ 
-                    backgroundColor: '#F8F9FB',
-                    '&:hover': { backgroundColor: '#007AFF', color: '#FFFFFF' },
+                  sx={(theme)=>({ 
+                    backgroundColor: theme.palette.action.hover,
+                    '&:hover': { backgroundColor: theme.palette.primary.main, color: theme.palette.primary.contrastText },
                     transition: 'all 0.15s ease'
-                  }}
+                  })}
                 >
                   <ChevronLeftIcon />
                 </IconButton>
                 <IconButton 
                   onClick={navigateNext} 
                   size="small"
-                  sx={{ 
-                    backgroundColor: '#F8F9FB',
-                    '&:hover': { backgroundColor: '#007AFF', color: '#FFFFFF' },
+                  sx={(theme)=>({ 
+                    backgroundColor: theme.palette.action.hover,
+                    '&:hover': { backgroundColor: theme.palette.primary.main, color: theme.palette.primary.contrastText },
                     transition: 'all 0.15s ease'
-                  }}
+                  })}
                 >
                   <ChevronRightIcon />
                 </IconButton>
@@ -950,44 +967,38 @@ export default function CalendarPage() {
                   startIcon={<TodayIcon />}
                   onClick={goToToday}
                   size="small"
-                  sx={{ 
+                  sx={(theme)=>({ 
                     ml: 2,
-                    backgroundColor: '#F8F9FB',
-                    color: '#007AFF',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.primary.main,
                     fontWeight: 600,
                     borderRadius: 2,
                     px: 3,
-                    '&:hover': { backgroundColor: '#007AFF', color: '#FFFFFF' },
+                    '&:hover': { backgroundColor: theme.palette.primary.main, color: theme.palette.primary.contrastText },
                     transition: 'all 0.15s ease'
-                  }}
+                  })}
                 >
                   今天
                 </Button>
               </Box>
               
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#1C1C1E' }}>
+              <Typography variant="h5" sx={(theme)=>({ fontWeight: 700, color: theme.palette.text.primary })}>
                 {formatDateRange()}
               </Typography>
               
               <Box sx={{ display: 'flex', gap: 1.5 }}>
-                <Chip
-                  label={`待审批 ${events.filter(e => e.status === '待审批').length}`}
-                  sx={{
-                    backgroundColor: '#FFF2E6',
-                    color: '#FF9500',
-                    fontWeight: 600,
-                    border: '1px solid #FF950020'
-                  }}
-                />
-                <Chip
-                  label={`已批准 ${events.filter(e => e.status === '已批准').length}`}
-                  sx={{
-                    backgroundColor: '#E6F7EA',
-                    color: '#34C759',
-                    fontWeight: 600,
-                    border: '1px solid #34C75920'
-                  }}
-                />
+                {(['待审批','已批准'] as const).map(status=>{ const info = getStatusInfo(status); return (
+                  <Chip
+                    key={status}
+                    label={`${status} ${events.filter(e => e.status === status).length}`}
+                    sx={{
+                      backgroundColor: info.bgColor,
+                      color: info.color,
+                      fontWeight: 600,
+                      border: `1px solid ${info.color}20`
+                    }}
+                  />
+                ); })}
               </Box>
             </Box>
           </Box>
@@ -1000,16 +1011,16 @@ export default function CalendarPage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         >
-          <Box sx={{ 
-            backgroundColor: '#FFFFFF',
+          <Box sx={(theme)=>({ 
+            backgroundColor: theme.palette.background.paper,
             borderRadius: 3,
-            border: '1px solid #F2F2F7',
+            border: `1px solid ${theme.palette.divider}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
             overflow: 'hidden'
-          }}>
+          })}>
             {loading ? (
               <Box sx={{ p: 8, textAlign: 'center' }}>
-                <Typography variant="body2" sx={{ color: '#8E8E93' }}>加载中...</Typography>
+                <Typography variant="body2" sx={(theme)=>({ color: theme.palette.text.secondary })}>加载中...</Typography>
               </Box>
             ) : (
               <>
@@ -1028,22 +1039,22 @@ export default function CalendarPage() {
           maxWidth="sm" 
           fullWidth
           PaperProps={{
-            sx: {
+            sx: (theme)=>({
               borderRadius: 4,
-              border: '1px solid #F2F2F7',
-              boxShadow: '0 16px 32px rgba(0,0,0,0.15)',
-            }
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: theme.palette.mode==='light' ? '0 16px 32px rgba(0,0,0,0.15)' : '0 16px 32px rgba(0,0,0,0.6)',
+            })
           }}
         >
-          <DialogTitle sx={{ 
+          <DialogTitle sx={(theme)=>({ 
             pb: 2, 
-            backgroundColor: '#FBFBFD'
-          }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: '#1C1C1E' }}>
+            backgroundColor: theme.palette.action.hover
+          })}>
+            <Typography variant="h6" sx={(theme)=>({ fontWeight: 700, color: theme.palette.text.primary })}>
               请假详情
             </Typography>
           </DialogTitle>
-          <DialogContent sx={{ p: 4, backgroundColor: '#FFFFFF' }}>
+          <DialogContent sx={(theme)=>({ p: 4, backgroundColor: theme.palette.background.paper })}>
             {selectedEvent && (
               <Box>
                 {/* 学生信息卡片 */}
@@ -1069,22 +1080,22 @@ export default function CalendarPage() {
                     {selectedEvent.studentName[0]}
                   </Avatar>
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: '#1C1C1E', mb: 0.5 }}>
+                    <Typography variant="h5" sx={(theme)=>({ fontWeight: 700, color: theme.palette.text.primary, mb: 0.5 })}>
                       {selectedEvent.studentName}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ color: '#8E8E93' }}>
+                      <Typography variant="body2" sx={(theme)=>({ color: theme.palette.text.secondary })}>
                         学号:
                       </Typography>
                       <Chip
                         label={selectedEvent.studentNo}
                         size="small"
-                        sx={{
-                          backgroundColor: '#F2F2F7',
-                          color: '#8E8E93',
+                        sx={(theme)=>({
+                          backgroundColor: theme.palette.action.hover,
+                          color: theme.palette.text.secondary,
                           fontSize: '0.75rem',
                           height: 24
-                        }}
+                        })}
                       />
                     </Box>
                   </Box>
@@ -1094,7 +1105,7 @@ export default function CalendarPage() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
                     <Box>
-                      <Typography variant="body2" sx={{ color: '#8E8E93', mb: 1, fontWeight: 500 }}>
+                      <Typography variant="body2" sx={(theme)=>({ color: theme.palette.text.secondary, mb: 1, fontWeight: 500 })}>
                         请假类型
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1106,13 +1117,13 @@ export default function CalendarPage() {
                             backgroundColor: selectedEvent.color.primary 
                           }} 
                         />
-                        <Typography variant="body1" sx={{ fontWeight: 600, color: '#1C1C1E' }}>
+                        <Typography variant="body1" sx={(theme)=>({ fontWeight: 600, color: theme.palette.text.primary })}>
                           {selectedEvent.leaveTypeName}
                         </Typography>
                       </Box>
                     </Box>
                     <Box>
-                      <Typography variant="body2" sx={{ color: '#8E8E93', mb: 1, fontWeight: 500 }}>
+                      <Typography variant="body2" sx={(theme)=>({ color: theme.palette.text.secondary, mb: 1, fontWeight: 500 })}>
                         审批状态
                       </Typography>
                       {(() => { 
@@ -1135,23 +1146,23 @@ export default function CalendarPage() {
                   </Box>
                   
                   <Box>
-                    <Typography variant="body2" sx={{ color: '#8E8E93', mb: 1.5, fontWeight: 500 }}>
+                    <Typography variant="body2" sx={(theme)=>({ color: theme.palette.text.secondary, mb: 1.5, fontWeight: 500 })}>
                       请假时间
                     </Typography>
-                    <Box sx={{ 
+                    <Box sx={(theme)=>({ 
                       p: 3, 
-                      backgroundColor: '#F8F9FB', 
+                      backgroundColor: theme.palette.action.hover, 
                       borderRadius: 2,
-                      border: '1px solid #F2F2F7'
-                    }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600, color: '#1C1C1E' }}>
+                      border: `1px solid ${theme.palette.divider}`
+                    })}>
+                      <Typography variant="h6" sx={(theme)=>({ fontWeight: 600, color: theme.palette.text.primary })}>
                         {selectedEvent.startYmd === selectedEvent.endYmd 
                           ? `${selectedEvent.startYmd}（单日）`
                           : `${selectedEvent.startYmd} 至 ${selectedEvent.endYmd}`
                         }
                       </Typography>
                       {selectedEvent.startYmd !== selectedEvent.endYmd && (
-                        <Typography variant="body2" sx={{ color: '#8E8E93', mt: 0.5 }}>
+                        <Typography variant="body2" sx={(theme)=>({ color: theme.palette.text.secondary, mt: 0.5 })}>
                           共计 {Math.ceil((new Date(selectedEvent.endYmd).getTime() - new Date(selectedEvent.startYmd).getTime()) / (1000 * 60 * 60 * 24)) + 1} 天
                         </Typography>
                       )}
@@ -1161,27 +1172,27 @@ export default function CalendarPage() {
               </Box>
             )}
           </DialogContent>
-          <DialogActions sx={{ 
+          <DialogActions sx={(theme)=>({ 
             p: 4, 
             pt: 0, 
-            backgroundColor: '#FFFFFF',
+            backgroundColor: theme.palette.background.paper,
             justifyContent: 'center'
-          }}>
+          })}>
             <Button 
               onClick={() => setDetailDialog(false)}
-              sx={{
+              sx={(theme)=>({
                 px: 4,
                 py: 1.5,
-                backgroundColor: '#007AFF',
-                color: '#FFFFFF',
+                backgroundColor: theme.palette.primary.main,
+                color: theme.palette.primary.contrastText,
                 fontWeight: 600,
                 borderRadius: 2,
                 minWidth: 120,
                 '&:hover': {
-                  backgroundColor: '#0051D0',
+                  backgroundColor: theme.palette.primary.dark,
                 },
                 transition: 'all 0.15s ease'
-              }}
+              })}
             >
               确定
             </Button>

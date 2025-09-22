@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Box, Card, CardContent, Typography, Chip, List, ListItem, Divider, Button, CircularProgress, IconButton } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CircleIcon from '@mui/icons-material/Circle';
 import { useNotifications, getPriorityColor, getTypeLabel } from '@/hooks/useNotifications';
@@ -46,6 +47,7 @@ export default function NotificationPanel({
   onViewAll,
   preferContext = true,
 }: NotificationPanelProps) {
+  const theme = useTheme();
   // 始终尝试调用（若没有 Provider 会抛错）
   const possibleCtx = useOptionalNotificationContext();
   const ctx = preferContext ? possibleCtx : null;
@@ -68,7 +70,7 @@ export default function NotificationPanel({
       mb: 1.5
     }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', color: '#212529' }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
           最新消息
         </Typography>
         <Chip
@@ -77,8 +79,9 @@ export default function NotificationPanel({
           sx={{
             height: 20,
             fontSize: '0.65rem',
-            backgroundColor: '#1976d2',
-            color: '#fff'
+            backgroundColor: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
+            '& .MuiChip-label': { px: 0.5 }
           }}
         />
       </Box>
@@ -91,12 +94,12 @@ export default function NotificationPanel({
               sx={{
                 textTransform: 'none',
                 fontSize: '0.7rem',
-                color: '#1976d2',
-                '&:hover': { backgroundColor: 'rgba(25,118,210,0.08)' }
+                color: 'primary.main',
+                '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) }
               }}
             >全部已读</Button>
           )}
-          <IconButton size="small" onClick={() => refresh()} disabled={loading} sx={{ color: '#1976d2' }}>
+          <IconButton size="small" onClick={() => refresh()} disabled={loading} sx={{ color: 'primary.main' }}>
             <RefreshIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -111,7 +114,7 @@ export default function NotificationPanel({
           <CircularProgress size={24} />
         </Box>
       ) : notifications.length === 0 ? (
-        <Box sx={{ textAlign: 'center', py: 6, color: '#6c757d', fontSize: '0.8rem' }}>
+        <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary', fontSize: '0.8rem' }}>
           暂无消息
         </Box>
       ) : (
@@ -127,8 +130,16 @@ export default function NotificationPanel({
                   cursor: 'pointer',
                   py: 1.25,
                   px: 0.5,
-                  backgroundColor: n.read ? '#fff' : '#f5f9ff',
-                  '&:hover': { backgroundColor: n.read ? '#f6f8fa' : '#e9f2ff' },
+                  backgroundColor: n.read 
+                    ? theme.palette.mode === 'light' ? theme.palette.background.paper : alpha(theme.palette.background.paper, 0.6)
+                    : alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.15 : 0.12),
+                  '&:hover': { 
+                    backgroundColor: n.read 
+                      ? (theme.palette.mode === 'light' 
+                          ? alpha(theme.palette.action.hover, 0.4) 
+                          : alpha(theme.palette.primary.main, 0.08)) 
+                      : alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.25 : 0.18)
+                  },
                   transition: 'background-color .15s ease'
                 }}
               >
@@ -142,7 +153,7 @@ export default function NotificationPanel({
                       variant="body2"
                       sx={{
                         fontWeight: n.read ? 400 : 600,
-                        color: '#212529',
+                        color: 'text.primary',
                         flex: 1,
                         minWidth: 0,
                         fontSize: '0.8rem',
@@ -169,7 +180,7 @@ export default function NotificationPanel({
                   <Typography
                     variant="body2"
                     sx={{
-                      color: '#555',
+                      color: 'text.secondary',
                       fontSize: '0.7rem',
                       lineHeight: 1.3,
                       display: '-webkit-box',
@@ -181,12 +192,12 @@ export default function NotificationPanel({
                   >
                     {n.content}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#8a93a5', fontSize: '0.6rem' }}>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.6rem' }}>
                     {formatTime(n.createdAt)}
                   </Typography>
                 </Box>
               </ListItem>
-              {idx < notifications.length - 1 && <Divider sx={{ ml: 2, borderColor: '#eef2f5' }} />}
+              {idx < notifications.length - 1 && <Divider sx={{ ml: 2, borderColor: theme.palette.divider }} />}
             </Box>
           ))}
         </List>
@@ -201,10 +212,10 @@ export default function NotificationPanel({
         onClick={() => onViewAll && onViewAll()}
         sx={{
           textTransform: 'none',
-          color: '#1976d2',
+          color: 'primary.main',
           fontSize: '0.7rem',
           borderRadius: 1,
-          '&:hover': { backgroundColor: 'rgba(25,118,210,0.08)' }
+          '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) }
         }}
       >查看全部</Button>
     </Box>
@@ -212,7 +223,7 @@ export default function NotificationPanel({
 
   if (isDashboard) {
     return (
-      <Card sx={{ borderRadius: 1, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+      <Card sx={{ borderRadius: 1, border: '1px solid', borderColor: 'divider', boxShadow: 'none', bgcolor: 'background.paper' }}>
         <CardContent sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
           {header}
           {list}

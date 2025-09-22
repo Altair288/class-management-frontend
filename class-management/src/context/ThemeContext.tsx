@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { createTheme, ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 
 type ThemeMode = 'light' | 'dark';
@@ -46,8 +47,34 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     localStorage.setItem('theme-mode', newMode);
   };
 
+  // 语义扩展（在真正 createTheme 后再 merge；这里只是先准备）
+  const surfaceLight = {
+    surface: {
+      low: '#f5f7fa',
+      main: '#ffffff',
+      high: '#ffffff',
+      elevated: 'rgba(255,255,255,0.65)'
+    },
+    border: {
+      subtle: 'rgba(0,0,0,0.08)',
+      strong: 'rgba(0,0,0,0.16)'
+    }
+  };
+  const surfaceDark = {
+    surface: {
+      low: '#0a0e13',
+      main: '#1a1f2e',
+      high: '#222b3a',
+      elevated: 'rgba(26,31,46,0.70)'
+    },
+    border: {
+      subtle: 'rgba(255,255,255,0.08)',
+      strong: 'rgba(255,255,255,0.18)'
+    }
+  };
+
   // 创建 MUI 主题
-  const theme = createTheme({
+  let theme = createTheme({
     palette: {
       mode,
       ...(mode === 'light'
@@ -139,27 +166,20 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
             },
           }),
     },
-    typography: {
+    typography: ({
       fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-      h1: {
-        fontWeight: 600,
-      },
-      h2: {
-        fontWeight: 600,
-      },
-      h3: {
-        fontWeight: 600,
-      },
-      h4: {
-        fontWeight: 600,
-      },
-      h5: {
-        fontWeight: 600,
-      },
-      h6: {
-        fontWeight: 600,
-      },
-    },
+      // 调整标题字号（适度缩小）
+      h1: { fontWeight: 600, fontSize: '2.75rem', lineHeight: 1.15 }, // ~44px
+      h2: { fontWeight: 600, fontSize: '2.25rem', lineHeight: 1.2 },   // ~36px
+      h3: { fontWeight: 600, fontSize: '1.9rem', lineHeight: 1.25 },   // ~30px
+      h4: { fontWeight: 600, fontSize: '1.55rem', lineHeight: 1.3 },   // ~24.8px 之前太大
+      h5: { fontWeight: 600, fontSize: '1.25rem', lineHeight: 1.35 },  // ~20px
+      h6: { fontWeight: 600, fontSize: '1.05rem', lineHeight: 1.4 },   // ~16.8px
+      subtitle1: { fontSize: '0.95rem' },
+      subtitle2: { fontSize: '0.85rem' },
+      body1: { fontSize: '0.95rem' },
+      body2: { fontSize: '0.85rem' },
+  }),
     shape: {
       borderRadius: 8,
     },
@@ -167,13 +187,20 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       MuiCard: {
         styleOverrides: {
           root: ({ theme }) => ({
-            boxShadow: theme.palette.mode === 'light' 
-              ? '0 2px 8px rgba(0,0,0,0.08)' 
-              : '0 4px 16px rgba(0,0,0,0.4)',
-            border: theme.palette.mode === 'light' 
-              ? '1px solid #e9ecef' 
-              : '1px solid #2d3748',
+            boxShadow: theme.palette.mode === 'light'
+              ? '0 2px 8px rgba(0,0,0,0.06)'
+              : '0 4px 14px -2px rgba(0,0,0,0.55)',
+            border: `1px solid ${theme.palette.mode === 'light' ? '#e9ecef' : 'rgba(255,255,255,0.08)'}`,
             backgroundImage: 'none',
+            backgroundColor: theme.palette.mode === 'light'
+              ? theme.palette.background.paper
+              : alpha('#1a1f2e', 0.9),
+            transition: 'background-color .25s ease, box-shadow .25s ease, border-color .25s ease',
+            '&:hover': {
+              boxShadow: theme.palette.mode === 'light'
+                ? '0 4px 16px rgba(0,0,0,0.08)'
+                : '0 6px 20px -2px rgba(0,0,0,0.65)'
+            }
           }),
         },
       },
@@ -225,10 +252,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       MuiLinearProgress: {
         styleOverrides: {
           root: ({ theme }) => ({
+            borderRadius: 4,
+            overflow: 'hidden',
             backgroundColor: theme.palette.mode === 'light'
-              ? '#e9ecef'
-              : '#2d3748',
+              ? 'rgba(0,0,0,0.06)'
+              : 'rgba(255,255,255,0.1)',
           }),
+          bar: {
+            borderRadius: 4,
+          }
         },
       },
       MuiCircularProgress: {
@@ -240,6 +272,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       },
     },
   });
+
+  // 合并语义 surface / border（方便后续使用 theme.palette.surface.low 等）
+  theme = {
+    ...theme,
+    palette: {
+      ...theme.palette,
+      ...(mode === 'light' ? surfaceLight : surfaceDark)
+    }
+  } as typeof theme;
 
   return (
     <ThemeContext.Provider value={{ mode, toggleMode }}>
