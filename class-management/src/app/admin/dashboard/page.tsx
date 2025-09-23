@@ -193,12 +193,15 @@ export default function AdminDashboard() {
                 班级管理系统核心数据监控
               </Typography>
             </Box>          {/* 主要布局：左中右三段式 */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr 0.8fr' }, gap: 3 }}>
-            {/* 左侧：核心学生数据 */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr 0.8fr' }, gap: 3, alignItems: 'stretch' }}>
+            {/* 左侧：核心指标卡 */}
             <Card sx={{ 
               borderRadius: 2, 
               boxShadow: theme.shadows[4],
               bgcolor: theme.palette.background.paper,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column'
             }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ 
@@ -409,15 +412,18 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            {/* 中间：班级信息和请假审批 */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {/* 班级信息 */}
-              <Card sx={{ 
-                borderRadius: 2, 
-                boxShadow: theme.shadows[2],
-                bgcolor: theme.palette.background.paper,
-              }}>
-                <CardContent sx={{ p: 3 }}>
+            {/* 中间：班级 & 请假合并卡 */}
+            <Card sx={{ 
+              borderRadius: 2, 
+              boxShadow: theme.shadows[3],
+              bgcolor: theme.palette.background.paper,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <CardContent sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
+                {/* 班级信息 */}
+                <Box>
                   <Typography variant="h6" sx={{ 
                     fontWeight: 600, 
                     color: theme.palette.text.primary, 
@@ -461,16 +467,8 @@ export default function AdminDashboard() {
                       </Typography>
                     </Box>
                   </Box>
-                </CardContent>
-              </Card>
-
-              {/* 请假审批 */}
-              <Card sx={{ 
-                borderRadius: 2, 
-                boxShadow: theme.shadows[2],
-                bgcolor: theme.palette.background.paper,
-              }}>
-                <CardContent sx={{ p: 3 }}>
+                </Box>
+                <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 2 }}>
                   <Typography variant="h6" sx={{ 
                     fontWeight: 600, 
                     color: theme.palette.text.primary, 
@@ -498,7 +496,6 @@ export default function AdminDashboard() {
                         {leaveStats.totalRequests}次
                       </Typography>
                     </Box>
-
                     {/* 待审批 */}
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -518,7 +515,6 @@ export default function AdminDashboard() {
                         {leaveStats.pendingRequests}次
                       </Typography>
                     </Box>
-
                     {/* 已批准 */}
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -538,7 +534,6 @@ export default function AdminDashboard() {
                         {leaveStats.approvedRequests}次
                       </Typography>
                     </Box>
-
                     {/* 审批时长 */}
                     <Box 
                       sx={{ 
@@ -569,12 +564,12 @@ export default function AdminDashboard() {
                       </Typography>
                     </Box>
                   </Box>
-                </CardContent>
-              </Card>
-            </Box>
+                </Box>
+              </CardContent>
+            </Card>
 
-            {/* 右侧：消息通知 */}
-            <Box>
+            {/* 右侧：消息通知（等高） */}
+            <Box sx={{ height: '100%', '& > .MuiCard-root': { height: '100%', display: 'flex', flexDirection: 'column' } }}>
               {user && user.id && (
                 <NotificationPanel userId={user.id} variant="dashboard" limit={5} />
               )}
