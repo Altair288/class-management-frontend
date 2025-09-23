@@ -21,6 +21,8 @@ interface UseNotificationsOptions {
   sse?: boolean;               // 是否启用 SSE
   sseReconnectInterval?: number; // SSE 重试间隔(ms)
   sseMaxRetries?: number;        // 最大重试次数(-1 表示无限)
+  onAuthExpired?: () => void;    // 会话 / 登录过期回调（收到 401 时触发）
+  authProbeUrl?: string;        // 401 探测 URL（默认 /api/leave/current-user-info）
 }
 
 export function useNotifications(userId: number | undefined, opts: UseNotificationsOptions = {}) {
@@ -31,6 +33,8 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
     sse = true,
     sseReconnectInterval = 5000,
     sseMaxRetries = -1,
+    onAuthExpired,
+    authProbeUrl = '/api/leave/current-user-info'
   } = opts;
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -50,6 +54,10 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
     if (!userId) return;
     try {
       const res = await fetch(`/api/notifications/unread-count?userId=${userId}`, { credentials: 'include' });
+      if (res.status === 401) {
+        onAuthExpired?.();
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setUnreadCount(data.unread || 0);
@@ -58,13 +66,17 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
       // 忽略网络瞬断
       if (process.env.NODE_ENV !== 'production') console.debug('unread poll error', e);
     }
-  }, [userId]);
+  }, [userId, onAuthExpired]);
 
   const fetchNotifications = useCallback(async () => {
     if (!userId) return;
     try {
       setLoading(true);
       const res = await fetch(`/api/notifications/inbox?userId=${userId}&limit=${limit}`, { credentials: 'include' });
+      if (res.status === 401) {
+        onAuthExpired?.();
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
@@ -75,7 +87,7 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
       setLoading(false);
       setInitialized(true);
     }
-  }, [userId, limit]);
+  }, [userId, limit, onAuthExpired]);
 
   const markAsRead = useCallback(async (recipientIds: number[]) => {
     if (!userId || recipientIds.length === 0) return;
@@ -296,13 +308,28 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
       };
     }
 
-    es.addEventListener('error', (ev) => {
+    es.addEventListener('error', async (ev) => {
       if (process.env.NODE_ENV !== 'production') console.warn('[SSE] error event', ev);
       setSseConnected(false);
       setSseError('SSE 连接中断');
       try { sseRef.current?.close(); } catch {}
       sseRef.current = null;
       if (manualClosedRef.current) return; // 主动关闭不重连
+
+      // 探测是否会话过期（401），避免盲目重连死循环
+      try {
+        const probe = await fetch(authProbeUrl, { credentials: 'include' });
+        if (probe.status === 401) {
+          if (process.env.NODE_ENV !== 'production') console.warn('[SSE] auth expired detected via probe');
+          onAuthExpired?.();
+          // 标记为不再自动重连，等待上层重新登录后再调用 reconnect
+          manualClosedRef.current = true;
+          return;
+        }
+      } catch (probeErr) {
+        // 网络错误，继续按原逻辑退避重连
+        if (process.env.NODE_ENV !== 'production') console.debug('[SSE] probe error (treat as transient)', probeErr);
+      }
       if (sseMaxRetries !== -1 && retryRef.current >= sseMaxRetries) return;
       retryRef.current += 1;
       // 指数退避 + 抖动
@@ -313,7 +340,7 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
       if (process.env.NODE_ENV !== 'production') console.debug('[SSE] schedule reconnect', { attempt: retryRef.current, delay });
       setTimeout(setupSse, delay);
     });
-  }, [userId, sse, limit, sseMaxRetries, sseReconnectInterval, fetchUnreadCount]);
+  }, [userId, sse, limit, sseMaxRetries, sseReconnectInterval, fetchUnreadCount, onAuthExpired, authProbeUrl]);
 
   // 初始化：加载一次 + 建立 SSE
   useEffect(() => {
