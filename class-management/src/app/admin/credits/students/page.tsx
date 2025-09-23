@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { alpha } from '@mui/material/styles';
 import {
   Box,
   Card,
@@ -189,7 +190,7 @@ export default function StudentsCreditsPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <Box sx={{ p: 3 }}>
+  <Box sx={{ p: 3 }}>
         {/* 页面标题和操作栏 */}
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
           <IconButton
@@ -197,21 +198,21 @@ export default function StudentsCreditsPage() {
             href="/admin/credits"
             sx={{ 
               mr: 2,
-              backgroundColor: '#f8f9fa',
-              border: '1px solid #e9ecef',
+              backgroundColor: (theme)=> theme.palette.mode==='light'? '#f8f9fa' : alpha(theme.palette.primary.main,0.15),
+              border: (theme)=> `1px solid ${theme.palette.divider}`,
               borderRadius: 1,
               '&:hover': {
-                backgroundColor: '#e9ecef'
+                backgroundColor: (theme)=> theme.palette.mode==='light'? '#e9ecef' : alpha(theme.palette.primary.main,0.25)
               }
             }}
           >
             <ArrowBackIcon sx={{ fontSize: 20 }} />
           </IconButton>
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: '#212529', mb: 1 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
               学生学分管理
             </Typography>
-            <Typography variant="body2" sx={{ color: '#6c757d' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               查看学生学分详情，批量导入导出数据，进行学分调整和异常处理
             </Typography>
           </Box>
@@ -222,14 +223,14 @@ export default function StudentsCreditsPage() {
           {Object.entries(statusConfig).map(([key, config]) => {
             const count = filteredStudents.filter(s => s.status === key).length;
             return (
-              <Card key={key} sx={{ borderRadius: 1, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+              <Card key={key} sx={{ borderRadius: 1, border: (theme)=>`1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: (theme)=> theme.palette.background.paper }}>
                 <CardContent sx={{ p: 2.5 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Box sx={{ flex: 1 }}>
                       <Typography 
                         variant="body2" 
                         sx={{ 
-                          color: '#6c757d', 
+                          color: 'text.secondary', 
                           fontSize: '0.875rem',
                           fontWeight: 500,
                           mb: 1
@@ -252,7 +253,7 @@ export default function StudentsCreditsPage() {
                       <Typography 
                         variant="caption" 
                         sx={{ 
-                          color: '#6c757d',
+                          color: 'text.secondary',
                           fontSize: '0.75rem'
                         }}
                       >
@@ -275,7 +276,7 @@ export default function StudentsCreditsPage() {
         </Box>
 
         {/* 搜索和筛选工具栏 - Google风格设计 */}
-        <Card sx={{ mb: 3, borderRadius: 3, border: '1px solid #dadce0', boxShadow: '0 1px 6px rgba(32,33,36,.28)' }}>
+  <Card sx={{ mb: 3, borderRadius: 3, border: (theme)=>`1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: (theme)=> theme.palette.background.paper }}>
           <CardContent sx={{ p: 2.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
               {/* 搜索框 */}
@@ -288,25 +289,25 @@ export default function StudentsCreditsPage() {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <SearchIcon sx={{ color: '#5f6368', fontSize: 20 }} />
+                        <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
                       </InputAdornment>
                     ),
                   }}
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '24px',
-                      backgroundColor: '#f8f9fa',
+                      backgroundColor: (theme)=> theme.palette.mode==='light'? '#f8f9fa' : alpha(theme.palette.action.hover,0.15),
                       fontSize: '14px',
                       height: 44,
                       '& fieldset': {
-                        borderColor: '#dadce0',
+                        borderColor: (theme)=> theme.palette.divider,
                         borderWidth: 1,
                       },
                       '&:hover fieldset': {
-                        borderColor: '#1976d2',
+                        borderColor: (theme)=> theme.palette.primary.main,
                       },
                       '&.Mui-focused fieldset': {
-                        borderColor: '#1976d2',
+                        borderColor: (theme)=> theme.palette.primary.main,
                         borderWidth: 2,
                       },
                     },
@@ -328,13 +329,13 @@ export default function StudentsCreditsPage() {
                       borderRadius: '20px',
                       height: 36,
                       fontSize: '14px',
-                      backgroundColor: classFilter ? '#e8f0fe' : '#f8f9fa',
+                      backgroundColor: (theme)=> classFilter ? alpha(theme.palette.primary.main,0.12) : (theme.palette.mode==='light'? '#f8f9fa' : alpha(theme.palette.action.hover,0.15)),
                       '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: classFilter ? '#1976d2' : '#dadce0',
+                        borderColor: (theme)=> classFilter ? theme.palette.primary.main : theme.palette.divider,
                         borderWidth: 1,
                       },
                       '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#1976d2',
+                        borderColor: (theme)=> theme.palette.primary.main,
                       },
                       '& .MuiSelect-select': {
                         padding: '8px 32px 8px 12px',
@@ -361,13 +362,13 @@ export default function StudentsCreditsPage() {
                       borderRadius: '20px',
                       height: 36,
                       fontSize: '14px',
-                      backgroundColor: statusFilter ? '#e8f0fe' : '#f8f9fa',
+                      backgroundColor: (theme)=> statusFilter ? alpha(theme.palette.primary.main,0.12) : (theme.palette.mode==='light'? '#f8f9fa' : alpha(theme.palette.action.hover,0.15)),
                       '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: statusFilter ? '#1976d2' : '#dadce0',
+                        borderColor: (theme)=> statusFilter ? theme.palette.primary.main : theme.palette.divider,
                         borderWidth: 1,
                       },
                       '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: '#1976d2',
+                        borderColor: (theme)=> theme.palette.primary.main,
                       },
                       '& .MuiSelect-select': {
                         padding: '8px 32px 8px 12px',
@@ -387,7 +388,7 @@ export default function StudentsCreditsPage() {
 
                 {/* 结果统计 */}
                 {(searchTerm || classFilter || statusFilter) && (
-                  <Typography variant="body2" sx={{ color: '#5f6368', fontSize: '14px', ml: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '14px', ml: 1 }}>
                     {loading ? '搜索中...' : `找到 ${filteredStudents.length} 个结果`}
                   </Typography>
                 )}
@@ -397,16 +398,16 @@ export default function StudentsCreditsPage() {
         </Card>
 
         {/* 学生学分表格 */}
-        <Card sx={{ borderRadius: 3, border: '1px solid #dadce0', boxShadow: '0 1px 6px rgba(32,33,36,.28)' }}>
+  <Card sx={{ borderRadius: 3, border: (theme)=> `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: (theme)=> theme.palette.background.paper }}>
           <CardContent sx={{ p: 0 }}>
             {/* 表格标题栏 */}
-            <Box sx={{ p: 3, borderBottom: '1px solid #dadce0' }}>
+            <Box sx={{ p: 3, borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: '#202124', mb: 0.5 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
                     学生学分列表
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#5f6368', fontSize: '14px' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '14px' }}>
                     {loading ? '加载中...' : `共 ${filteredStudents.length} 名学生`}
                   </Typography>
                 </Box>
@@ -422,17 +423,17 @@ export default function StudentsCreditsPage() {
               ) : (
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                      <TableCell sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>学生</TableCell>
+                    <TableRow sx={{ backgroundColor: (theme)=> theme.palette.mode==='light'? '#f8f9fa' : alpha(theme.palette.action.hover,0.15) }}>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', fontSize: '14px', borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>学生</TableCell>
                       <TableCell sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>班级</TableCell>
                       {creditCategories.map(category => (
-                        <TableCell key={category.key} sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>
+                        <TableCell key={category.key} sx={{ fontWeight: 600, color: 'text.primary', fontSize: '14px', borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>
                           {category.name}
                         </TableCell>
                       ))}
-                      <TableCell sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>总分</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>状态</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: '#202124', fontSize: '14px', borderBottom: '1px solid #dadce0' }}>操作</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', fontSize: '14px', borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>总分</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', fontSize: '14px', borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>状态</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', fontSize: '14px', borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>操作</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -441,36 +442,34 @@ export default function StudentsCreditsPage() {
                         key={student.id} 
                         hover
                         sx={{
-                          '&:hover': {
-                            backgroundColor: '#f8f9fa',
-                          },
-                          borderBottom: '1px solid #f0f0f0',
+                          '&:hover': { backgroundColor: (theme)=> theme.palette.action.hover },
+                          borderBottom: (theme)=> `1px solid ${theme.palette.divider}`,
                         }}
                       >
-                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <TableCell sx={{ borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: '14px' }}>
                               {student.studentName[0]}
                             </Avatar>
                             <Box>
-                              <Typography variant="body2" fontWeight={600} sx={{ fontSize: '14px', color: '#202124' }}>
+                              <Typography variant="body2" fontWeight={600} sx={{ fontSize: '14px', color: 'text.primary' }}>
                                 {student.studentName}
                               </Typography>
-                              <Typography variant="caption" sx={{ color: '#5f6368', fontSize: '12px' }}>
+                              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '12px' }}>
                                 {student.studentId}
                               </Typography>
                             </Box>
                           </Box>
                         </TableCell>
-                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0', fontSize: '14px', color: '#202124' }}>
+                        <TableCell sx={{ borderBottom: (theme)=> `1px solid ${theme.palette.divider}`, fontSize: '14px', color: 'text.primary' }}>
                           {student.className}
                         </TableCell>
                         {creditCategories.map(category => {
                           const score = student[category.key as keyof StudentCredit] as number;
                           return (
-                            <TableCell key={category.key} sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <TableCell key={category.key} sx={{ borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>
                               <Box>
-                                <Typography variant="body2" fontWeight={600} sx={{ fontSize: '14px', color: '#202124', mb: 0.5 }}>
+                                <Typography variant="body2" fontWeight={600} sx={{ fontSize: '14px', color: 'text.primary', mb: 0.5 }}>
                                   {score}分
                                 </Typography>
                                 <LinearProgress
@@ -479,7 +478,7 @@ export default function StudentsCreditsPage() {
                                   sx={{
                                     height: 3,
                                     borderRadius: 2,
-                                    backgroundColor: '#e8eaed',
+                                    backgroundColor: (theme)=> alpha(theme.palette.text.primary,0.12),
                                     '& .MuiLinearProgress-bar': {
                                       backgroundColor: getProgressColor(score),
                                     },
@@ -489,23 +488,23 @@ export default function StudentsCreditsPage() {
                             </TableCell>
                           );
                         })}
-                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
-                          <Typography variant="h6" fontWeight={600} sx={{ fontSize: '16px', color: '#202124' }}>
+                        <TableCell sx={{ borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>
+                          <Typography variant="h6" fontWeight={600} sx={{ fontSize: '16px', color: 'text.primary' }}>
                             {student.total}分
                           </Typography>
                         </TableCell>
-                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <TableCell sx={{ borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>
                           {getStatusChip(student.status)}
                         </TableCell>
-                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <TableCell sx={{ borderBottom: (theme)=> `1px solid ${theme.palette.divider}` }}>
                           <IconButton
                             size="small"
                             onClick={() => handleEditStudent(student)}
                             sx={{
-                              color: '#5f6368',
+                              color: 'text.secondary',
                               '&:hover': {
-                                backgroundColor: '#f8f9fa',
-                                color: '#1976d2',
+                                backgroundColor: (theme)=> theme.palette.action.hover,
+                                color: 'primary.main',
                               },
                             }}
                           >

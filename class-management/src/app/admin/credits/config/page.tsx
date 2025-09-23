@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { alpha } from '@mui/material/styles';
 import axios from "axios";
 import {
   Box,
@@ -112,12 +113,15 @@ export default function CreditsConfigPage() {
   const openToast = (message: string, severity: "success" | "error" | "info" | "warning" = "success") =>
     setToast({ open: true, message, severity });
 
-  const getErrMsg = (err: any) => {
+  const getErrMsg = (err: unknown) => {
+    const e = err as { response?: { data?: unknown }; message?: string } | undefined;
     // 兼容后端全局异常返回 { code, message }
-    const data = err?.response?.data;
-    if (data?.message) return data.message;
-    if (typeof data === "string") return data;
-    if (err?.message) return err.message;
+    const data = e?.response?.data;
+    if (data && typeof data === 'object' && 'message' in data && typeof (data as { message?: unknown }).message === 'string') {
+      return (data as { message: string }).message;
+    }
+    if (typeof data === 'string') return data;
+    if (e?.message) return e.message;
     return "请求失败，请稍后重试";
   };
 
@@ -313,9 +317,14 @@ export default function CreditsConfigPage() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-      <Box sx={{ p: 2, backgroundColor: "#f8f9fa", minHeight: "100vh" }}>
+  <Box sx={{ p: 2, backgroundColor: (theme) => theme.palette.background.default, minHeight: "100vh" }}>
         {/* 简洁的页头 */}
-        <Paper sx={{ p: 2, mb: 2, borderRadius: 3, backgroundColor: "#1976d2", color: "white" }}>
+        <Paper sx={{ p: 2, mb: 2, borderRadius: 3, background: (theme) => theme.palette.mode === 'light'
+          ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`
+          : `linear-gradient(135deg, ${alpha(theme.palette.primary.light,0.25)} 0%, ${alpha(theme.palette.primary.main,0.55)} 100%)`,
+          color: (theme) => theme.palette.mode === 'light' ? '#fff' : theme.palette.primary.contrastText,
+          boxShadow: (theme) => theme.palette.mode === 'light' ? '0 4px 12px rgba(0,0,0,0.15)' : '0 4px 16px rgba(0,0,0,0.55)'
+        }}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <IconButton
               component={Link}
@@ -323,9 +332,9 @@ export default function CreditsConfigPage() {
               sx={{
                 ml: 0.5,
                 mr: 2,
-                backgroundColor: "rgba(255,255,255,0.2)",
-                color: "white",
-                "&:hover": { backgroundColor: "rgba(255,255,255,0.3)" },
+                backgroundColor: (theme) => theme.palette.mode === 'light' ? 'rgba(255,255,255,0.2)' : alpha(theme.palette.primary.light,0.15),
+                color: 'inherit',
+                '&:hover': { backgroundColor: (theme) => theme.palette.mode === 'light' ? 'rgba(255,255,255,0.3)' : alpha(theme.palette.primary.light,0.25) },
               }}
             >
               <ArrowBackIcon />
@@ -349,9 +358,9 @@ export default function CreditsConfigPage() {
         )}
 
         {/* 主配置卡片 */}
-        <Card sx={{ borderRadius: 1, boxShadow: 1 }}>
+  <Card sx={{ borderRadius: 1, boxShadow: 'none', border: (theme) => `1px solid ${theme.palette.divider}`, backgroundColor: (theme) => theme.palette.background.paper }}>
           {/* 分类标签栏 */}
-          <Box sx={{ borderBottom: "1px solid #e0e0e0" }}>
+          <Box sx={{ borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
             <Tabs
               value={activeTab}
               onChange={(_, v) => setActiveTab(v)}
@@ -363,15 +372,15 @@ export default function CreditsConfigPage() {
                   textTransform: "none",
                   fontSize: "0.95rem",
                   fontWeight: 500,
-                  color: "#666",
+                  color: 'text.secondary',
                   "&.Mui-selected": {
-                    color: "#1976d2",
+                    color: 'primary.main',
                     fontWeight: 600,
                   },
                 },
-                "& .MuiTabs-indicator": {
+                '& .MuiTabs-indicator': {
                   height: 2,
-                  backgroundColor: "#1976d2",
+                  backgroundColor: 'primary.main',
                 },
               }}
             >
@@ -383,11 +392,13 @@ export default function CreditsConfigPage() {
 
           <CardContent sx={{ p: 2 }}>
             {/* 主项目配置区域 */}
-            <Paper sx={{ p: 3, mb: 2, backgroundColor: "#e9e9e94b", borderRadius: 2.5 }}>
+            <Paper sx={{ p: 3, mb: 2, borderRadius: 2.5, backgroundColor: (theme) => theme.palette.mode === 'light'
+              ? alpha(theme.palette.primary.main,0.04)
+              : alpha(theme.palette.primary.main,0.12), border: (theme)=>`1px solid ${alpha(theme.palette.primary.main,0.15)}` }}>
               <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                 <Typography
                   variant="subtitle1"
-                  sx={{ fontWeight: 600, color: "#1976d2", flex: 1 }}
+                  sx={{ fontWeight: 600, color: 'primary.main', flex: 1 }}
                 >
                   {activeCategory}育学分 - 主项目配置
                 </Typography>
@@ -512,10 +523,9 @@ export default function CreditsConfigPage() {
             {/* 子项目管理区域 */}
             <Paper sx={{
               borderRadius: 2.5,
-              backgroundColor: "#e3f2fd",
-              borderBottom: "1px solid #bbdefb",
-            }}
-            >
+              backgroundColor: (theme) => theme.palette.mode === 'light' ? alpha(theme.palette.primary.light,0.25) : alpha(theme.palette.primary.dark,0.25),
+              border: (theme)=>`1px solid ${alpha(theme.palette.primary.main,0.3)}`,
+            }}>
               <Box
                 sx={{
                   p: 2,
@@ -525,10 +535,10 @@ export default function CreditsConfigPage() {
                 }}
               >
                 <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "#1976d2" }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main' }}>
                     子项目权重配置
                   </Typography>
-                  <Typography variant="caption" sx={{ color: "#1565c0" }}>
+                  <Typography variant="caption" sx={{ color: 'primary.dark' }}>
                     权重合计: {totalWeight.toFixed(2)} {!isWeightValid && "⚠️ 超出1.0"}
                   </Typography>
                 </Box>
@@ -561,7 +571,7 @@ export default function CreditsConfigPage() {
                 </Alert>
               )}
 
-              <Box sx={{ p: 2, backgroundColor: "white" }}>
+              <Box sx={{ p: 2, backgroundColor: (theme) => theme.palette.background.paper }}>
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
@@ -579,7 +589,7 @@ export default function CreditsConfigPage() {
                         <TableRow
                           key={subitem.id}
                           hover
-                          sx={{ "&:hover": { backgroundColor: "#f5f5f5" } }}
+                          sx={{ '&:hover': { backgroundColor: (theme)=>theme.palette.action.hover } }}
                         >
                           {/* 子项目名称 */}
                           <TableCell align="center">
@@ -617,19 +627,18 @@ export default function CreditsConfigPage() {
                                 sx={{
                                   width: 40,
                                   height: 4,
-                                  backgroundColor: "#e0e0e0",
+                                  backgroundColor: (theme) => alpha(theme.palette.text.primary,0.15),
                                   borderRadius: 2,
                                   overflow: "hidden",
                                 }}
                               >
-                                <Box
-                                  sx={{
-                                    width: `${Math.min(Number(subitem.weight) * 100, 100)}%`,
-                                    height: "100%",
-                                    backgroundColor:
-                                      Number(subitem.weight) > 0.5 ? "#ff9800" : "#2196f3",
-                                  }}
-                                />
+                                  <Box
+                                    sx={(theme)=>({
+                                      width: `${Math.min(Number(subitem.weight) * 100, 100)}%`,
+                                      height: '100%',
+                                      backgroundColor: Number(subitem.weight) > 0.5 ? theme.palette.warning.main : theme.palette.info.main,
+                                    })}
+                                  />
                               </Box>
                             </Box>
                           </TableCell>
@@ -652,14 +661,14 @@ export default function CreditsConfigPage() {
                               <IconButton
                                 size="small"
                                 onClick={() => openEditSubDialog(subitem)}
-                                sx={{ color: "#1976d2" }}
+                                sx={{ color: 'primary.main' }}
                               >
                                 <EditIcon fontSize="small" />
                               </IconButton>
                               <IconButton
                                 size="small"
                                 onClick={() => handleDeleteSub(subitem.id)}
-                                sx={{ color: "#d32f2f" }}
+                                sx={{ color: 'error.main' }}
                               >
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
@@ -670,7 +679,7 @@ export default function CreditsConfigPage() {
                       {subitems.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                            <Typography variant="body2" sx={{ color: "#757575" }}>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                               暂无子项目配置，点击右上角添加子项目按钮开始配置
                             </Typography>
                           </TableCell>
@@ -693,12 +702,9 @@ export default function CreditsConfigPage() {
         >
           <DialogTitle
             sx={{
-              backgroundColor: "#1976d2",
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              py: 2,
+              background: (theme)=> theme.palette.mode==='light'? theme.palette.primary.main : alpha(theme.palette.primary.main,0.25),
+              color: (theme)=> theme.palette.mode==='light'? theme.palette.primary.contrastText : theme.palette.text.primary,
+              display: 'flex', alignItems: 'center', gap: 1, py: 2
             }}
           >
             <SettingsIcon />
