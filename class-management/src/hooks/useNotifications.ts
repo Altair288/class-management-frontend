@@ -23,6 +23,7 @@ interface UseNotificationsOptions {
   sseMaxRetries?: number;        // 最大重试次数(-1 表示无限)
   onAuthExpired?: () => void;    // 会话 / 登录过期回调（收到 401 时触发）
   authProbeUrl?: string;        // 401 探测 URL（默认 /api/leave/current-user-info）
+  history?: boolean;            // 是否加载包含已读的历史（分页首屏）
 }
 
 export function useNotifications(userId: number | undefined, opts: UseNotificationsOptions = {}) {
@@ -72,14 +73,36 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
     if (!userId) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/notifications/inbox?userId=${userId}&limit=${limit}`, { credentials: 'include' });
+      const url = opts.history
+        ? `/api/notifications/history?userId=${userId}&page=0&size=${limit}&readStatus=all`
+        : `/api/notifications/inbox?userId=${userId}&limit=${limit}`;
+      const res = await fetch(url, { credentials: 'include' });
       if (res.status === 401) {
         onAuthExpired?.();
         return;
       }
       if (res.ok) {
         const data = await res.json();
-        setNotifications(data);
+        if (opts.history) {
+          const content = Array.isArray(data.content) ? data.content : [];
+          interface RawItem { [k: string]: unknown }
+          setNotifications(content.map((d: RawItem) => ({
+            notificationId: d.notificationId,
+            recipientId: d.recipientId,
+            title: d.title,
+            content: d.content,
+            type: d.type,
+            priority: d.priority,
+            channels: [],
+            read: !!d.read,
+            createdAt: d.createdAt
+          })));
+          if (typeof data.totalElements === 'number') {
+            // 如果需要后续分页，可在这里保留 total/page 信息
+          }
+        } else {
+          setNotifications(data);
+        }
       }
     } catch (e) {
       console.error('加载通知失败', e);
@@ -87,7 +110,7 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
       setLoading(false);
       setInitialized(true);
     }
-  }, [userId, limit, onAuthExpired]);
+  }, [userId, limit, onAuthExpired, opts.history]);
 
   const markAsRead = useCallback(async (recipientIds: number[]) => {
     if (!userId || recipientIds.length === 0) return;

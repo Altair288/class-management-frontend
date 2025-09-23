@@ -52,7 +52,6 @@ const menu = [
           { text: "日历视图", href: "/admin/leave/calendar", key: "leave-calendar" },
           { text: "学生管理", href: "/admin/leave/students", key: "leave-students" },
           { text: "系统配置", href: "/admin/leave/config", key: "leave-config" },
-          { text: "审计日志", href: "/admin/leave/logs", key: "leave-logs" },
         ],
       },
       {

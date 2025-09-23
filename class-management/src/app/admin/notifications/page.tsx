@@ -16,7 +16,7 @@ export default function AllNotificationsPage() {
     fetch('/api/users/current').then(r => r.json()).then(setUser).catch(() => setUser(null));
   }, []);
 
-  const { notifications, unreadCount, loading, markAsRead, markAllRead, refresh } = useNotifications(user?.id, { limit: 100 });
+  const { notifications, unreadCount, loading, markAsRead, markAllRead, refresh } = useNotifications(user?.id, { limit: 100, history: true });
 
   const filtered = notifications.filter(n => {
     return (!typeFilter || n.type === typeFilter) && (!priorityFilter || n.priority === priorityFilter) && (!search || n.title.includes(search) || n.content.includes(search));
@@ -64,7 +64,7 @@ export default function AllNotificationsPage() {
           ) : (
             <Box>
               {filtered.map((n, idx) => (
-                <Box key={n.notificationId} sx={{ p: 2.5, borderBottom: idx < filtered.length -1 ? '1px solid #f1f3f5' : 'none', display: 'flex', gap: 2, background: n.read ? '#fff' : '#f5f9ff', '&:hover': { background: n.read ? '#f8f9fa' : '#e9f2ff' }, cursor: 'pointer' }}
+                <Box key={n.notificationId+"-"+n.recipientId} sx={{ p: 2.5, borderBottom: idx < filtered.length -1 ? '1px solid #f1f3f5' : 'none', display: 'flex', gap: 2, background: n.read ? '#fff' : '#f5f9ff', '&:hover': { background: n.read ? '#f8f9fa' : '#e9f2ff' }, cursor: 'pointer' }}
                   onClick={() => !n.read && markAsRead([n.recipientId])}
                 >
                   {!n.read && <CircleIcon sx={{ fontSize: 10, mt: 0.75, color: getPriorityColor(n.priority) }} />}
