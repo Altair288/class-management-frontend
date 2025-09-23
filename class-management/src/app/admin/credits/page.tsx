@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Theme } from '@mui/material/styles';
 import axios from "axios";
 import {
   Box,
@@ -97,6 +98,10 @@ interface DashboardSummary {
 }
 
 export default function CreditsPage() {
+  const safeSurface = (theme: Theme, key: 'main'|'high'|'elevated') => {
+    // @ts-expect-error optional custom palette extension
+    return theme.palette?.surface?.[key];
+  };
   const [tabValue, setTabValue] = useState(0);
 
   // 从后端获取学分类别数据
@@ -168,7 +173,7 @@ export default function CreditsPage() {
       <Box sx={{ p: 3 }}>
         {/* 页面标题 */}
         <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 600, color: 'text.primary' }}>
             德育学分管理
           </Typography>
           <Typography variant="body1" color="text.secondary">
@@ -189,10 +194,11 @@ export default function CreditsPage() {
                 sx={{ 
                   height: '100%',
                   borderRadius: 1,
-                  border: '1px solid #e0e0e0',
+                  border: (theme) => `1px solid ${theme.palette.divider}`,
                   boxShadow: 'none',
+                  backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.background.paper : (safeSurface(theme,'main') || theme.palette.background.paper),
                   '&:hover': {
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    boxShadow: (theme) => theme.palette.mode === 'light' ? '0 2px 8px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.6)',
                     transition: 'box-shadow 0.2s'
                   }
                 }}
@@ -203,7 +209,7 @@ export default function CreditsPage() {
                       <Typography 
                         variant="body2" 
                         sx={{ 
-                          color: '#6c757d', 
+                          color: 'text.secondary', 
                           fontSize: '0.875rem',
                           fontWeight: 500,
                           mb: 1
@@ -226,7 +232,7 @@ export default function CreditsPage() {
                         <Typography 
                           variant="body2" 
                           sx={{ 
-                            color: '#6c757d',
+                            color: 'text.secondary',
                             fontSize: '0.875rem'
                           }}
                         >
@@ -250,13 +256,13 @@ export default function CreditsPage() {
         </Box>
 
         {/* 学分类别概览 */}
-        <Card sx={{ mb: 4, borderRadius: 1, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+  <Card sx={{ mb: 4, borderRadius: 1, border: (theme) => `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.background.paper : (safeSurface(theme,'main') || theme.palette.background.paper) }}>
           <CardContent sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: '#212529' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
                 学分类别分布
               </Typography>
-              <Typography variant="body2" sx={{ color: '#6c757d' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 5个评估维度
               </Typography>
             </Box>
@@ -272,14 +278,15 @@ export default function CreditsPage() {
                     sx={{
                       p: 3,
                       borderRadius: 2.5,
-                      border: '1px solid #e9ecef',
-                      backgroundColor: '#fff',
+                      border: (theme) => `1px solid ${theme.palette.divider}`,
+                      backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.background.paper : (safeSurface(theme,'high') || theme.palette.background.paper),
                       cursor: 'pointer',
                       transition: 'all 0.2s',
                       '&:hover': {
                         borderColor: categoryColor,
                         transform: 'translateY(-2px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        boxShadow: (theme) => theme.palette.mode === 'light' ? '0 4px 12px rgba(0,0,0,0.1)' : '0 4px 14px rgba(0,0,0,0.65)',
+                        backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.background.paper : (safeSurface(theme,'elevated') || theme.palette.background.paper)
                       },
                     }}
                   >
@@ -307,7 +314,7 @@ export default function CreditsPage() {
                       </Box>
                       <Typography 
                         variant="h6" 
-                        sx={{ color: '#212529', fontWeight: 600 }}
+                        sx={{ color: 'text.primary', fontWeight: 600 }}
                       >
                         {category.itemName}
                       </Typography>
@@ -315,7 +322,7 @@ export default function CreditsPage() {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#6c757d',
+                        color: 'text.secondary',
                         fontSize: '0.875rem',
                         lineHeight: 1.5,
                         mb: 2
@@ -347,8 +354,8 @@ export default function CreditsPage() {
         </Card>
 
         {/* 功能模块导航 */}
-        <Card sx={{ borderRadius: 1, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-          <Box sx={{ borderBottom: '1px solid #e0e0e0' }}>
+  <Card sx={{ borderRadius: 1, border: (theme) => `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: (theme) => theme.palette.mode === 'light' ? theme.palette.background.paper : (safeSurface(theme,'main') || theme.palette.background.paper) }}>
+          <Box sx={{ borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
             <Tabs 
               value={tabValue} 
               onChange={handleTabChange}
@@ -377,7 +384,7 @@ export default function CreditsPage() {
                 sx={{ 
                   width: 64,
                   height: 64,
-                  backgroundColor: '#f8f9fa',
+                  backgroundColor: (theme) => theme.palette.mode === 'light' ? '#f8f9fa' : (safeSurface(theme,'high') || theme.palette.background.paper),
                   borderRadius: 2,
                   display: 'flex',
                   alignItems: 'center',
@@ -386,15 +393,15 @@ export default function CreditsPage() {
                   mb: 3
                 }}
               >
-                <SettingsIcon sx={{ fontSize: 32, color: '#6c757d' }} />
+                <SettingsIcon sx={{ fontSize: 32, color: 'text.secondary' }} />
               </Box>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#212529' }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'text.primary' }}>
                 学分项目配置
               </Typography>
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: '#6c757d', 
+                  color: 'text.secondary', 
                   mb: 3,
                   maxWidth: 400,
                   mx: 'auto',
@@ -426,7 +433,7 @@ export default function CreditsPage() {
                 sx={{ 
                   width: 64,
                   height: 64,
-                  backgroundColor: '#f8f9fa',
+                  backgroundColor: (theme) => theme.palette.mode === 'light' ? '#f8f9fa' : (safeSurface(theme,'high') || theme.palette.background.paper),
                   borderRadius: 2,
                   display: 'flex',
                   alignItems: 'center',
@@ -435,15 +442,15 @@ export default function CreditsPage() {
                   mb: 3
                 }}
               >
-                <TrendingUpIcon sx={{ fontSize: 32, color: '#6c757d' }} />
+                <TrendingUpIcon sx={{ fontSize: 32, color: 'text.secondary' }} />
               </Box>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#212529' }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'text.primary' }}>
                 学生学分管理
               </Typography>
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: '#6c757d', 
+                  color: 'text.secondary', 
                   mb: 3,
                   maxWidth: 400,
                   mx: 'auto',
@@ -475,7 +482,7 @@ export default function CreditsPage() {
                 sx={{ 
                   width: 64,
                   height: 64,
-                  backgroundColor: '#f8f9fa',
+                  backgroundColor: (theme) => theme.palette.mode === 'light' ? '#f8f9fa' : (safeSurface(theme,'high') || theme.palette.background.paper),
                   borderRadius: 2,
                   display: 'flex',
                   alignItems: 'center',
@@ -484,15 +491,15 @@ export default function CreditsPage() {
                   mb: 3
                 }}
               >
-                <WarningIcon sx={{ fontSize: 32, color: '#6c757d' }} />
+                <WarningIcon sx={{ fontSize: 32, color: 'text.secondary' }} />
               </Box>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#212529' }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'text.primary' }}>
                 预警机制设置
               </Typography>
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: '#6c757d', 
+                  color: 'text.secondary', 
                   mb: 3,
                   maxWidth: 400,
                   mx: 'auto',
@@ -523,7 +530,7 @@ export default function CreditsPage() {
                 sx={{ 
                   width: 64,
                   height: 64,
-                  backgroundColor: '#f8f9fa',
+                  backgroundColor: (theme) => theme.palette.mode === 'light' ? '#f8f9fa' : (safeSurface(theme,'high') || theme.palette.background.paper),
                   borderRadius: 2,
                   display: 'flex',
                   alignItems: 'center',
@@ -532,15 +539,15 @@ export default function CreditsPage() {
                   mb: 3
                 }}
               >
-                <TrendingUpIcon sx={{ fontSize: 32, color: '#6c757d' }} />
+                <TrendingUpIcon sx={{ fontSize: 32, color: 'text.secondary' }} />
               </Box>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#212529' }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'text.primary' }}>
                 数据分析报表
               </Typography>
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: '#6c757d', 
+                  color: 'text.secondary', 
                   mb: 3,
                   maxWidth: 400,
                   mx: 'auto',

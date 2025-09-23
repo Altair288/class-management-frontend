@@ -1231,10 +1231,10 @@ export default function ConfigPage() {
       <Box sx={{ p: 3 }}>
         {/* 页面标题 */}
         <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: '#212529', mb: 1 }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
             系统配置
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6c757d' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             管理请假系统的配置参数、审批流程和通知设置
           </Typography>
         </Box>

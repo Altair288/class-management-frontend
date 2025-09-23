@@ -425,10 +425,10 @@ export default function EmployeesPage() {
         {/* 页面标题和操作按钮 */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: '#212529', mb: 1 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
               学生请假管理
             </Typography>
-            <Typography variant="body2" sx={{ color: '#6c757d' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               查看学生请假记录、余额和详细信息
             </Typography>
           </Box>
@@ -444,7 +444,7 @@ export default function EmployeesPage() {
         </Box>
 
         {/* 搜索和过滤栏 */}
-        <Card sx={{ mb: 3, borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+  <Card sx={{ mb: 3, borderRadius: 2, border: (theme) => `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
           <CardContent sx={{ p: 2 }}>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <TextField
@@ -456,7 +456,7 @@ export default function EmployeesPage() {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#6c757d' }} />
+                      <SearchIcon sx={{ color: 'text.secondary' }} />
                     </InputAdornment>
                   ),
                 }}
@@ -489,7 +489,7 @@ export default function EmployeesPage() {
         </Card>
 
         {/* 学生列表 */}
-        <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+  <Card sx={{ borderRadius: 2, border: (theme) => `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
           <CardContent sx={{ p: 0 }}>
             <TableContainer>
               <Table>
@@ -506,19 +506,19 @@ export default function EmployeesPage() {
                   {filteredRows.map((row) => (
                     <TableRow
                       key={row.studentId}
-                      sx={{ '&:hover': { backgroundColor: '#f8f9fa' }, cursor: 'pointer' }}
+                      sx={{ '&:hover': { backgroundColor: (theme) => theme.palette.action.hover }, cursor: 'pointer' }}
                       onClick={() => handleRowClick(row)}
                     >
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Avatar sx={{ bgcolor: '#1976d2' }}>
+                          <Avatar sx={{ bgcolor: (theme) => theme.palette.primary.main }}>
                             {row.name[0]}
                           </Avatar>
                           <Box>
-                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                            <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                               {row.name}
                             </Typography>
-                            <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                               {row.studentNo || `ID: ${row.studentId}`}
                             </Typography>
                           </Box>
@@ -557,14 +557,14 @@ export default function EmployeesPage() {
         >
           <DialogTitle>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: '#1976d2', width: 50, height: 50 }}>
+              <Avatar sx={{ bgcolor: (theme) => theme.palette.primary.main, width: 50, height: 50 }}>
                 <PersonIcon />
               </Avatar>
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   {selectedRow?.name}
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   {selectedRow?.clazzName} · {selectedRow?.grade}
                 </Typography>
               </Box>
@@ -574,26 +574,26 @@ export default function EmployeesPage() {
             {selectedRow && (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, height: { xs: '75vh', md: '65vh' } }}>
                 {/* 基本信息 */}
-                <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+                <Card sx={{ borderRadius: 2, border: (theme) => `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
                   <CardContent sx={{ p: 2 }}>
                     <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
                       基本信息
                     </Typography>
                     <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
                       <Box>
-                        <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
                           学号
                         </Typography>
                         <Typography variant="body1">{selectedRow.studentNo || selectedRow.studentId}</Typography>
                       </Box>
                       <Box>
-                        <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
                           班级
                         </Typography>
                         <Typography variant="body1">{selectedRow.clazzName || '-'}</Typography>
                       </Box>
                       <Box>
-                        <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
                           年级
                         </Typography>
                         <Typography variant="body1">{selectedRow.grade || '-'}</Typography>
