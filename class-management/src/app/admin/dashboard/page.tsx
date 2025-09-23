@@ -202,7 +202,7 @@ export default function AdminDashboard() {
             }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ 
-                  color: theme.palette.primary.main, 
+                  color: theme.palette.text.primary, 
                   fontWeight: 600, 
                   mb: 3 
                 }}>
