@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Box, Card, CardContent, Typography, Chip, List, ListItem, Divider, Button, CircularProgress, IconButton } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -62,53 +62,130 @@ export default function NotificationPanel({
 
   const isDashboard = variant === 'dashboard';
 
+  // 多选模式与选择集合
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const startLongPress = (notificationId: number) => {
+    clearLongPressTimer();
+    longPressTimer.current = setTimeout(() => {
+      setSelectionMode(true);
+      setSelectedIds(prev => prev.includes(notificationId) ? prev : [...prev, notificationId]);
+    }, 500); // 500ms 触发
+  };
+
+  const toggleSelect = (notificationId: number) => {
+    setSelectedIds(prev => prev.includes(notificationId) ? prev.filter(id => id !== notificationId) : [...prev, notificationId]);
+  };
+
+  const exitSelection = () => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+  };
+
+  const batchMarkAsRead = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    const targetRecipientIds = notifications.filter(n => selectedIds.includes(n.notificationId) && !n.read).map(n => n.recipientId);
+    if (targetRecipientIds.length > 0) {
+      markAsRead(targetRecipientIds);
+    }
+    exitSelection();
+  }, [selectedIds, notifications, markAsRead]);
+
   const header = (
     <Box sx={{
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      mb: 1.5
+      mb: 1.5,
+      pr: 0.5
     }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
-          最新消息
-        </Typography>
-        <Chip
-          label={`${unreadCount} 未读`}
-          size="small"
-          sx={{
-            height: 20,
-            fontSize: '0.65rem',
-            backgroundColor: theme.palette.primary.main,
-            color: theme.palette.primary.contrastText,
-            '& .MuiChip-label': { px: 0.5 }
-          }}
-        />
-      </Box>
-      {showHeaderActions && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {unreadCount > 0 && (
+      {!selectionMode ? (
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', color: 'text.primary' }}>
+              最新消息
+            </Typography>
+            <Chip
+              label={`${unreadCount} 未读`}
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: '0.65rem',
+                backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.primary.main, 0.35) : theme.palette.primary.main,
+                color: theme.palette.primary.contrastText,
+                backdropFilter: theme.palette.mode === 'dark' ? 'blur(4px)' : 'none',
+                border: '1px solid',
+                borderColor: theme.palette.mode === 'dark' ? alpha(theme.palette.primary.light, 0.4) : 'transparent',
+                '& .MuiChip-label': { px: 0.5 }
+              }}
+            />
+          </Box>
+          {showHeaderActions && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {unreadCount > 0 && (
+                <Button
+                  size="small"
+                  onClick={() => markAllRead()}
+                  sx={{
+                    textTransform: 'none',
+                    fontSize: '0.7rem',
+                    color: 'primary.main',
+                    '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) }
+                  }}
+                >全部已读</Button>
+              )}
+              <IconButton size="small" onClick={() => refresh()} disabled={loading} sx={{ color: 'primary.main' }}>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
+        </>
+      ) : (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>多选模式</Typography>
+            <Chip size="small" label={`已选 ${selectedIds.length}`} sx={{ height: 20, fontSize: '0.6rem' }} />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Button
               size="small"
-              onClick={() => markAllRead()}
-              sx={{
-                textTransform: 'none',
-                fontSize: '0.7rem',
-                color: 'primary.main',
-                '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) }
-              }}
-            >全部已读</Button>
-          )}
-          <IconButton size="small" onClick={() => refresh()} disabled={loading} sx={{ color: 'primary.main' }}>
-            <RefreshIcon fontSize="small" />
-          </IconButton>
+              disabled={selectedIds.length === 0}
+              onClick={batchMarkAsRead}
+              sx={{ textTransform: 'none', fontSize: '0.7rem', color: selectedIds.length === 0 ? 'text.disabled' : 'primary.main' }}
+            >标记已读</Button>
+            <Button
+              size="small"
+              onClick={exitSelection}
+              sx={{ textTransform: 'none', fontSize: '0.7rem', color: 'text.secondary' }}
+            >退出</Button>
+          </Box>
         </Box>
       )}
     </Box>
   );
 
   const list = (
-    <Box sx={{ maxHeight: isDashboard ? 365 : 400, overflowY: 'auto' }}>
+    <Box sx={{
+      maxHeight: isDashboard ? 365 : 400,
+      overflowY: 'auto',
+      pr: 0.5,
+      '&::-webkit-scrollbar': { width: 6 },
+      '&::-webkit-scrollbar-track': { background: 'transparent' },
+      '&::-webkit-scrollbar-thumb': {
+        background: alpha(theme.palette.primary.main, 0.3),
+        borderRadius: 3,
+        '&:hover': { background: alpha(theme.palette.primary.main, 0.5) }
+      }
+    }}>
       {loading && !initialized ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
           <CircularProgress size={24} />
@@ -119,87 +196,147 @@ export default function NotificationPanel({
         </Box>
       ) : (
         <List sx={{ py: 0 }}>
-          {notifications.map((n, idx) => (
-            <Box key={n.notificationId}>
-              <ListItem
-                onClick={() => !n.read && markAsRead([n.recipientId])}
-                sx={{
-                  alignItems: 'flex-start',
-                  display: 'flex',
-                  gap: 1,
-                  cursor: 'pointer',
-                  py: 1.25,
-                  px: 0.5,
-                  backgroundColor: n.read 
-                    ? theme.palette.mode === 'light' ? theme.palette.background.paper : alpha(theme.palette.background.paper, 0.6)
-                    : alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.15 : 0.12),
-                  '&:hover': { 
-                    backgroundColor: n.read 
-                      ? (theme.palette.mode === 'light' 
-                          ? alpha(theme.palette.action.hover, 0.4) 
-                          : alpha(theme.palette.primary.main, 0.08)) 
-                      : alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.25 : 0.18)
-                  },
-                  transition: 'background-color .15s ease'
-                }}
-              >
-                {/* 左侧小圆点 */}
-                <Box sx={{ width: 10, display: 'flex', justifyContent: 'center', pt: 0.6 }}>
-                  {!n.read && <CircleIcon sx={{ fontSize: 10, color: getPriorityColor(n.priority) }} />}
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5, minWidth: 0 }}>
+          {notifications.map((n, idx) => {
+            const unreadBg = theme.palette.mode === 'dark' ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.primary.main, 0.08);
+            const unreadHover = theme.palette.mode === 'dark' ? alpha(theme.palette.primary.main, 0.22) : alpha(theme.palette.primary.main, 0.15);
+            // 已读项在浅色模式 hover 之前过重，改为更轻的主色微底，深色沿用原逻辑
+            const readHover = theme.palette.mode === 'dark'
+              ? alpha(theme.palette.primary.main, 0.06)
+              : alpha(theme.palette.primary.main, 0.05);
+            const isSelected = selectedIds.includes(n.notificationId);
+            return (
+              <Box key={n.notificationId}>
+                <ListItem
+                  onClick={() => {
+                    if (selectionMode) {
+                      toggleSelect(n.notificationId);
+                    } else if (!n.read) {
+                      markAsRead([n.recipientId]);
+                    }
+                  }}
+                  onMouseDown={() => { if (!selectionMode) startLongPress(n.notificationId); }}
+                  onMouseUp={clearLongPressTimer}
+                  onMouseLeave={clearLongPressTimer}
+                  onTouchStart={() => { if (!selectionMode) startLongPress(n.notificationId); }}
+                  onTouchEnd={clearLongPressTimer}
+                  sx={{
+                    alignItems: 'flex-start',
+                    display: 'flex',
+                    gap: 1,
+                    cursor: 'pointer',
+                    py: 1.2,
+                    px: 1,
+                    pr: 1.25,
+                    position: 'relative',
+                    borderRadius: 2,
+                    backgroundColor: n.read ? (selectionMode && isSelected ? alpha(theme.palette.primary.main, 0.08) : 'transparent') : unreadBg,
+                    boxShadow: (selectionMode && isSelected)
+                      ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.5)}, 0 2px 4px ${alpha('#000', 0.15)}`
+                      : '0 1px 2px rgba(0,0,0,0.05)',
+                    border: '1px solid',
+                    borderColor: (selectionMode && isSelected) ? alpha(theme.palette.primary.main, 0.6) : alpha(theme.palette.divider, 0.6),
+                    '&:before': !n.read ? {
+                      content: '""',
+                      position: 'absolute',
+                      left: 0,
+                      top: 4,
+                      bottom: 4,
+                      width: 3,
+                      borderRadius: 2,
+                      background: getPriorityColor(n.priority),
+                      boxShadow: `0 0 0 1px ${alpha(getPriorityColor(n.priority), 0.4)}`
+                    } : undefined,
+                    '&:hover': {
+                      backgroundColor: n.read ? readHover : unreadHover,
+                      boxShadow: selectionMode && isSelected ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.7)}, 0 2px 6px ${alpha('#000', 0.2)}` : undefined,
+                      borderColor: selectionMode && isSelected ? alpha(theme.palette.primary.main, 0.7) : undefined
+                    },
+                    transition: 'background-color .18s ease, box-shadow .18s ease, border-color .18s ease'
+                  }}
+                >
+                  <Box sx={{ width: 14, display: 'flex', justifyContent: 'center', pt: 0.6 }}>
+                    {selectionMode ? (
+                      <Box
+                        sx={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: 0.75,
+                          border: '2px solid',
+                          borderColor: isSelected ? theme.palette.primary.main : alpha(theme.palette.text.secondary, 0.4),
+                          background: isSelected ? theme.palette.primary.main : 'transparent',
+                          position: 'relative',
+                          transition: 'all .18s',
+                          '&:after': isSelected ? {
+                            content: '""',
+                            position: 'absolute',
+                            left: 3,
+                            top: 1.5,
+                            width: 4,
+                            height: 7,
+                            border: '2px solid #fff',
+                            borderTop: 'none',
+                            borderLeft: 'none',
+                            transform: 'rotate(45deg)'
+                          } : undefined
+                        }}
+                      />
+                    ) : (!n.read && <CircleIcon sx={{ fontSize: 8, color: getPriorityColor(n.priority) }} />)}
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5, minWidth: 0 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: n.read ? 400 : 600,
+                          color: 'text.primary',
+                          flex: 1,
+                          minWidth: 0,
+                          fontSize: '0.8rem',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {n.title}
+                      </Typography>
+                      <Chip
+                        label={getTypeLabel(n.type)}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor: alpha(getPriorityColor(n.priority), 0.8),
+                          color: getPriorityColor(n.priority),
+                          fontSize: '0.55rem',
+                          height: 16,
+                          backgroundColor: alpha(getPriorityColor(n.priority), theme.palette.mode === 'dark' ? 0.1 : 0.06),
+                          '& .MuiChip-label': { px: 0.75, py: 0 },
+                        }}
+                      />
+                    </Box>
                     <Typography
                       variant="body2"
                       sx={{
-                        fontWeight: n.read ? 400 : 600,
-                        color: 'text.primary',
-                        flex: 1,
-                        minWidth: 0,
-                        fontSize: '0.8rem',
+                        color: 'text.secondary',
+                        fontSize: '0.7rem',
+                        lineHeight: 1.3,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        mb: 0.25
                       }}
                     >
-                      {n.title}
+                      {n.content}
                     </Typography>
-                    <Chip
-                      label={getTypeLabel(n.type)}
-                      size="small"
-                      variant="outlined"
-                      sx={{
-                        borderColor: getPriorityColor(n.priority),
-                        color: getPriorityColor(n.priority),
-                        fontSize: '0.55rem',
-                        height: 16,
-                        '& .MuiChip-label': { px: 0.75, py: 0 },
-                      }}
-                    />
+                    <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.6rem' }}>
+                      {formatTime(n.createdAt)}
+                    </Typography>
                   </Box>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: 'text.secondary',
-                      fontSize: '0.7rem',
-                      lineHeight: 1.3,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      mb: 0.25
-                    }}
-                  >
-                    {n.content}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.6rem' }}>
-                    {formatTime(n.createdAt)}
-                  </Typography>
-                </Box>
-              </ListItem>
-              {idx < notifications.length - 1 && <Divider sx={{ ml: 2, borderColor: theme.palette.divider }} />}
-            </Box>
-          ))}
+                </ListItem>
+                {idx < notifications.length - 1 && <Divider sx={{ ml: 2, borderColor: alpha(theme.palette.divider, 0.6) }} />}
+              </Box>
+            );
+          })}
         </List>
       )}
     </Box>
