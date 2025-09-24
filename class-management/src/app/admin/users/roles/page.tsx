@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { alpha } from '@mui/material/styles';
 import {
   Box,
   Typography,
@@ -414,16 +415,17 @@ export default function RolesManagementPage() {
     }
   };
 
+  // 返回 palette key，用于在 sx 中通过 theme.palette 访问
   const getCategoryColor = (category: Role['category']) => {
     switch (category) {
       case 'SYSTEM':
-        return '#dc2626'; // red
+        return 'error';
       case 'APPROVAL':
-        return '#2563eb'; // blue
+        return 'primary';
       case 'CUSTOM':
-        return '#059669'; // green
+        return 'success';
       default:
-        return '#6b7280'; // gray
+        return 'text';
     }
   };
 
@@ -451,25 +453,26 @@ export default function RolesManagementPage() {
         <Box sx={{
           mb: 4,
           p: 3,
-          backgroundColor: 'white',
+          backgroundColor: 'background.paper',
           borderRadius: '12px',
-          border: '1px solid #e8eaed',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+          border: '1px solid',
+          borderColor: 'divider',
+          boxShadow: 'none'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <SecurityIcon sx={{ ml: 1,mr: 2, color: '#3182ce', fontSize: 32 }} />
+              <SecurityIcon sx={{ ml: 1,mr: 2, color: 'primary.main', fontSize: 32 }} />
               <Box>
                 <Typography variant="h4" sx={{
                   fontWeight: 600,
-                  color: '#1a202c',
+                  color: 'text.primary',
                   letterSpacing: '-0.025em',
                   mt: 2
                 }}>
                   角色管理
                 </Typography>
                 <Typography variant="body1" sx={{
-                  color: '#718096',
+                  color: 'text.secondary',
                   lineHeight: 1.6,
                   mt: 0.5
                 }}>
@@ -479,17 +482,14 @@ export default function RolesManagementPage() {
             </Box>
             <Button
               variant="contained"
+              color="primary"
               startIcon={<AddIcon />}
               onClick={handleCreateRole}
               sx={{
-                backgroundColor: '#3182ce',
                 borderRadius: '8px',
                 fontWeight: 600,
                 px: 4,
-                py: 1.5,
-                '&:hover': {
-                  backgroundColor: '#2c5282'
-                }
+                py: 1.5
               }}
             >
               新建角色
@@ -501,80 +501,88 @@ export default function RolesManagementPage() {
         <Box sx={{ mb: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 3 }}>
           <Card sx={{
             borderRadius: '12px',
-            border: '1px solid #e8eaed',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: 'none',
+            backgroundColor: 'background.paper'
           }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#718096', mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
                     总角色数
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 600, color: '#1a202c' }}>
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     {roles.length}
                   </Typography>
                 </Box>
-                <SecurityIcon sx={{ color: '#3182ce', fontSize: 40 }} />
+                <SecurityIcon sx={{ color: 'primary.main', fontSize: 40 }} />
               </Box>
             </CardContent>
           </Card>
 
           <Card sx={{
             borderRadius: '12px',
-            border: '1px solid #e8eaed',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: 'none',
+            backgroundColor: 'background.paper'
           }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#718096', mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
                     系统角色
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 600, color: '#dc2626' }}>
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'error.main' }}>
                     {roles.filter(r => r.category === 'SYSTEM').length}
                   </Typography>
                 </Box>
-                <AdminIcon sx={{ color: '#dc2626', fontSize: 40 }} />
+                <AdminIcon sx={{ color: 'error.main', fontSize: 40 }} />
               </Box>
             </CardContent>
           </Card>
 
           <Card sx={{
             borderRadius: '12px',
-            border: '1px solid #e8eaed',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: 'none',
+            backgroundColor: 'background.paper'
           }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#718096', mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
                     审批角色
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 600, color: '#2563eb' }}>
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'primary.main' }}>
                     {roles.filter(r => r.category === 'APPROVAL').length}
                   </Typography>
                 </Box>
-                <SupervisorIcon sx={{ color: '#2563eb', fontSize: 40 }} />
+                <SupervisorIcon sx={{ color: 'primary.main', fontSize: 40 }} />
               </Box>
             </CardContent>
           </Card>
 
           <Card sx={{
             borderRadius: '12px',
-            border: '1px solid #e8eaed',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: 'none',
+            backgroundColor: 'background.paper'
           }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#718096', mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
                     启用角色
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 600, color: '#059669' }}>
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'success.main' }}>
                     {roles.filter(r => r.enabled).length}
                   </Typography>
                 </Box>
-                <PersonIcon sx={{ color: '#059669', fontSize: 40 }} />
+                <PersonIcon sx={{ color: 'success.main', fontSize: 40 }} />
               </Box>
             </CardContent>
           </Card>
@@ -592,9 +600,11 @@ export default function RolesManagementPage() {
         >
           <Card sx={{
             borderRadius: '12px',
-            border: '1px solid #e8eaed',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: 'none',
             mb: 3,
+            backgroundColor: 'background.paper',
             overflow: 'hidden'
           }}>
             <Tabs
@@ -602,23 +612,23 @@ export default function RolesManagementPage() {
               onChange={(e, newValue) => setSelectedCategory(newValue)}
               variant="fullWidth"
               sx={{
-                backgroundColor: '#f7fafc',
+                backgroundColor: 'background.default',
                 '& .MuiTab-root': {
                   textTransform: 'none',
                   fontWeight: 500,
-                  color: '#718096',
+                  color: 'text.secondary',
                   minHeight: 56,
                   transition: 'all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1)',
                   '&.Mui-selected': {
-                    color: '#3182ce',
+                    color: 'primary.main',
                     fontWeight: 600
                   },
                   '&:hover': {
-                    backgroundColor: 'rgba(49, 130, 206, 0.04)'
+                    backgroundColor: (theme)=> alpha(theme.palette.primary.main, 0.06)
                   }
                 },
                 '& .MuiTabs-indicator': {
-                  backgroundColor: '#3182ce',
+                  backgroundColor: 'primary.main',
                   height: 3,
                   transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)'
                 },
@@ -659,9 +669,11 @@ export default function RolesManagementPage() {
         >
           <Card sx={{
             borderRadius: '12px',
-            border: '1px solid #e8eaed',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            mb: 3
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: 'none',
+            mb: 3,
+            backgroundColor: 'background.paper'
           }}>
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -672,7 +684,7 @@ export default function RolesManagementPage() {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <SearchIcon sx={{ color: '#718096' }} />
+                        <SearchIcon sx={{ color: 'text.secondary' }} />
                       </InputAdornment>
                     ),
                   }}
@@ -680,16 +692,16 @@ export default function RolesManagementPage() {
                     minWidth: 300,
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '8px',
-                      backgroundColor: '#f7fafc',
+                      backgroundColor: 'action.hover',
                       transition: 'all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1)',
                       '& fieldset': {
-                        borderColor: '#e8eaed'
+                        borderColor: 'divider'
                       },
                       '&:hover fieldset': {
-                        borderColor: '#90cdf4'
+                        borderColor: 'primary.light'
                       },
                       '&.Mui-focused fieldset': {
-                        borderColor: '#3182ce'
+                        borderColor: 'primary.main'
                       }
                     }
                   }}
@@ -720,17 +732,19 @@ export default function RolesManagementPage() {
           >
             <Card sx={{
               borderRadius: '12px',
-              border: '1px solid #e8eaed',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-              overflow: 'hidden'
+              border: '1px solid',
+              borderColor: 'divider',
+              boxShadow: 'none',
+              overflow: 'hidden',
+              backgroundColor: 'background.paper'
             }}>
               {loading ? (
                 <Box sx={{ 
                   py: 8, 
                   textAlign: 'center',
-                  color: '#718096'
+                  color: 'text.secondary'
                 }}>
-                  <CircularProgress sx={{ color: '#3182ce', mb: 2 }} />
+                  <CircularProgress sx={{ color: 'primary.main', mb: 2 }} />
                   <Typography variant="h6" sx={{ mb: 1 }}>
                     加载中...
                   </Typography>
@@ -744,23 +758,23 @@ export default function RolesManagementPage() {
                   <TableContainer>
                     <Table>
                       <TableHead>
-                        <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                          <TableCell sx={{ fontWeight: 600, color: '#4a5568', py: 2 }}>
+                        <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                          <TableCell sx={{ fontWeight: 600, color: 'text.secondary', py: 2 }}>
                             角色信息
                           </TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#4a5568', py: 2 }}>
+                          <TableCell sx={{ fontWeight: 600, color: 'text.secondary', py: 2 }}>
                             类型
                           </TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#4a5568', py: 2 }}>
+                          <TableCell sx={{ fontWeight: 600, color: 'text.secondary', py: 2 }}>
                             层级
                           </TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#4a5568', py: 2 }}>
+                          <TableCell sx={{ fontWeight: 600, color: 'text.secondary', py: 2 }}>
                             状态
                           </TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#4a5568', py: 2 }}>
+                          <TableCell sx={{ fontWeight: 600, color: 'text.secondary', py: 2 }}>
                             创建时间
                           </TableCell>
-                          <TableCell sx={{ fontWeight: 600, color: '#4a5568', py: 2, textAlign: 'center' }}>
+                          <TableCell sx={{ fontWeight: 600, color: 'text.secondary', py: 2, textAlign: 'center' }}>
                             操作
                           </TableCell>
                         </TableRow>
@@ -780,20 +794,20 @@ export default function RolesManagementPage() {
                       }}
                       sx={{
                         '&:hover': {
-                          backgroundColor: '#f7fafc'
+                          backgroundColor: 'action.hover'
                         }
                       }}
                     >
                         <TableCell>
                           <Box>
-                            <Typography variant="body1" sx={{ fontWeight: 600, color: '#1a202c', mb: 0.5 }}>
+                            <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
                               {role.displayName}
                             </Typography>
-                            <Typography variant="body2" sx={{ color: '#718096', fontSize: '0.875rem' }}>
+                            <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
                               代码: {role.code}
                             </Typography>
                             {role.description && (
-                              <Typography variant="body2" sx={{ color: '#718096', fontSize: '0.75rem', mt: 0.5 }}>
+                              <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.75rem', mt: 0.5 }}>
                                 {role.description}
                               </Typography>
                             )}
@@ -804,22 +818,24 @@ export default function RolesManagementPage() {
                             icon={getCategoryIcon(role.category)}
                             label={getCategoryLabel(role.category)}
                             size="small"
-                            sx={{
-                              backgroundColor: `${getCategoryColor(role.category)}15`,
-                              color: getCategoryColor(role.category),
-                              fontWeight: 500,
-                              '& .MuiChip-icon': {
-                                color: getCategoryColor(role.category)
-                              }
+                            sx={(theme)=>{
+                              const key = getCategoryColor(role.category) as 'error'|'primary'|'success'|'text';
+                              const main = key === 'text' ? theme.palette.text.secondary : theme.palette[key].main;
+                              return {
+                                backgroundColor: alpha(main, 0.15),
+                                color: main,
+                                fontWeight: 500,
+                                '& .MuiChip-icon': { color: main }
+                              };
                             }}
                           />
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body2" sx={{ color: '#1a202c', fontWeight: 500 }}>
+                            <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500 }}>
                               {role.level || '-'}
                             </Typography>
-                            <Typography variant="body2" sx={{ color: '#718096', fontSize: '0.75rem' }}>
+                            <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
                               (排序: {role.sortOrder || '-'})
                             </Typography>
                           </Box>
@@ -829,18 +845,19 @@ export default function RolesManagementPage() {
                             label={role.enabled ? '启用' : '禁用'}
                             size="small"
                             icon={role.enabled ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
-                            sx={{
-                              backgroundColor: role.enabled ? '#f0fff4' : '#fef2f2',
-                              color: role.enabled ? '#059669' : '#dc2626',
-                              fontWeight: 500,
-                              '& .MuiChip-icon': {
-                                color: role.enabled ? '#059669' : '#dc2626'
-                              }
+                            sx={(theme)=>{
+                              const main = role.enabled ? theme.palette.success.main : theme.palette.error.main;
+                              return {
+                                backgroundColor: alpha(main, 0.12),
+                                color: main,
+                                fontWeight: 500,
+                                '& .MuiChip-icon': { color: main }
+                              };
                             }}
                           />
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" sx={{ color: '#718096' }}>
+                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                             {new Date(role.createdAt).toLocaleDateString('zh-CN', {
                               year: 'numeric',
                               month: '2-digit',
@@ -855,9 +872,9 @@ export default function RolesManagementPage() {
                                 size="small"
                                 onClick={() => handleEditRole(role)}
                                 sx={{
-                                  color: '#3182ce',
+                                  color: 'primary.main',
                                   '&:hover': {
-                                    backgroundColor: '#ebf8ff'
+                                    backgroundColor: (theme)=> alpha(theme.palette.primary.main, 0.08)
                                   }
                                 }}
                               >
@@ -869,9 +886,9 @@ export default function RolesManagementPage() {
                                 size="small"
                                 onClick={() => handleToggleRole(role.id)}
                                 sx={{
-                                  color: role.enabled ? '#dc2626' : '#059669',
+                                  color: role.enabled ? 'error.main' : 'success.main',
                                   '&:hover': {
-                                    backgroundColor: role.enabled ? '#fef2f2' : '#f0fff4'
+                                    backgroundColor: (theme)=> role.enabled ? alpha(theme.palette.error.main,0.1) : alpha(theme.palette.success.main,0.15)
                                   }
                                 }}
                               >
@@ -883,12 +900,12 @@ export default function RolesManagementPage() {
                                 <IconButton
                                   size="small"
                                   onClick={() => handleDeleteRole(role.id)}
-                                  sx={{
-                                    color: '#dc2626',
-                                    '&:hover': {
-                                      backgroundColor: '#fef2f2'
-                                    }
-                                  }}
+                                    sx={{
+                                      color: 'error.main',
+                                      '&:hover': {
+                                        backgroundColor: (theme)=> alpha(theme.palette.error.main,0.1)
+                                      }
+                                    }}
                                 >
                                   <DeleteIcon fontSize="small" />
                                 </IconButton>
@@ -904,9 +921,9 @@ export default function RolesManagementPage() {
             </TableContainer>
                   )}
                   {selectedCategory === 'CUSTOM' && !loading && (
-                    <Box sx={{ py: 10, textAlign: 'center', color: '#718096' }}>
+                    <Box sx={{ py: 10, textAlign: 'center', color: 'text.secondary' }}>
                       <PersonIcon sx={{ fontSize: 56, mb: 2, opacity: 0.4 }} />
-                      <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: '#1a202c' }}>
+                      <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
                         自定义角色功能开发中
                       </Typography>
                       <Typography variant="body2" sx={{ mb: 1 }}>
@@ -930,7 +947,7 @@ export default function RolesManagementPage() {
                 <Box sx={{ 
                   py: 8, 
                   textAlign: 'center',
-                  color: '#718096'
+                  color: 'text.secondary'
                 }}>
                   <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
@@ -952,7 +969,7 @@ export default function RolesManagementPage() {
                       ease: [0.4, 0.0, 0.2, 1]
                     }}
                   >
-                    <Typography variant="h6" sx={{ mb: 1 }}>
+                    <Typography variant="h6" sx={{ mb: 1, color: 'text.primary' }}>
                       未找到角色
                     </Typography>
                     <Typography variant="body2">
@@ -987,7 +1004,7 @@ export default function RolesManagementPage() {
           <DialogTitle sx={{ 
             pb: 2,
             fontWeight: 600,
-            color: '#1a202c'
+            color: 'text.primary'
           }}>
             {dialogMode === 'create' ? '创建新角色' : '编辑角色'}
           </DialogTitle>
@@ -1103,12 +1120,12 @@ export default function RolesManagementPage() {
               onClick={() => setOpenDialog(false)}
               variant="outlined"
               sx={{
-                borderColor: '#e8eaed',
-                color: '#4a5568',
+                borderColor: 'divider',
+                color: 'text.secondary',
                 borderRadius: '8px',
                 '&:hover': {
-                  borderColor: '#cbd5e0',
-                  backgroundColor: '#f7fafc'
+                  borderColor: 'text.secondary',
+                  backgroundColor: 'action.hover'
                 }
               }}
             >
@@ -1117,17 +1134,11 @@ export default function RolesManagementPage() {
             <Button
               onClick={handleSaveRole}
               variant="contained"
+              color="primary"
               startIcon={dialogLoading ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <SaveIcon />}
               disabled={dialogLoading}
               sx={{
-                backgroundColor: '#3182ce',
-                borderRadius: '8px',
-                '&:hover': {
-                  backgroundColor: '#2c5282'
-                },
-                '&:disabled': {
-                  backgroundColor: '#cbd5e0'
-                }
+                borderRadius: '8px'
               }}
             >
               {dialogLoading ? '保存中...' : (dialogMode === 'create' ? '创建角色' : '保存更改')}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
+import { alpha, Theme } from '@mui/material/styles';
 import {
 	Box,
 	Typography,
@@ -121,6 +122,14 @@ const ROLE_CODES = {
 	DEPARTMENT_HEAD: 'DEPT_HEAD', // 修正：与后端保持一致
 	HOMEROOM_TEACHER: 'HOMEROOM' // 修正：与后端保持一致
 } as const;
+
+// 语义化角色色彩集中管理（便于统一深浅模式策略）
+const roleAccent = (theme: Theme) => ({
+  principal: theme.palette.error,
+  grade: theme.palette.warning,
+  department: theme.palette.info || theme.palette.secondary || theme.palette.primary,
+  class: theme.palette.success
+});
 
 type OrgRoleCode = typeof ROLE_CODES[keyof typeof ROLE_CODES];
 
@@ -1038,79 +1047,41 @@ export default function UsersPage() {
 	};
 
 	const renderTeacherList = () => (
-		<Card sx={{
-			borderRadius: '8px',
-			border: '1px solid #e8eaed',
-			boxShadow: 'none',
-			overflow: 'hidden'
-		}}>
+			<Card sx={{
+				borderRadius: '8px',
+				border: '1px solid',
+				borderColor: 'divider',
+				boxShadow: 'none',
+				overflow: 'hidden',
+				backgroundColor: 'background.paper'
+			}}>
 			<CardContent sx={{ p: 0 }}>
 				<TableContainer>
 					<Table size="small">
-						<TableHead>
-							<TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-								<TableCell sx={{
-									fontWeight: 600,
-									color: '#4a5568',
-									borderBottom: '1px solid #e8eaed',
-									py: 2
-								}}>
+							<TableHead>
+							<TableRow sx={{ backgroundColor: 'action.hover' }}>
+								<TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider', py: 2 }}>
 									姓名
 								</TableCell>
-								<TableCell sx={{
-									fontWeight: 600,
-									color: '#4a5568',
-									borderBottom: '1px solid #e8eaed',
-									py: 2
-								}}>
+								<TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider', py: 2 }}>
 									工号
 								</TableCell>
-								<TableCell sx={{
-									fontWeight: 600,
-									color: '#4a5568',
-									borderBottom: '1px solid #e8eaed',
-									py: 2
-								}}>
+								<TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider', py: 2 }}>
 									联系方式
 								</TableCell>
-								<TableCell sx={{
-									fontWeight: 600,
-									color: '#4a5568',
-									borderBottom: '1px solid #e8eaed',
-									py: 2
-								}}>
+								<TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider', py: 2 }}>
 									班主任班级
 								</TableCell>
-								<TableCell sx={{
-									fontWeight: 600,
-									color: '#4a5568',
-									borderBottom: '1px solid #e8eaed',
-									py: 2
-								}}>
+								<TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider', py: 2 }}>
 									教学归属系部
 								</TableCell>
-								<TableCell sx={{
-									fontWeight: 600,
-									color: '#4a5568',
-									borderBottom: '1px solid #e8eaed',
-									py: 2
-								}}>
+								<TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider', py: 2 }}>
 									教学归属年级
 								</TableCell>
-								<TableCell sx={{
-									fontWeight: 600,
-									color: '#4a5568',
-									borderBottom: '1px solid #e8eaed',
-									py: 2
-								}}>
+								<TableCell sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider', py: 2 }}>
 									组织角色
 								</TableCell>
-								<TableCell align="right" sx={{
-									fontWeight: 600,
-									color: '#4a5568',
-									borderBottom: '1px solid #e8eaed',
-									py: 2
-								}}>
+								<TableCell align="right" sx={{ fontWeight: 600, color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider', py: 2 }}>
 									操作
 								</TableCell>
 							</TableRow>
@@ -1121,45 +1092,36 @@ export default function UsersPage() {
 									key={t.id}
 									hover
 									sx={{
-										'&:hover': {
-											backgroundColor: '#f8f9fa'
-										},
-										borderBottom: index === filteredTeachers.length - 1 ? 'none' : '1px solid #f0f2f5'
+										'&:hover': { backgroundColor: 'action.hover' },
+										borderBottom: index === filteredTeachers.length - 1 ? 'none' : '1px solid',
+										borderColor: 'divider'
 									}}
 								>
 									<TableCell sx={{ py: 2.5 }}>
 										<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-											<Box sx={{
-												width: 32,
-												height: 32,
-												borderRadius: '8px',
-												backgroundColor: '#e2e8f0',
-												display: 'flex',
-												alignItems: 'center',
-												justifyContent: 'center'
-											}}>
-												<PersonIcon fontSize="small" sx={{ color: '#718096' }} />
+											<Box sx={{ width: 32, height: 32, borderRadius: '8px', backgroundColor: (theme)=> alpha(theme.palette.primary.main,0.15), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+												<PersonIcon fontSize="small" sx={{ color: 'primary.main' }} />
 											</Box>
-											<Typography sx={{ fontWeight: 500, color: '#1a202c' }}>{t.name}</Typography>
+											<Typography sx={{ fontWeight: 500, color: 'text.primary' }}>{t.name}</Typography>
 										</Box>
 									</TableCell>
 									<TableCell sx={{ py: 2.5 }}>
-										<Typography variant="body2" sx={{ color: '#718096', fontFamily: 'monospace' }}>
+										<Typography variant="body2" sx={{ color: 'text.secondary', fontFamily: 'monospace' }}>
 											{t.teacherNo}
 										</Typography>
 									</TableCell>
 									<TableCell sx={{ py: 2.5 }}>
 										<Box>
-											<Typography variant="body2" sx={{ color: '#1a202c', fontWeight: 500 }}>
+											<Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500 }}>
 												{t.phone || '—'}
 											</Typography>
-											<Typography variant="caption" sx={{ color: '#a0aec0' }}>
+											<Typography variant="caption" sx={{ color: 'text.disabled' }}>
 												{t.email || ''}
 											</Typography>
 										</Box>
 									</TableCell>
 									<TableCell sx={{ py: 2.5 }}>
-										<Typography variant="body2" sx={{ color: '#1a202c' }}>
+										<Typography variant="body2" sx={{ color: 'text.primary' }}>
 											{t.homeroomClassName || '—'}
 										</Typography>
 									</TableCell>
@@ -1168,11 +1130,11 @@ export default function UsersPage() {
 											const basicInfo = getTeacherBasicInfo(t);
 											return (
 												<Box>
-													<Typography variant="body2" sx={{ color: '#1a202c' }}>
+													<Typography variant="body2" sx={{ color: 'text.primary' }}>
 														{basicInfo.departmentName}
 													</Typography>
 													{basicInfo.source === 'homeroom' && (
-														<Typography variant="caption" sx={{ color: '#a0aec0', fontSize: '11px' }}>
+														<Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '11px' }}>
 															(来自班主任班级)
 														</Typography>
 													)}
@@ -1185,11 +1147,11 @@ export default function UsersPage() {
 											const basicInfo = getTeacherBasicInfo(t);
 											return (
 												<Box>
-													<Typography variant="body2" sx={{ color: '#1a202c' }}>
+													<Typography variant="body2" sx={{ color: 'text.primary' }}>
 														{basicInfo.grade}
 													</Typography>
 													{basicInfo.source === 'homeroom' && (
-														<Typography variant="caption" sx={{ color: '#a0aec0', fontSize: '11px' }}>
+														<Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '11px' }}>
 															(来自班主任班级)
 														</Typography>
 													)}
@@ -1200,16 +1162,7 @@ export default function UsersPage() {
 									<TableCell sx={{ py: 2.5 }}>
 										<Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
 											{(t.roles || []).length === 0 && (
-												<Chip
-													label="无"
-													size="small"
-													sx={{
-														backgroundColor: '#f7fafc',
-														color: '#a0aec0',
-														border: '1px solid #e2e8f0',
-														fontWeight: 500
-													}}
-												/>
+												<Chip label="无" size="small" sx={(theme)=>({ backgroundColor: alpha(theme.palette.text.primary,0.06), color: theme.palette.text.disabled, border: '1px solid', borderColor: 'divider', fontWeight: 500 })} />
 											)}
 											{(t.roles || []).map(r => {
 												const display = getRoleDisplayName(r, assignableRoles);
@@ -1218,11 +1171,13 @@ export default function UsersPage() {
 														key={r}
 														label={display}
 														size="small"
-														sx={{
-															backgroundColor: r === ROLE_CODES.PRINCIPAL ? '#fed7d7' : r === ROLE_CODES.GRADE_LEADER ? '#feebc8' : '#e2e8f0',
-															color: r === ROLE_CODES.PRINCIPAL ? '#c53030' : r === ROLE_CODES.GRADE_LEADER ? '#c05621' : '#4a5568',
-															border: r === ROLE_CODES.PRINCIPAL ? '1px solid #feb2b2' : r === ROLE_CODES.GRADE_LEADER ? '1px solid #fbd38d' : '1px solid #cbd5e0',
-															fontWeight: 500
+														sx={(theme)=>{
+															let main = theme.palette.info.main;
+															if(r===ROLE_CODES.PRINCIPAL) main = theme.palette.error.main;
+															else if(r===ROLE_CODES.GRADE_LEADER) main = theme.palette.warning.main;
+															else if(r===ROLE_CODES.DEPARTMENT_HEAD) main = theme.palette.secondary ? theme.palette.secondary.main : theme.palette.primary.light;
+															else if(r===ROLE_CODES.HOMEROOM_TEACHER) main = theme.palette.success.main;
+															return { backgroundColor: alpha(main,0.15), color: main, fontWeight:500, border: '1px solid', borderColor: alpha(main,0.3) };
 														}}
 													/>
 												);
@@ -1231,20 +1186,8 @@ export default function UsersPage() {
 									</TableCell>
 									<TableCell align="right" sx={{ py: 2.5 }}>
 										<Tooltip title="编辑角色">
-											<IconButton
-												size="small"
-												onClick={() => openEdit(t)}
-												sx={{
-													backgroundColor: '#f8f9fa',
-													border: '1px solid #e8eaed',
-													borderRadius: '6px',
-													'&:hover': {
-														backgroundColor: '#e2e8f0',
-														borderColor: '#cbd5e0'
-													}
-												}}
-											>
-												<EditIcon fontSize="small" sx={{ color: '#718096' }} />
+											<IconButton size="small" onClick={() => openEdit(t)} sx={{ backgroundColor: 'action.hover', border: '1px solid', borderColor: 'divider', borderRadius: '6px', '&:hover': { backgroundColor: (theme)=> alpha(theme.palette.primary.main,0.12) } }}>
+												<EditIcon fontSize="small" sx={{ color: 'text.secondary' }} />
 											</IconButton>
 										</Tooltip>
 									</TableCell>
@@ -1252,9 +1195,9 @@ export default function UsersPage() {
 							))}
 							{filteredTeachers.length === 0 && !loading && (
 								<TableRow>
-									<TableCell colSpan={8} align="center" sx={{ py: 8, color: '#a0aec0' }}>
+									<TableCell colSpan={8} align="center" sx={{ py: 8, color: 'text.disabled' }}>
 										<Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-											<GroupIcon sx={{ fontSize: 48, color: '#e2e8f0' }} />
+											<GroupIcon sx={{ fontSize: 48, color: 'divider' }} />
 											<Typography variant="body2">暂无教师数据</Typography>
 										</Box>
 									</TableCell>
@@ -1265,7 +1208,7 @@ export default function UsersPage() {
 				</TableContainer>
 				{loading && (
 					<Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-						<CircularProgress size={28} sx={{ color: '#4a5568' }} />
+						<CircularProgress size={28} sx={{ color: 'text.secondary' }} />
 					</Box>
 				)}
 			</CardContent>
@@ -1277,17 +1220,14 @@ export default function UsersPage() {
 			{/* 顶部流程图 */}
 			<Card sx={{
 				borderRadius: '16px',
-				border: '1px solid #e8eaed',
-				boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+				border: '1px solid',
+				borderColor: 'divider',
+				boxShadow: 'none',
+				backgroundColor: 'background.paper',
 				overflow: 'hidden'
 			}}>
 				<CardContent sx={{ p: 4 }}>
-					<Typography variant="h6" sx={{
-						fontWeight: 700,
-						color: '#1a202c',
-						mb: 3,
-						textAlign: 'center'
-					}}>
+					<Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 3, textAlign: 'center' }}>
 						组织架构流程图
 					</Typography>
 
@@ -1311,12 +1251,12 @@ export default function UsersPage() {
 								cursor: 'pointer',
 								p: 2,
 								borderRadius: '12px',
-								border: activeNode === 'principal' ? '2px solid #c53030' : '2px solid transparent',
-								backgroundColor: activeNode === 'principal' ? '#fff5f5' : 'transparent',
+								border: (theme)=> activeNode === 'principal' ? `2px solid ${alpha(roleAccent(theme).principal.main,0.7)}` : '2px solid transparent',
+								backgroundColor: (theme)=> activeNode === 'principal' ? alpha(roleAccent(theme).principal.main,0.08) : 'transparent',
 								transition: 'all 0.3s ease',
 								'&:hover': {
-									backgroundColor: '#fff5f5',
-									borderColor: '#feb2b2'
+									backgroundColor: (theme)=> alpha(roleAccent(theme).principal.main,0.08),
+									borderColor: (theme)=> alpha(roleAccent(theme).principal.main,0.35)
 								}
 							}}
 						>
@@ -1324,15 +1264,15 @@ export default function UsersPage() {
 								width: 60,
 								height: 60,
 								borderRadius: '12px',
-								backgroundColor: '#fed7d7',
+								backgroundColor: (theme)=> alpha(roleAccent(theme).principal.main,0.18),
 								display: 'flex',
 								alignItems: 'center',
 								justifyContent: 'center',
-								border: '2px solid #feb2b2'
+								border: (theme)=> `2px solid ${alpha(roleAccent(theme).principal.main,0.35)}`
 							}}>
-								<PersonIcon sx={{ color: '#c53030', fontSize: 32 }} />
+								<PersonIcon sx={{ color: 'error.main', fontSize: 32 }} />
 							</Box>
-							<Typography variant="body2" sx={{ fontWeight: 600, color: '#1a202c' }}>
+							<Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
 								校长
 							</Typography>
 							{principalId && (
@@ -1340,7 +1280,7 @@ export default function UsersPage() {
 									width: 8,
 									height: 8,
 									borderRadius: '50%',
-									backgroundColor: '#48bb78'
+									backgroundColor: (theme)=> roleAccent(theme).class.main
 								}} />
 							)}
 						</Box>
@@ -1349,7 +1289,8 @@ export default function UsersPage() {
 						<Box sx={{
 							width: 0,
 							height: 0,
-							borderLeft: '8px solid #cbd5e0',
+							borderLeft: '8px solid',
+							borderColor: 'divider',
 							borderTop: '6px solid transparent',
 							borderBottom: '6px solid transparent'
 						}} />
@@ -1365,12 +1306,12 @@ export default function UsersPage() {
 								cursor: 'pointer',
 								p: 2,
 								borderRadius: '12px',
-								border: activeNode === 'grade' ? '2px solid #c05621' : '2px solid transparent',
-								backgroundColor: activeNode === 'grade' ? '#fffaf0' : 'transparent',
+								border: (theme)=> activeNode === 'grade' ? `2px solid ${alpha(roleAccent(theme).grade.main,0.6)}` : '2px solid transparent',
+								backgroundColor: (theme)=> activeNode === 'grade' ? alpha(roleAccent(theme).grade.main,0.07) : 'transparent',
 								transition: 'all 0.3s ease',
 								'&:hover': {
-									backgroundColor: '#fffaf0',
-									borderColor: '#fbd38d'
+									backgroundColor: (theme)=> alpha(roleAccent(theme).grade.main,0.07),
+									borderColor: (theme)=> alpha(roleAccent(theme).grade.main,0.35)
 								}
 							}}
 						>
@@ -1378,15 +1319,15 @@ export default function UsersPage() {
 								width: 60,
 								height: 60,
 								borderRadius: '12px',
-								backgroundColor: '#feebc8',
+								backgroundColor: (theme)=> alpha(roleAccent(theme).grade.main,0.18),
 								display: 'flex',
 								alignItems: 'center',
 								justifyContent: 'center',
-								border: '2px solid #fbd38d'
+								border: (theme)=> `2px solid ${alpha(roleAccent(theme).grade.main,0.35)}`
 							}}>
-								<AccountTreeIcon sx={{ color: '#c05621', fontSize: 32 }} />
+								<AccountTreeIcon sx={{ color: 'warning.main', fontSize: 32 }} />
 							</Box>
-							<Typography variant="body2" sx={{ fontWeight: 600, color: '#1a202c' }}>
+							<Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
 								年级主任
 							</Typography>
 							{Object.keys(gradeLeaders).length > 0 && (
@@ -1394,7 +1335,7 @@ export default function UsersPage() {
 									width: 8,
 									height: 8,
 									borderRadius: '50%',
-									backgroundColor: '#48bb78'
+									backgroundColor: (theme)=> roleAccent(theme).class.main
 								}} />
 							)}
 						</Box>
@@ -1403,7 +1344,8 @@ export default function UsersPage() {
 						<Box sx={{
 							width: 0,
 							height: 0,
-							borderLeft: '8px solid #cbd5e0',
+							borderLeft: '8px solid',
+							borderColor: 'divider',
 							borderTop: '6px solid transparent',
 							borderBottom: '6px solid transparent'
 						}} />
@@ -1419,12 +1361,12 @@ export default function UsersPage() {
 								cursor: 'pointer',
 								p: 2,
 								borderRadius: '12px',
-								border: activeNode === 'department' ? '2px solid #4a5568' : '2px solid transparent',
-								backgroundColor: activeNode === 'department' ? '#f7fafc' : 'transparent',
+								border: (theme)=> activeNode === 'department' ? `2px solid ${alpha(roleAccent(theme).department.main,0.55)}` : '2px solid transparent',
+								backgroundColor: (theme)=> activeNode === 'department' ? alpha(roleAccent(theme).department.main,0.07) : 'transparent',
 								transition: 'all 0.3s ease',
 								'&:hover': {
-									backgroundColor: '#f7fafc',
-									borderColor: '#cbd5e0'
+									backgroundColor: (theme)=> alpha(roleAccent(theme).department.main,0.07),
+									borderColor: (theme)=> alpha(roleAccent(theme).department.main,0.35)
 								}
 							}}
 						>
@@ -1432,15 +1374,15 @@ export default function UsersPage() {
 								width: 60,
 								height: 60,
 								borderRadius: '12px',
-								backgroundColor: '#e2e8f0',
+								backgroundColor: (theme)=> alpha(roleAccent(theme).department.main,0.17),
 								display: 'flex',
 								alignItems: 'center',
 								justifyContent: 'center',
-								border: '2px solid #cbd5e0'
+								border: (theme)=> `2px solid ${alpha(roleAccent(theme).department.main,0.35)}`
 							}}>
-								<GroupIcon sx={{ color: '#4a5568', fontSize: 32 }} />
+								<GroupIcon sx={{ color: (theme)=> roleAccent(theme).department.main, fontSize: 32 }} />
 							</Box>
-							<Typography variant="body2" sx={{ fontWeight: 600, color: '#1a202c' }}>
+							<Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
 								系部主任
 							</Typography>
 							{Object.keys(departmentHeads).length > 0 && (
@@ -1448,7 +1390,7 @@ export default function UsersPage() {
 									width: 8,
 									height: 8,
 									borderRadius: '50%',
-									backgroundColor: '#48bb78'
+									backgroundColor: (theme)=> roleAccent(theme).class.main
 								}} />
 							)}
 						</Box>
@@ -1457,7 +1399,8 @@ export default function UsersPage() {
 						<Box sx={{
 							width: 0,
 							height: 0,
-							borderLeft: '8px solid #cbd5e0',
+							borderLeft: '8px solid',
+							borderColor: 'divider',
 							borderTop: '6px solid transparent',
 							borderBottom: '6px solid transparent'
 						}} />
@@ -1473,12 +1416,12 @@ export default function UsersPage() {
 								cursor: 'pointer',
 								p: 2,
 								borderRadius: '12px',
-								border: activeNode === 'class' ? '2px solid #38a169' : '2px solid transparent',
-								backgroundColor: activeNode === 'class' ? '#f0fff4' : 'transparent',
+								border: (theme)=> activeNode === 'class' ? `2px solid ${alpha(roleAccent(theme).class.main,0.55)}` : '2px solid transparent',
+								backgroundColor: (theme)=> activeNode === 'class' ? alpha(roleAccent(theme).class.main,0.08) : 'transparent',
 								transition: 'all 0.3s ease',
 								'&:hover': {
-									backgroundColor: '#f0fff4',
-									borderColor: '#9ae6b4'
+									backgroundColor: (theme)=> alpha(roleAccent(theme).class.main,0.08),
+									borderColor: (theme)=> alpha(roleAccent(theme).class.main,0.35)
 								}
 							}}
 						>
@@ -1486,15 +1429,15 @@ export default function UsersPage() {
 								width: 60,
 								height: 60,
 								borderRadius: '12px',
-								backgroundColor: '#c6f6d5',
+								backgroundColor: (theme)=> alpha(roleAccent(theme).class.main,0.22),
 								display: 'flex',
 								alignItems: 'center',
 								justifyContent: 'center',
-								border: '2px solid #9ae6b4'
+								border: (theme)=> `2px solid ${alpha(roleAccent(theme).class.main,0.35)}`
 							}}>
-								<PersonIcon sx={{ color: '#38a169', fontSize: 32 }} />
+								<PersonIcon sx={{ color: 'success.main', fontSize: 32 }} />
 							</Box>
-							<Typography variant="body2" sx={{ fontWeight: 600, color: '#1a202c' }}>
+							<Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
 								班主任
 							</Typography>
 							{teachers.some(t => t.homeroomClassId) && (
@@ -1502,7 +1445,7 @@ export default function UsersPage() {
 									width: 8,
 									height: 8,
 									borderRadius: '50%',
-									backgroundColor: '#48bb78'
+									backgroundColor: (theme)=> roleAccent(theme).class.main
 								}} />
 							)}
 						</Box>
@@ -1522,89 +1465,41 @@ export default function UsersPage() {
 						>
 							<Card sx={{
 								borderRadius: '12px',
-								border: '2px solid #fed7d7',
+								border: (theme)=> `2px solid ${alpha(roleAccent(theme).principal.main,0.35)}`,
 								boxShadow: 'none',
 								overflow: 'hidden'
 							}}>
-								<Box sx={{
-									position: 'absolute',
-									top: 0,
-									left: 0,
-									right: 0,
-									height: 4,
-									backgroundColor: '#c53030'
-								}} />
-								<CardContent sx={{ p: 4, backgroundColor: '#fffafa' }}>
-									<Typography variant="h5" sx={{
-										fontWeight: 700,
-										color: '#1a202c',
-										mb: 2,
-										display: 'flex',
-										alignItems: 'center',
-										gap: 2
-									}}>
-										<PersonIcon sx={{ color: '#c53030', fontSize: 32 }} />
+								<Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, backgroundColor: 'error.main' }} />
+								<CardContent sx={{ p: 4, backgroundColor: (theme)=> alpha(theme.palette.error.main,0.04) }}>
+									<Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+										<PersonIcon sx={{ color: 'error.main', fontSize: 32 }} />
 										校长配置
 									</Typography>
-									<Typography variant="body1" sx={{ color: '#718096', mb: 4 }}>
+									<Typography variant="body1" sx={{ color: 'text.secondary', mb: 4 }}>
 										校长是学校的最高管理者，负责学校整体运营、战略决策和对外事务。
 									</Typography>
 									<FormControl fullWidth size="medium">
-										<InputLabel sx={{ 
-											color: '#718096',
-											fontWeight: 500,
-											'&.Mui-focused': { color: '#c53030' }
-										}}>选择校长</InputLabel>
+										<InputLabel sx={{ color: 'text.secondary', fontWeight: 500, '&.Mui-focused': { color: 'error.main' }}}>选择校长</InputLabel>
 										<Select
 											label="选择校长"
 											value={principalId ?? ''}
 											onChange={e => handleAssignPrincipal(e.target.value as number | '')}
 											sx={{
-												backgroundColor: 'white',
+												backgroundColor: 'background.paper',
 												borderRadius: '12px',
-												boxShadow: '0 2px 8px rgba(197, 48, 48, 0.08)',
-												transition: 'all 0.2s ease',
-												'& .MuiOutlinedInput-notchedOutline': {
-													borderColor: '#fed7d7',
-													borderWidth: '1.5px'
-												},
-												'&:hover': {
-													transform: 'translateY(-1px)',
-													boxShadow: '0 4px 16px rgba(197, 48, 48, 0.15)',
-													'& .MuiOutlinedInput-notchedOutline': {
-														borderColor: '#feb2b2'
-													}
-												},
-												'&.Mui-focused': {
-													transform: 'translateY(-1px)',
-													boxShadow: '0 4px 20px rgba(197, 48, 48, 0.2)',
-													'& .MuiOutlinedInput-notchedOutline': {
-														borderColor: '#c53030',
-														borderWidth: '2px'
-													}
-												},
-												'& .MuiSelect-select': {
-													fontWeight: 600,
-													padding: '12px 14px',
-													textAlign: 'center',
-													display: 'flex',
-													alignItems: 'center',
-													justifyContent: 'center'
-												},
-												'& .MuiSelect-icon': {
-													color: '#c53030',
-													transition: 'transform 0.2s ease'
-												},
-												'&.Mui-focused .MuiSelect-icon': {
-													transform: 'rotate(180deg)'
-												}
+												'& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+												'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'error.light' },
+												'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'error.main', borderWidth: 2 },
+												'& .MuiSelect-select': { fontWeight: 600, padding: '12px 14px', textAlign: 'center' },
+												'& .MuiSelect-icon': { color: 'error.main' }
 											}}
 											MenuProps={{
 												PaperProps: {
 													sx: {
 														borderRadius: '12px',
-														boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-														border: '1px solid #fed7d7',
+														boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+														border: '1px solid',
+														borderColor: 'divider',
 														mt: 1,
 														maxHeight: 300,
 														'& .MuiList-root': {
@@ -1623,53 +1518,33 @@ export default function UsersPage() {
 												disablePortal: false
 											}}
 										>
-											<MenuItem value="" sx={{
-												fontStyle: 'italic',
-												color: '#a0aec0',
-												fontWeight: 500,
-												borderRadius: '8px',
-												margin: '4px 8px',
-												transition: 'all 0.2s ease',
-												'&:hover': { 
-													backgroundColor: '#fff5f5',
-													transform: 'translateX(4px)',
-													color: '#c53030'
-												}
-											}}>未指派</MenuItem>
+											<MenuItem value="" sx={{ fontStyle: 'italic', color: 'text.disabled', fontWeight: 500, borderRadius: '8px', m: '4px 8px', transition: 'all 0.2s ease', '&:hover': { backgroundColor: (theme)=> alpha(theme.palette.error.main,0.08), transform: 'translateX(4px)', color: 'error.main' } }}>未指派</MenuItem>
 											{teachers.map(t => (
 												<MenuItem key={t.id} value={t.id} sx={{
 													borderRadius: '8px',
 													margin: '4px 8px',
 													transition: 'all 0.2s ease',
 													'&:hover': { 
-														backgroundColor: '#fff5f5',
+														backgroundColor: (theme)=> alpha(theme.palette.error.main,0.06),
 														transform: 'translateX(4px)',
 														boxShadow: '0 2px 8px rgba(197, 48, 48, 0.1)'
 													},
 													'&.Mui-selected': { 
-														backgroundColor: '#fed7d7',
+														backgroundColor: (theme)=> alpha(theme.palette.error.main,0.20),
 														fontWeight: 600,
 														'&:hover': { 
-															backgroundColor: '#feb2b2',
+															backgroundColor: (theme)=> alpha(theme.palette.error.main,0.30),
 															transform: 'translateX(4px)'
 														}
 													}
 												}}>
 													<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1 }}>
-														<Box sx={{
-															width: 32,
-															height: 32,
-															borderRadius: '50%',
-															backgroundColor: '#fed7d7',
-															display: 'flex',
-															alignItems: 'center',
-															justifyContent: 'center'
-														}}>
-															<PersonIcon sx={{ color: '#c53030', fontSize: 16 }} />
+														<Box sx={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: (theme)=> alpha(theme.palette.error.main,0.2), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+															<PersonIcon sx={{ color: 'error.main', fontSize: 16 }} />
 														</Box>
 														<Box>
 															<Typography>{t.name}</Typography>
-															<Typography variant="caption" sx={{ color: '#718096' }}>
+															<Typography variant="caption" sx={{ color: 'text.secondary' }}>
 																{t.teacherNo} • {t.departmentName && `${t.departmentName}系`}
 															</Typography>
 														</Box>
@@ -1679,11 +1554,11 @@ export default function UsersPage() {
 										</Select>
 									</FormControl>
 									{principalId && (
-										<Box sx={{ mt: 3, p: 3, backgroundColor: 'white', borderRadius: '8px', border: '1px solid #fed7d7' }}>
-											<Typography variant="body2" sx={{ color: '#38a169', fontWeight: 600 }}>
+										<Box sx={{ mt: 3, p: 3, backgroundColor: 'background.paper', borderRadius: '8px', border: (theme)=>`1px solid ${alpha(theme.palette.error.main,0.25)}` }}>
+											<Typography variant="body2" sx={{ color: 'success.main', fontWeight: 600 }}>
 												✓ 校长已配置
 											</Typography>
-											<Typography variant="body2" sx={{ color: '#718096', mt: 1 }}>
+											<Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
 												当前校长：{teachers.find(t => t.id === principalId)?.name}
 											</Typography>
 										</Box>
@@ -1701,7 +1576,7 @@ export default function UsersPage() {
 						>
 							<Card sx={{
 								borderRadius: '12px',
-								border: '2px solid #feebc8',
+								border: (theme)=>`2px solid ${alpha(theme.palette.warning.main,0.5)}`,
 								boxShadow: 'none',
 								overflow: 'hidden'
 							}}>
@@ -1711,21 +1586,21 @@ export default function UsersPage() {
 									left: 0,
 									right: 0,
 									height: 4,
-									backgroundColor: '#c05621'
+									backgroundColor: (theme)=>alpha(theme.palette.warning.main,0.9)
 								}} />
-								<CardContent sx={{ p: 4, backgroundColor: '#fffbf5' }}>
+								<CardContent sx={{ p: 4, backgroundColor: (theme)=>alpha(theme.palette.warning.main,0.05) }}>
 									<Typography variant="h5" sx={{
 										fontWeight: 700,
-										color: '#1a202c',
+										color: 'text.primary',
 										mb: 2,
 										display: 'flex',
 										alignItems: 'center',
 										gap: 2
 									}}>
-										<AccountTreeIcon sx={{ color: '#c05621', fontSize: 32 }} />
+										<AccountTreeIcon sx={{ color: 'warning.main', fontSize: 32 }} />
 										年级主任配置
 									</Typography>
-									<Typography variant="body1" sx={{ color: '#718096', mb: 4 }}>
+									<Typography variant="body1" sx={{ color: 'text.secondary', mb: 4 }}>
 										年级主任负责特定年级的教学管理、学生管理和教师协调工作。
 									</Typography>
 
@@ -1740,19 +1615,19 @@ export default function UsersPage() {
 													key={grade}
 													sx={{
 														p: 3,
-														backgroundColor: 'white',
+														backgroundColor: 'background.paper',
 														borderRadius: '8px',
-														border: selectedGrade === grade ? '2px solid #c05621' : '1px solid #feebc8',
+														border: (theme)=> selectedGrade === grade ? `2px solid ${alpha(theme.palette.warning.main,0.6)}` : `1px solid ${alpha(theme.palette.warning.main,0.35)}`,
 														cursor: 'pointer',
 														transition: 'all 0.3s ease',
 														'&:hover': {
-															borderColor: '#fbd38d'
+															borderColor: (theme)=>alpha(theme.palette.warning.main,0.35)
 														}
 													}}
 													onClick={() => setSelectedGrade(selectedGrade === grade ? null : grade)}
 												>
 													<Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2 }}>
-														<Typography variant="h6" sx={{ fontWeight: 600, color: '#1a202c' }}>
+														<Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
 															{grade}
 														</Typography>
 														<Box sx={{ flex: 1 }} />
@@ -1761,8 +1636,8 @@ export default function UsersPage() {
 																label="已配置"
 																size="small"
 																sx={{
-																	backgroundColor: '#d4edda',
-																	color: '#155724',
+																	backgroundColor: (theme)=>alpha(theme.palette.success.main,0.18),
+																	color: 'success.dark',
 																	fontWeight: 600
 																}}
 															/>
@@ -1770,35 +1645,35 @@ export default function UsersPage() {
 													</Box>
 													<FormControl fullWidth size="medium">
 														<InputLabel sx={{ 
-															color: '#718096',
+															color: 'text.secondary',
 															fontWeight: 500,
-															'&.Mui-focused': { color: '#c05621' }
+															'&.Mui-focused': { color: 'warning.main' }
 														}}>选择年级主任</InputLabel>
 														<Select
 															label="选择年级主任"
 															value={gradeLeaders[grade] ?? ''}
 															onChange={e => handleAssignGradeLeader(grade, e.target.value as number | '')}
 															sx={{
-																backgroundColor: '#fafbfc',
+																backgroundColor: 'action.hover',
 																borderRadius: '12px',
-																boxShadow: '0 2px 8px rgba(192, 86, 33, 0.08)',
+																boxShadow: (theme)=>`0 2px 8px ${alpha(theme.palette.warning.main,0.12)}`,
 																transition: 'all 0.2s ease',
 																'& .MuiOutlinedInput-notchedOutline': {
-																	borderColor: '#feebc8',
+																	borderColor: (theme)=>alpha(theme.palette.warning.main,0.25),
 																	borderWidth: '1.5px'
 																},
 																'&:hover': {
 																	transform: 'translateY(-1px)',
-																	boxShadow: '0 4px 16px rgba(192, 86, 33, 0.15)',
+																	boxShadow: (theme)=>`0 4px 16px ${alpha(theme.palette.warning.main,0.25)}`,
 																	'& .MuiOutlinedInput-notchedOutline': {
-																		borderColor: '#fbd38d'
+																		borderColor: (theme)=>alpha(theme.palette.warning.main,0.35)
 																	}
 																},
 																'&.Mui-focused': {
 																	transform: 'translateY(-1px)',
-																	boxShadow: '0 4px 20px rgba(192, 86, 33, 0.2)',
+																	boxShadow: (theme)=>`0 4px 20px ${alpha(theme.palette.warning.main,0.32)}`,
 																	'& .MuiOutlinedInput-notchedOutline': {
-																		borderColor: '#c05621',
+																		borderColor: (theme)=>alpha(theme.palette.warning.main,0.6),
 																		borderWidth: '2px'
 																	}
 																},
@@ -1811,7 +1686,7 @@ export default function UsersPage() {
 																	justifyContent: 'center'
 																},
 																'& .MuiSelect-icon': {
-																	color: '#c05621',
+																	color: 'warning.main',
 																	transition: 'transform 0.2s ease'
 																},
 																'&.Mui-focused .MuiSelect-icon': {
@@ -1823,7 +1698,7 @@ export default function UsersPage() {
 																	sx: {
 																		borderRadius: '12px',
 																		boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-																		border: '1px solid #feebc8',
+																		border: (theme)=>`1px solid ${alpha(theme.palette.warning.main,0.25)}`,
 																		mt: 1,
 																		maxHeight: 300,
 																		'& .MuiList-root': {
@@ -1844,15 +1719,15 @@ export default function UsersPage() {
 														>
 															<MenuItem value="" sx={{
 																fontStyle: 'italic',
-																color: '#a0aec0',
+																color: 'text.disabled',
 																fontWeight: 500,
 																borderRadius: '8px',
 																margin: '4px 8px',
 																transition: 'all 0.2s ease',
 																'&:hover': { 
-																	backgroundColor: '#fffaf0',
+																	backgroundColor: (theme)=>alpha(theme.palette.warning.main,0.06),
 																	transform: 'translateX(4px)',
-																	color: '#c05621'
+																	color: 'warning.main'
 																}
 															}}>未指派</MenuItem>
 															{teachers.filter(t => !t.roles?.includes(ROLE_CODES.PRINCIPAL)).map(t => (
@@ -1861,22 +1736,22 @@ export default function UsersPage() {
 																	margin: '4px 8px',
 																	transition: 'all 0.2s ease',
 																	'&:hover': { 
-																		backgroundColor: '#fffaf0',
+																		backgroundColor: (theme)=>alpha(theme.palette.warning.main,0.06),
 																		transform: 'translateX(4px)',
 																		boxShadow: '0 2px 8px rgba(192, 86, 33, 0.1)'
 																	},
 																	'&.Mui-selected': { 
-																		backgroundColor: '#feebc8',
+																		backgroundColor: (theme)=>alpha(theme.palette.warning.main,0.22),
 																		fontWeight: 600,
 																		'&:hover': { 
-																			backgroundColor: '#fbd38d',
+																			backgroundColor: (theme)=>alpha(theme.palette.warning.main,0.32),
 																			transform: 'translateX(4px)'
 																		}
 																	}
 																}}>
 																	<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
 																		<Typography>{t.name}</Typography>
-																		<Typography variant="caption" sx={{ color: '#718096' }}>
+																		<Typography variant="caption" sx={{ color: 'text.secondary' }}>
 																			{t.departmentName && `${t.departmentName}系`}
 																		</Typography>
 																	</Box>
@@ -1901,7 +1776,7 @@ export default function UsersPage() {
 						>
 							<Card sx={{
 								borderRadius: '12px',
-								border: '2px solid #e2e8f0',
+								border: (theme)=>`2px solid ${alpha(roleAccent(theme).department.main,0.4)}`,
 								boxShadow: 'none',
 								overflow: 'hidden'
 							}}>
@@ -1911,21 +1786,21 @@ export default function UsersPage() {
 									left: 0,
 									right: 0,
 									height: 4,
-									backgroundColor: '#4a5568'
+									backgroundColor: (theme)=>roleAccent(theme).department.main
 								}} />
-								<CardContent sx={{ p: 4, backgroundColor: '#f8f9fa' }}>
+								<CardContent sx={{ p: 4, backgroundColor: 'action.hover' }}>
 									<Typography variant="h5" sx={{
 										fontWeight: 700,
-										color: '#1a202c',
+										color: 'text.primary',
 										mb: 2,
 										display: 'flex',
 										alignItems: 'center',
 										gap: 2
 									}}>
-										<GroupIcon sx={{ color: '#4a5568', fontSize: 32 }} />
+										<GroupIcon sx={{ color: (theme)=>roleAccent(theme).department.main, fontSize: 32 }} />
 										系部主任配置
 									</Typography>
-									<Typography variant="body1" sx={{ color: '#718096', mb: 4 }}>
+									<Typography variant="body1" sx={{ color: 'text.secondary', mb: 4 }}>
 										系部主任负责特定专业系部的教学计划、课程安排和师资管理。
 									</Typography>
 
@@ -1940,19 +1815,19 @@ export default function UsersPage() {
 													key={dept.id}
 													sx={{
 														p: 3,
-														backgroundColor: 'white',
+														backgroundColor: 'background.paper',
 														borderRadius: '8px',
-														border: selectedDepartment === dept.name ? '2px solid #4a5568' : '1px solid #e2e8f0',
+														border: (theme)=> selectedDepartment === dept.name ? `2px solid ${alpha(roleAccent(theme).department.main,0.7)}` : `1px solid ${alpha(roleAccent(theme).department.main,0.25)}`,
 														cursor: 'pointer',
 														transition: 'all 0.3s ease',
 														'&:hover': {
-															borderColor: '#cbd5e0'
+															borderColor: (theme)=>alpha(roleAccent(theme).department.main,0.25)
 														}
 													}}
 													onClick={() => setSelectedDepartment(selectedDepartment === dept.name ? null : dept.name)}
 												>
 													<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-														<Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#1a202c', flex: 1 }}>
+														<Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary', flex: 1 }}>
 															{dept.name}
 														</Typography>
 														{departmentHeads[dept.name] && (
@@ -1960,8 +1835,8 @@ export default function UsersPage() {
 																label="已配置"
 																size="small"
 																sx={{
-																	backgroundColor: '#d4edda',
-																	color: '#155724',
+																	backgroundColor: (theme)=>alpha(theme.palette.success.main,0.18),
+																	color: 'success.dark',
 																	fontWeight: 600
 																}}
 															/>
@@ -1969,35 +1844,35 @@ export default function UsersPage() {
 													</Box>
 													<FormControl fullWidth size="medium">
 														<InputLabel sx={{ 
-															color: '#718096',
+															color: 'text.secondary',
 															fontWeight: 500,
-															'&.Mui-focused': { color: '#4a5568' }
+															'&.Mui-focused': { color: (theme)=>roleAccent(theme).department.main }
 														}}>选择系部主任</InputLabel>
 														<Select
 															label="选择系部主任"
 															value={departmentHeads[dept.name] ?? ''}
 															onChange={e => handleAssignDepartmentHead(dept.name, e.target.value as number | '')}
 															sx={{
-																backgroundColor: '#fafbfc',
+																backgroundColor: 'action.hover',
 																borderRadius: '12px',
 																boxShadow: '0 2px 8px rgba(74, 85, 104, 0.08)',
 																transition: 'all 0.2s ease',
 																'& .MuiOutlinedInput-notchedOutline': {
-																	borderColor: '#e2e8f0',
+																	borderColor: (theme)=>alpha(roleAccent(theme).department.main,0.25),
 																	borderWidth: '1.5px'
 																},
 																'&:hover': {
 																	transform: 'translateY(-1px)',
 																	boxShadow: '0 4px 16px rgba(74, 85, 104, 0.15)',
 																	'& .MuiOutlinedInput-notchedOutline': {
-																		borderColor: '#cbd5e0'
+																		borderColor: (theme)=>alpha(roleAccent(theme).department.main,0.25)
 																	}
 																},
 																'&.Mui-focused': {
 																	transform: 'translateY(-1px)',
-																	boxShadow: '0 4px 20px rgba(74, 85, 104, 0.2)',
+																	boxShadow: (theme)=>`0 4px 20px ${alpha(roleAccent(theme).department.main,0.3)}`,
 																	'& .MuiOutlinedInput-notchedOutline': {
-																		borderColor: '#4a5568',
+																		borderColor: (theme)=>roleAccent(theme).department.main,
 																		borderWidth: '2px'
 																	}
 																},
@@ -2010,7 +1885,7 @@ export default function UsersPage() {
 																	justifyContent: 'center'
 																},
 																'& .MuiSelect-icon': {
-																	color: '#4a5568',
+																	color: (theme)=>roleAccent(theme).department.main,
 																	transition: 'transform 0.2s ease'
 																},
 																'&.Mui-focused .MuiSelect-icon': {
@@ -2022,7 +1897,7 @@ export default function UsersPage() {
 																	sx: {
 																		borderRadius: '12px',
 																		boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-																		border: '1px solid #e2e8f0',
+																		border: (theme)=>`1px solid ${alpha(roleAccent(theme).department.main,0.25)}`,
 																		mt: 1,
 																		maxHeight: 300,
 																		'& .MuiList-root': {
@@ -2043,15 +1918,15 @@ export default function UsersPage() {
 														>
 															<MenuItem value="" sx={{
 																fontStyle: 'italic',
-																color: '#a0aec0',
+																color: 'text.disabled',
 																fontWeight: 500,
 																borderRadius: '8px',
 																margin: '4px 8px',
 																transition: 'all 0.2s ease',
 																'&:hover': { 
-																	backgroundColor: '#f7fafc',
+																	backgroundColor: (theme)=>alpha(roleAccent(theme).department.main,0.06),
 																	transform: 'translateX(4px)',
-																	color: '#4a5568'
+																	color: (theme)=>roleAccent(theme).department.main
 																}
 															}}>全部系部</MenuItem>
 															{teachers.filter(t => !t.roles?.includes(ROLE_CODES.PRINCIPAL)).map(t => (
@@ -2060,15 +1935,15 @@ export default function UsersPage() {
 																	margin: '4px 8px',
 																	transition: 'all 0.2s ease',
 																	'&:hover': { 
-																		backgroundColor: '#f7fafc',
+																		backgroundColor: (theme)=>alpha(roleAccent(theme).department.main,0.06),
 																		transform: 'translateX(4px)',
-																		boxShadow: '0 2px 8px rgba(74, 85, 104, 0.1)'
+																		boxShadow: (theme)=>`0 2px 8px ${alpha(roleAccent(theme).department.main,0.15)}`
 																	},
 																	'&.Mui-selected': { 
-																		backgroundColor: '#e2e8f0',
+																		backgroundColor: (theme)=>alpha(roleAccent(theme).department.main,0.15),
 																		fontWeight: 600,
 																		'&:hover': { 
-																			backgroundColor: '#cbd5e0',
+																			backgroundColor: (theme)=>alpha(roleAccent(theme).department.main,0.25),
 																			transform: 'translateX(4px)'
 																		}
 																	}
@@ -2095,7 +1970,7 @@ export default function UsersPage() {
 						>
 							<Card sx={{
 								borderRadius: '12px',
-								border: '2px solid #c6f6d5',
+								border: (theme)=>`2px solid ${alpha(roleAccent(theme).class.main,0.4)}`,
 								boxShadow: 'none',
 								overflow: 'hidden'
 							}}>
@@ -2105,21 +1980,21 @@ export default function UsersPage() {
 									left: 0,
 									right: 0,
 									height: 4,
-									backgroundColor: '#38a169'
+									backgroundColor: 'success.main'
 								}} />
-								<CardContent sx={{ p: 4, backgroundColor: '#f0fff4' }}>
+								<CardContent sx={{ p: 4, backgroundColor: (theme)=>alpha(roleAccent(theme).class.main,0.08) }}>
 									<Typography variant="h5" sx={{
 										fontWeight: 700,
-										color: '#1a202c',
+										color: 'text.primary',
 										mb: 2,
 										display: 'flex',
 										alignItems: 'center',
 										gap: 2
 									}}>
-										<PersonIcon sx={{ color: '#38a169', fontSize: 32 }} />
+										<PersonIcon sx={{ color: 'success.main', fontSize: 32 }} />
 										班主任配置
 									</Typography>
-									<Typography variant="body1" sx={{ color: '#718096', mb: 4 }}>
+									<Typography variant="body1" sx={{ color: 'text.secondary', mb: 4 }}>
 										班主任负责班级的日常管理、学生思想教育和家校沟通工作。
 									</Typography>
 
@@ -2133,7 +2008,7 @@ export default function UsersPage() {
 												<Box key={grade}>
 													<Typography variant="h6" sx={{
 														fontWeight: 600,
-														color: '#1a202c',
+														color: 'text.primary',
 														mb: 3,
 														display: 'flex',
 														alignItems: 'center',
@@ -2142,7 +2017,7 @@ export default function UsersPage() {
 														<Box sx={{
 															width: 6,
 															height: 24,
-															backgroundColor: '#38a169',
+															backgroundColor: 'success.main',
 															borderRadius: '3px'
 														}} />
 														{grade}
@@ -2151,7 +2026,7 @@ export default function UsersPage() {
 														<Box key={deptName} sx={{ mb: 3, ml: 2 }}>
 															<Typography variant="subtitle1" sx={{
 																fontWeight: 600,
-																color: '#4a5568',
+																color: 'text.primary',
 																mb: 2
 															}}>
 																{deptName}
@@ -2167,11 +2042,11 @@ export default function UsersPage() {
 																		<Card
 																			key={c.id}
 																			sx={{
-																				border: '1px solid #c6f6d5',
+																				border: (theme)=>`1px solid ${alpha(roleAccent(theme).class.main,0.35)}`,
 																				borderRadius: '8px',
 																				overflow: 'hidden',
 																				'&:hover': {
-																					borderColor: '#9ae6b4',
+																					borderColor: (theme)=>alpha(roleAccent(theme).class.main,0.45),
 																					boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
 																				}
 																			}}
@@ -2182,19 +2057,19 @@ export default function UsersPage() {
 																				left: 0,
 																				right: 0,
 																				height: 3,
-																				backgroundColor: currentHomeroom ? '#38a169' : '#e2e8f0'
+																				backgroundColor: (theme)=> currentHomeroom ? theme.palette.success.main : alpha(theme.palette.divider,0.2)
 																			}} />
 																			<CardContent sx={{ p: 3 }}>
 																				<Typography variant="body1" sx={{
 																					fontWeight: 600,
-																					color: '#1a202c',
+																					color: 'text.primary',
 																					mb: 2
 																				}}>
 																					{c.name}
 																				</Typography>
 																				<FormControl size="small" fullWidth>
 																					<InputLabel sx={{ 
-																						color: '#718096',
+																						color: 'text.secondary',
 																						fontWeight: 500,
 																						fontSize: '0.875rem'
 																					}}>选择班主任</InputLabel>
@@ -2203,28 +2078,28 @@ export default function UsersPage() {
 																						value={currentHomeroom?.id ?? ''}
 																						onChange={e => handleAssignHomeroomInline(c.id, e.target.value as number | '')}
 																						sx={{
-																							backgroundColor: '#fefefe',
+																							backgroundColor: 'background.paper',
 																							borderRadius: '12px',
-																							border: '2px solid #e2f2ea',
+																							border: (theme)=>`2px solid ${alpha(roleAccent(theme).class.main,0.25)}`,
 																							boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
 																							transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
 																							'& .MuiOutlinedInput-notchedOutline': {
 																								border: 'none'
 																							},
 																							'&:hover': {
-																								borderColor: '#a8e6b7',
+																								borderColor: (theme)=>alpha(roleAccent(theme).class.main,0.35),
 																								transform: 'translateY(-1px)',
 																								boxShadow: '0 4px 12px rgba(0,0,0,0.12)'
 																							},
 																							'&.Mui-focused': {
-																								borderColor: '#38a169',
-																								boxShadow: '0 0 0 3px rgba(56,161,105,0.1)'
+																								borderColor: 'success.main',
+																								boxShadow: (theme)=>`0 0 0 3px ${alpha(roleAccent(theme).class.main,0.25)}`
 																							},
 																							'& .MuiSelect-select': {
 																								padding: '12px 16px',
 																								fontSize: '0.875rem',
 																								fontWeight: 500,
-																								color: '#2d3748',
+																								color: 'text.primary',
 																								textAlign: 'center',
 																								display: 'flex',
 																								alignItems: 'center',
@@ -2236,7 +2111,7 @@ export default function UsersPage() {
 																								sx: {
 																									borderRadius: '12px',
 																									boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-																									border: '1px solid #e2e8f0',
+																									border: (theme)=>`1px solid ${alpha(theme.palette.divider,0.6)}`,
 																									mt: 1,
 																									maxHeight: 300,
 																									'& .MuiList-root': {
@@ -2248,15 +2123,15 @@ export default function UsersPage() {
 																										padding: '10px 12px',
 																										transition: 'all 0.2s ease',
 																										'&:hover': {
-																											backgroundColor: '#e6fffa',
+																											backgroundColor: (theme)=>alpha(theme.palette.info.main,0.08),
 																											transform: 'translateX(4px)'
 																										},
 																										'&.Mui-selected': {
-																											backgroundColor: '#e6fffa',
-																											color: '#2b6cb0',
+																											backgroundColor: (theme)=>alpha(roleAccent(theme).class.main,0.18),
+																											color: 'success.main',
 																											fontWeight: 600,
 																											'&:hover': {
-																												backgroundColor: '#b2f5ea'
+																												backgroundColor: (theme)=>alpha(roleAccent(theme).class.main,0.28)
 																											}
 																										}
 																									}
@@ -2281,7 +2156,7 @@ export default function UsersPage() {
 																							<MenuItem key={t.id} value={t.id}>
 																								<Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
 																									<Typography>{t.name}</Typography>
-																									<Typography variant="caption" sx={{ color: '#718096' }}>
+																									<Typography variant="caption" sx={{ color: 'text.secondary' }}>
 																										{t.teacherNo}
 																									</Typography>
 																								</Box>
@@ -2290,8 +2165,8 @@ export default function UsersPage() {
 																					</Select>
 																				</FormControl>
 																				{currentHomeroom && (
-																					<Box sx={{ mt: 2, p: 2, backgroundColor: '#f0fff4', borderRadius: '6px', border: '1px solid #c6f6d5' }}>
-																						<Typography variant="body2" sx={{ color: '#38a169', fontWeight: 600 }}>
+																					<Box sx={{ mt: 2, p: 2, backgroundColor: (theme)=>alpha(roleAccent(theme).class.main,0.08), borderRadius: '6px', border: (theme)=>`1px solid ${alpha(roleAccent(theme).class.main,0.35)}` }}>
+																						<Typography variant="body2" sx={{ color: 'success.main', fontWeight: 600 }}>
 																							✓ 班主任：{currentHomeroom.name}
 																						</Typography>
 																					</Box>
@@ -2317,15 +2192,17 @@ export default function UsersPage() {
 				<Box sx={{ width: '240px', flexShrink: 0 }}>
 					<Card sx={{
 						borderRadius: '12px',
-						border: '1px solid #e8eaed',
+						border: '1px solid',
+						borderColor: 'divider',
 						boxShadow: 'none',
 						position: 'sticky',
-						top: '20px'
+						top: '20px',
+						backgroundColor: 'background.paper'
 					}}>
 						<CardContent sx={{ p: 3 }}>
 							<Typography variant="subtitle1" sx={{
 								fontWeight: 600,
-								color: '#1a202c',
+								color: 'text.primary',
 								mb: 3,
 								textAlign: 'center'
 							}}>
@@ -2343,12 +2220,13 @@ export default function UsersPage() {
 										gap: 2,
 										p: 2,
 										borderRadius: '8px',
-										backgroundColor: activeNode === 'principal' ? '#fff5f5' : '#f8f9fa',
-										border: activeNode === 'principal' ? '2px solid #feb2b2' : '1px solid #e8eaed',
+										backgroundColor: (theme)=> activeNode === 'principal' ? alpha(theme.palette.error.main,0.08) : 'transparent',
+										border: (theme)=> activeNode === 'principal' ? `2px solid ${alpha(theme.palette.error.main,0.4)}` : '1px solid',
+										borderColor: (theme)=> activeNode === 'principal' ? alpha(theme.palette.error.main,0.4) : 'divider',
 										cursor: 'pointer',
 										transition: 'all 0.3s ease',
 										'&:hover': {
-											backgroundColor: '#fff5f5'
+											backgroundColor: (theme)=> alpha(theme.palette.error.main,0.08)
 										}
 									}}
 								>
@@ -2356,14 +2234,14 @@ export default function UsersPage() {
 										width: 32,
 										height: 32,
 										borderRadius: '6px',
-										backgroundColor: '#fed7d7',
+										backgroundColor: (theme)=> alpha(theme.palette.error.main,0.25),
 										display: 'flex',
 										alignItems: 'center',
 										justifyContent: 'center'
 									}}>
-										<PersonIcon sx={{ color: '#c53030', fontSize: 16 }} />
+										<PersonIcon sx={{ color: 'error.main', fontSize: 16 }} />
 									</Box>
-									<Typography variant="body2" sx={{ fontWeight: 600, color: '#1a202c' }}>
+									<Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
 										校长
 									</Typography>
 									{principalId && (
@@ -2371,7 +2249,7 @@ export default function UsersPage() {
 											width: 6,
 											height: 6,
 											borderRadius: '50%',
-											backgroundColor: '#48bb78',
+											backgroundColor: (theme)=> roleAccent(theme).class.main,
 											ml: 'auto'
 										}} />
 									)}
@@ -2382,7 +2260,7 @@ export default function UsersPage() {
 									<Box sx={{
 										width: 2,
 										height: 12,
-										backgroundColor: '#e8eaed',
+										backgroundColor: 'divider',
 										alignSelf: 'center'
 									}} />
 								)}
@@ -2396,12 +2274,13 @@ export default function UsersPage() {
 										gap: 2,
 										p: 2,
 										borderRadius: '8px',
-										backgroundColor: activeNode === 'grade' ? '#fffaf0' : '#f8f9fa',
-										border: activeNode === 'grade' ? '2px solid #fbd38d' : '1px solid #e8eaed',
+										backgroundColor: (theme)=> activeNode === 'grade' ? alpha(theme.palette.warning.main,0.08) : 'transparent',
+										border: (theme)=> activeNode === 'grade' ? `2px solid ${alpha(theme.palette.warning.main,0.5)}` : '1px solid',
+										borderColor: (theme)=> activeNode === 'grade' ? alpha(theme.palette.warning.main,0.5) : 'divider',
 										cursor: 'pointer',
 										transition: 'all 0.3s ease',
 										'&:hover': {
-											backgroundColor: '#fffaf0'
+											backgroundColor: (theme)=> alpha(theme.palette.warning.main,0.08)
 										}
 									}}
 								>
@@ -2409,14 +2288,14 @@ export default function UsersPage() {
 										width: 32,
 										height: 32,
 										borderRadius: '6px',
-										backgroundColor: '#feebc8',
+										backgroundColor: (theme)=> alpha(theme.palette.warning.main,0.25),
 										display: 'flex',
 										alignItems: 'center',
 										justifyContent: 'center'
 									}}>
-										<AccountTreeIcon sx={{ color: '#c05621', fontSize: 16 }} />
+										<AccountTreeIcon sx={{ color: 'warning.main', fontSize: 16 }} />
 									</Box>
-									<Typography variant="body2" sx={{ fontWeight: 600, color: '#1a202c' }}>
+									<Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
 										年级主任
 									</Typography>
 									{Object.keys(gradeLeaders).length > 0 && (
@@ -2424,7 +2303,7 @@ export default function UsersPage() {
 											width: 6,
 											height: 6,
 											borderRadius: '50%',
-											backgroundColor: '#48bb78',
+											backgroundColor: (theme)=> roleAccent(theme).class.main,
 											ml: 'auto'
 										}} />
 									)}
@@ -2435,7 +2314,7 @@ export default function UsersPage() {
 									<Box sx={{
 										width: 2,
 										height: 12,
-										backgroundColor: '#e8eaed',
+										backgroundColor: 'divider',
 										alignSelf: 'center'
 									}} />
 								)}
@@ -2449,12 +2328,13 @@ export default function UsersPage() {
 										gap: 2,
 										p: 2,
 										borderRadius: '8px',
-										backgroundColor: activeNode === 'department' ? '#f7fafc' : '#f8f9fa',
-										border: activeNode === 'department' ? '2px solid #cbd5e0' : '1px solid #e8eaed',
+										backgroundColor: (theme)=> activeNode === 'department' ? alpha(roleAccent(theme).department.main,0.08) : 'transparent',
+										border: (theme)=> activeNode === 'department' ? `2px solid ${alpha(roleAccent(theme).department.main,0.45)}` : '1px solid',
+										borderColor: (theme)=> activeNode === 'department' ? alpha(roleAccent(theme).department.main,0.45) : 'divider',
 										cursor: 'pointer',
 										transition: 'all 0.3s ease',
 										'&:hover': {
-											backgroundColor: '#f7fafc'
+											backgroundColor: (theme)=> alpha(roleAccent(theme).department.main,0.08)
 										}
 									}}
 								>
@@ -2462,14 +2342,14 @@ export default function UsersPage() {
 										width: 32,
 										height: 32,
 										borderRadius: '6px',
-										backgroundColor: '#e2e8f0',
+										backgroundColor: (theme)=> alpha(roleAccent(theme).department.main,0.25),
 										display: 'flex',
 										alignItems: 'center',
 										justifyContent: 'center'
 									}}>
-										<GroupIcon sx={{ color: '#4a5568', fontSize: 16 }} />
+										<GroupIcon sx={{ color: (theme)=> roleAccent(theme).department.main, fontSize: 16 }} />
 									</Box>
-									<Typography variant="body2" sx={{ fontWeight: 600, color: '#1a202c' }}>
+									<Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
 										系部主任
 									</Typography>
 									{Object.keys(departmentHeads).length > 0 && (
@@ -2477,7 +2357,7 @@ export default function UsersPage() {
 											width: 6,
 											height: 6,
 											borderRadius: '50%',
-											backgroundColor: '#48bb78',
+											backgroundColor: (theme)=> roleAccent(theme).class.main,
 											ml: 'auto'
 										}} />
 									)}
@@ -2488,7 +2368,7 @@ export default function UsersPage() {
 									<Box sx={{
 										width: 2,
 										height: 12,
-										backgroundColor: '#e8eaed',
+										backgroundColor: 'divider',
 										alignSelf: 'center'
 									}} />
 								)}
@@ -2502,12 +2382,13 @@ export default function UsersPage() {
 										gap: 2,
 										p: 2,
 										borderRadius: '8px',
-										backgroundColor: activeNode === 'class' ? '#f0fff4' : '#f8f9fa',
-										border: activeNode === 'class' ? '2px solid #9ae6b4' : '1px solid #e8eaed',
+										backgroundColor: (theme)=> activeNode === 'class' ? alpha(roleAccent(theme).class.main,0.1) : 'transparent',
+										border: (theme)=> activeNode === 'class' ? `2px solid ${alpha(roleAccent(theme).class.main,0.5)}` : '1px solid',
+										borderColor: (theme)=> activeNode === 'class' ? alpha(roleAccent(theme).class.main,0.5) : 'divider',
 										cursor: 'pointer',
 										transition: 'all 0.3s ease',
 										'&:hover': {
-											backgroundColor: '#f0fff4'
+											backgroundColor: (theme)=> alpha(roleAccent(theme).class.main,0.1)
 										}
 									}}
 								>
@@ -2515,14 +2396,14 @@ export default function UsersPage() {
 										width: 32,
 										height: 32,
 										borderRadius: '6px',
-										backgroundColor: '#c6f6d5',
+										backgroundColor: (theme)=> alpha(roleAccent(theme).class.main,0.25),
 										display: 'flex',
 										alignItems: 'center',
 										justifyContent: 'center'
 									}}>
-										<PersonIcon sx={{ color: '#38a169', fontSize: 16 }} />
+										<PersonIcon sx={{ color: 'success.main', fontSize: 16 }} />
 									</Box>
-									<Typography variant="body2" sx={{ fontWeight: 600, color: '#1a202c' }}>
+									<Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
 										班主任
 									</Typography>
 									{teachers.some(t => t.homeroomClassId) && (
@@ -2530,7 +2411,7 @@ export default function UsersPage() {
 											width: 6,
 											height: 6,
 											borderRadius: '50%',
-											backgroundColor: '#48bb78',
+											backgroundColor: (theme)=> roleAccent(theme).class.main,
 											ml: 'auto'
 										}} />
 									)}
@@ -2538,32 +2419,32 @@ export default function UsersPage() {
 							</Box>
 
 							{/* 配置统计 */}
-							<Box sx={{ mt: 4, pt: 3, borderTop: '1px solid #e8eaed' }}>
-								<Typography variant="caption" sx={{ color: '#718096', fontWeight: 600, display: 'block', mb: 2 }}>
+								<Box sx={{ mt: 4, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+									<Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 2 }}>
 									配置统计
 								</Typography>
 								<Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
 									<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-										<Typography variant="caption" sx={{ color: '#718096' }}>校长</Typography>
-										<Typography variant="caption" sx={{ color: principalId ? '#38a169' : '#e53e3e', fontWeight: 600 }}>
+											<Typography variant="caption" sx={{ color: 'text.secondary' }}>校长</Typography>
+											<Typography variant="caption" sx={{ color: principalId ? 'success.main' : 'error.main', fontWeight: 600 }}>
 											{principalId ? '已配置' : '未配置'}
 										</Typography>
 									</Box>
 									<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-										<Typography variant="caption" sx={{ color: '#718096' }}>年级主任</Typography>
-										<Typography variant="caption" sx={{ color: Object.keys(gradeLeaders).length > 0 ? '#38a169' : '#e53e3e', fontWeight: 600 }}>
+											<Typography variant="caption" sx={{ color: 'text.secondary' }}>年级主任</Typography>
+											<Typography variant="caption" sx={{ color: Object.keys(gradeLeaders).length > 0 ? 'success.main' : 'error.main', fontWeight: 600 }}>
 											{Object.keys(gradeLeaders).length}/{Object.keys(orgTree).length}
 										</Typography>
 									</Box>
 									<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-										<Typography variant="caption" sx={{ color: '#718096' }}>系部主任</Typography>
-										<Typography variant="caption" sx={{ color: Object.keys(departmentHeads).length > 0 ? '#38a169' : '#e53e3e', fontWeight: 600 }}>
+											<Typography variant="caption" sx={{ color: 'text.secondary' }}>系部主任</Typography>
+											<Typography variant="caption" sx={{ color: Object.keys(departmentHeads).length > 0 ? 'success.main' : 'error.main', fontWeight: 600 }}>
 											{Object.keys(departmentHeads).length}/{departments.length}
 										</Typography>
 									</Box>
 									<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-										<Typography variant="caption" sx={{ color: '#718096' }}>班主任</Typography>
-										<Typography variant="caption" sx={{ color: teachers.filter(t => t.homeroomClassId).length > 0 ? '#38a169' : '#e53e3e', fontWeight: 600 }}>
+											<Typography variant="caption" sx={{ color: 'text.secondary' }}>班主任</Typography>
+											<Typography variant="caption" sx={{ color: teachers.filter(t => t.homeroomClassId).length > 0 ? 'success.main' : 'error.main', fontWeight: 600 }}>
 											{teachers.filter(t => t.homeroomClassId).length}/{classes.length}
 										</Typography>
 									</Box>
@@ -2585,21 +2466,22 @@ export default function UsersPage() {
 				<Box sx={{
 					mb: 4,
 					p: 3,
-					backgroundColor: 'white',
+					backgroundColor: 'background.paper',
 					borderRadius: '12px',
-					border: '1px solid #e8eaed',
-					boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+					border: '1px solid',
+					borderColor: 'divider',
+					boxShadow: 'none'
 				}}>
 					<Typography variant="h4" sx={{
 						fontWeight: 600,
 						mb: 1,
-						color: '#1a202c',
+						color: 'text.primary',
 						letterSpacing: '-0.025em'
 					}}>
 						用户管理
 					</Typography>
 					<Typography variant="body1" sx={{
-						color: '#718096',
+						color: 'text.secondary',
 						lineHeight: 1.6
 					}}>
 						管理教师信息与组织架构，配置岗位角色与职责分工
@@ -2607,30 +2489,32 @@ export default function UsersPage() {
 				</Box>
 
 				<Box sx={{
-					backgroundColor: 'white',
+					backgroundColor: 'background.paper',
 					borderRadius: '12px',
-					border: '1px solid #e8eaed',
+					border: '1px solid',
+					borderColor: 'divider',
 					overflow: 'hidden',
-					boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+					boxShadow: 'none'
 				}}>
 					<Tabs
 						value={tab}
 						onChange={(e, v) => setTab(v)}
 						sx={{
-							borderBottom: '1px solid #e8eaed',
+							borderBottom: '1px solid',
+							borderColor: 'divider',
 							'& .MuiTab-root': {
 								textTransform: 'none',
 								fontWeight: 500,
 								fontSize: '0.95rem',
 								minHeight: 56,
-								color: '#718096',
+								color: 'text.secondary',
 								'&.Mui-selected': {
-									color: '#1a202c',
+									color: 'text.primary',
 									fontWeight: 600
 								}
 							},
 							'& .MuiTabs-indicator': {
-								backgroundColor: '#4a5568',
+								backgroundColor: 'primary.main',
 								height: 2
 							}
 						}}
@@ -2646,8 +2530,9 @@ export default function UsersPage() {
 							flexWrap: 'wrap',
 							gap: 2,
 							alignItems: 'center',
-							backgroundColor: '#f8f9fa',
-							borderBottom: '1px solid #e8eaed'
+							backgroundColor: (theme)=> theme.palette.mode==='light'? 'background.default' : alpha(theme.palette.primary.main,0.05),
+							borderBottom: '1px solid',
+							borderColor: 'divider'
 						}}>
 							<TextField
 								size="small"
@@ -2657,54 +2542,32 @@ export default function UsersPage() {
 								sx={{
 									minWidth: 250,
 									'& .MuiOutlinedInput-root': {
-										backgroundColor: 'white',
+										backgroundColor: 'background.paper',
 										borderRadius: '12px',
-										boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+										boxShadow: 'none',
 										transition: 'all 0.2s ease',
-										'& fieldset': {
-											borderColor: '#e8eaed',
-											borderWidth: '1.5px'
-										},
-										'&:hover': {
-											transform: 'translateY(-1px)',
-											boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
-											'& fieldset': {
-												borderColor: '#cbd5e0'
-											}
-										},
-										'&.Mui-focused': {
-											transform: 'translateY(-1px)',
-											boxShadow: '0 4px 20px rgba(74, 85, 104, 0.15)',
-											'& fieldset': {
-												borderColor: '#4a5568',
-												borderWidth: '2px'
-											}
-										},
+										'& fieldset': { borderColor: 'divider', borderWidth: 1 },
+										'&:hover fieldset': { borderColor: 'primary.light' },
+										'&.Mui-focused fieldset': { borderColor: 'primary.main', borderWidth: 2 },
 										'& .MuiInputBase-input': {
 											fontWeight: 500,
-											color: '#2d3748',
-											'&::placeholder': {
-												color: '#a0aec0',
-												opacity: 1
-											}
+											color: 'text.primary',
+											'&::placeholder': { color: 'text.disabled', opacity: 1 }
 										}
 									}
 								}}
 								InputProps={{
 									startAdornment: (
 										<InputAdornment position="start">
-											<SearchIcon fontSize="small" sx={{ 
-												color: '#718096',
-												transition: 'color 0.2s ease'
-											}} />
+											<SearchIcon fontSize="small" sx={{ color: 'text.secondary', transition: 'color 0.2s ease' }} />
 										</InputAdornment>
 									)
 								}}
 							/>
 							<FormControl size="small" sx={{ minWidth: 120 }}>
 								<InputLabel sx={{ 
-									color: '#718096',
-									'&.Mui-focused': { color: '#c05621' },
+									color: 'text.secondary',
+									'&.Mui-focused': { color: 'warning.main' },
 									fontWeight: 500
 								}}>年级</InputLabel>
 								<Select
@@ -2712,31 +2575,31 @@ export default function UsersPage() {
 									label="年级"
 									onChange={e => setFilterGrade(e.target.value)}
 									sx={{
-										backgroundColor: 'white',
+										backgroundColor: 'background.paper',
 										borderRadius: '12px',
 										boxShadow: '0 2px 8px rgba(192, 86, 33, 0.08)',
 										transition: 'all 0.2s ease',
 										'& .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#feebc8',
+											borderColor: (theme)=>alpha(theme.palette.warning.main,0.25),
 											borderWidth: '1.5px'
 										},
 										'&:hover': {
 											transform: 'translateY(-1px)',
 											boxShadow: '0 4px 16px rgba(192, 86, 33, 0.15)',
 											'& .MuiOutlinedInput-notchedOutline': {
-												borderColor: '#fbd38d'
+												borderColor: (theme)=>alpha(theme.palette.warning.main,0.35)
 											}
 										},
 										'&.Mui-focused': {
 											transform: 'translateY(-1px)',
 											boxShadow: '0 4px 20px rgba(192, 86, 33, 0.2)',
 											'& .MuiOutlinedInput-notchedOutline': {
-												borderColor: '#c05621',
+												borderColor: (theme)=>alpha(theme.palette.warning.main,0.6),
 												borderWidth: '2px'
 											}
 										},
 										'& .MuiSelect-select': {
-											color: '#1a202c',
+											color: 'text.primary',
 											fontWeight: 600,
 											padding: '10px 14px',
 											textAlign: 'center',
@@ -2745,7 +2608,7 @@ export default function UsersPage() {
 											justifyContent: 'center'
 										},
 										'& .MuiSelect-icon': {
-											color: '#c05621',
+											color: 'warning.main',
 											transition: 'transform 0.2s ease'
 										},
 										'&.Mui-focused .MuiSelect-icon': {
@@ -2757,7 +2620,7 @@ export default function UsersPage() {
 											sx: {
 												borderRadius: '12px',
 												boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-												border: '1px solid #feebc8',
+												border: (theme)=>`1px solid ${alpha(theme.palette.warning.main,0.25)}`,
 												mt: 1,
 												maxHeight: 300,
 												'& .MuiList-root': {
@@ -2778,34 +2641,34 @@ export default function UsersPage() {
 								>
 									<MenuItem value="" sx={{
 										fontStyle: 'italic',
-										color: '#a0aec0',
+										color: 'text.disabled',
 										fontWeight: 500,
 										borderRadius: '8px',
 										margin: '4px 8px',
 										transition: 'all 0.2s ease',
 										'&:hover': { 
-											backgroundColor: '#fff5f5',
+											backgroundColor: (theme)=>alpha(theme.palette.warning.main,0.06),
 											transform: 'translateX(4px)',
-											color: '#c05621'
+											color: 'warning.main'
 										}
 									}}>全部年级</MenuItem>
 									{uniqueGrades.map(g => (
 										<MenuItem key={g} value={g} sx={{
-											color: '#1a202c',
+												color: 'text.primary',
 											fontWeight: 500,
 											borderRadius: '8px',
 											margin: '4px 8px',
 											transition: 'all 0.2s ease',
 											'&:hover': { 
-												backgroundColor: '#fff5f5',
+												backgroundColor: (theme)=>alpha(theme.palette.warning.main,0.06),
 												transform: 'translateX(4px)',
 												boxShadow: '0 2px 8px rgba(192, 86, 33, 0.1)'
 											},
 											'&.Mui-selected': { 
-												backgroundColor: '#feebc8',
+												backgroundColor: (theme)=>alpha(theme.palette.warning.main,0.22),
 												fontWeight: 600,
 												'&:hover': { 
-													backgroundColor: '#fbd38d',
+													backgroundColor: (theme)=>alpha(theme.palette.warning.main,0.32),
 													transform: 'translateX(4px)'
 												}
 											}
@@ -2817,8 +2680,8 @@ export default function UsersPage() {
 							</FormControl>
 							<FormControl size="small" sx={{ minWidth: 140 }}>
 								<InputLabel sx={{ 
-									color: '#718096',
-									'&.Mui-focused': { color: '#4a5568' },
+									color: 'text.secondary',
+									'&.Mui-focused': { color: (theme)=>roleAccent(theme).department.main },
 									fontWeight: 500
 								}}>系部</InputLabel>
 								<Select
@@ -2826,31 +2689,31 @@ export default function UsersPage() {
 									label="系部"
 									onChange={e => setFilterDept(e.target.value)}
 									sx={{
-										backgroundColor: 'white',
+										backgroundColor: 'background.paper',
 										borderRadius: '12px',
 										boxShadow: '0 2px 8px rgba(74, 85, 104, 0.08)',
 										transition: 'all 0.2s ease',
 										'& .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#e2e8f0',
+											borderColor: (theme)=>alpha(roleAccent(theme).department.main,0.25),
 											borderWidth: '1.5px'
 										},
 										'&:hover': {
 											transform: 'translateY(-1px)',
 											boxShadow: '0 4px 16px rgba(74, 85, 104, 0.15)',
 											'& .MuiOutlinedInput-notchedOutline': {
-												borderColor: '#cbd5e0'
+												borderColor: (theme)=>alpha(roleAccent(theme).department.main,0.25)
 											}
 										},
 										'&.Mui-focused': {
 											transform: 'translateY(-1px)',
 											boxShadow: '0 4px 20px rgba(74, 85, 104, 0.2)',
 											'& .MuiOutlinedInput-notchedOutline': {
-												borderColor: '#4a5568',
+												borderColor: (theme)=>roleAccent(theme).department.main,
 												borderWidth: '2px'
 											}
 										},
 										'& .MuiSelect-select': {
-											color: '#1a202c',
+											color: 'text.primary',
 											fontWeight: 600,
 											padding: '10px 14px',
 											textAlign: 'center',
@@ -2859,7 +2722,7 @@ export default function UsersPage() {
 											justifyContent: 'center'
 										},
 										'& .MuiSelect-icon': {
-											color: '#4a5568',
+												color: 'text.primary',
 											transition: 'transform 0.2s ease'
 										},
 										'&.Mui-focused .MuiSelect-icon': {
@@ -2871,7 +2734,7 @@ export default function UsersPage() {
 											sx: {
 												borderRadius: '12px',
 												boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-												border: '1px solid #e2e8f0',
+												border: (theme)=>`1px solid ${alpha(roleAccent(theme).department.main,0.25)}`,
 												mt: 1,
 												maxHeight: 300,
 												'& .MuiList-root': {
@@ -2892,34 +2755,34 @@ export default function UsersPage() {
 								>
 									<MenuItem value="" sx={{
 										fontStyle: 'italic',
-										color: '#a0aec0',
+										color: 'text.disabled',
 										fontWeight: 500,
 										borderRadius: '8px',
 										margin: '4px 8px',
 										transition: 'all 0.2s ease',
 										'&:hover': { 
-											backgroundColor: '#f7fafc',
+											backgroundColor: (theme)=>alpha(roleAccent(theme).department.main,0.06),
 											transform: 'translateX(4px)',
-											color: '#4a5568'
+											color: 'text.primary'
 										}
 									}}>全部系部</MenuItem>
 									{uniqueDepartments.map(d => (
 										<MenuItem key={d} value={d} sx={{
-											color: '#1a202c',
+												color: 'text.primary',
 											fontWeight: 500,
 											borderRadius: '8px',
 											margin: '4px 8px',
 											transition: 'all 0.2s ease',
 											'&:hover': { 
-												backgroundColor: '#f7fafc',
+												backgroundColor: (theme)=>alpha(roleAccent(theme).department.main,0.06),
 												transform: 'translateX(4px)',
-												boxShadow: '0 2px 8px rgba(74, 85, 104, 0.1)'
+												boxShadow: (theme)=>`0 2px 8px ${alpha(roleAccent(theme).department.main,0.12)}`
 											},
 											'&.Mui-selected': { 
-												backgroundColor: '#e2e8f0',
+												backgroundColor: (theme)=>alpha(roleAccent(theme).department.main,0.15),
 												fontWeight: 600,
 												'&:hover': { 
-													backgroundColor: '#cbd5e0',
+													backgroundColor: (theme)=>alpha(roleAccent(theme).department.main,0.25),
 													transform: 'translateX(4px)'
 												}
 											}
@@ -2931,8 +2794,8 @@ export default function UsersPage() {
 							</FormControl>
 							<FormControl size="small" sx={{ minWidth: 160 }}>
 								<InputLabel sx={{ 
-									color: '#718096',
-									'&.Mui-focused': { color: '#38a169' },
+									color: 'text.secondary',
+									'&.Mui-focused': { color: 'success.main' },
 									fontWeight: 500
 								}}>组织角色</InputLabel>
 								<Select
@@ -2940,31 +2803,31 @@ export default function UsersPage() {
 									label="组织角色"
 									onChange={e => setFilterRole(e.target.value)}
 									sx={{
-										backgroundColor: 'white',
+										backgroundColor: 'background.paper',
 										borderRadius: '12px',
 										boxShadow: '0 2px 8px rgba(56, 161, 105, 0.08)',
 										transition: 'all 0.2s ease',
 										'& .MuiOutlinedInput-notchedOutline': {
-											borderColor: '#c6f6d5',
+											borderColor: (theme)=>alpha(roleAccent(theme).class.main,0.35),
 											borderWidth: '1.5px'
 										},
 										'&:hover': {
 											transform: 'translateY(-1px)',
 											boxShadow: '0 4px 16px rgba(56, 161, 105, 0.15)',
 											'& .MuiOutlinedInput-notchedOutline': {
-												borderColor: '#9ae6b4'
+												borderColor: (theme)=>alpha(roleAccent(theme).class.main,0.45)
 											}
 										},
 										'&.Mui-focused': {
 											transform: 'translateY(-1px)',
 											boxShadow: '0 4px 20px rgba(56, 161, 105, 0.2)',
 											'& .MuiOutlinedInput-notchedOutline': {
-												borderColor: '#38a169',
+												borderColor: 'success.main',
 												borderWidth: '2px'
 											}
 										},
 										'& .MuiSelect-select': {
-											color: '#1a202c',
+											color: 'text.primary',
 											fontWeight: 600,
 											padding: '10px 14px',
 											textAlign: 'center',
@@ -2973,7 +2836,7 @@ export default function UsersPage() {
 											justifyContent: 'center'
 										},
 										'& .MuiSelect-icon': {
-											color: '#38a169',
+											color: 'success.main',
 											transition: 'transform 0.2s ease'
 										},
 										'&.Mui-focused .MuiSelect-icon': {
@@ -2985,7 +2848,7 @@ export default function UsersPage() {
 											sx: {
 												borderRadius: '12px',
 												boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-												border: '1px solid #c6f6d5',
+												border: (theme)=>`1px solid ${alpha(roleAccent(theme).class.main,0.35)}`,
 												mt: 1,
 												maxHeight: 300,
 												'& .MuiList-root': {
@@ -3006,34 +2869,34 @@ export default function UsersPage() {
 								>
 									<MenuItem value="" sx={{
 										fontStyle: 'italic',
-										color: '#a0aec0',
+										color: 'text.disabled',
 										fontWeight: 500,
 										borderRadius: '8px',
 										margin: '4px 8px',
 										transition: 'all 0.2s ease',
 										'&:hover': { 
-											backgroundColor: '#f0fff4',
+											backgroundColor: (theme)=>alpha(roleAccent(theme).class.main,0.08),
 											transform: 'translateX(4px)',
-											color: '#38a169'
+											color: 'success.main'
 										}
 									}}>全部角色</MenuItem>
 									{roleDisplayList.map(r => (
 										<MenuItem key={r.code} value={r.code} sx={{
-											color: '#1a202c',
+											color: 'text.primary',
 											fontWeight: 500,
 											borderRadius: '8px',
 											margin: '4px 8px',
 											transition: 'all 0.2s ease',
 											'&:hover': { 
-												backgroundColor: '#f0fff4',
+												backgroundColor: (theme)=>alpha(roleAccent(theme).class.main,0.08),
 												transform: 'translateX(4px)',
 												boxShadow: '0 2px 8px rgba(56, 161, 105, 0.1)'
 											},
 											'&.Mui-selected': { 
-												backgroundColor: '#c6f6d5',
+												backgroundColor: (theme)=>alpha(roleAccent(theme).class.main,0.25),
 												fontWeight: 600,
 												'&:hover': { 
-													backgroundColor: '#9ae6b4',
+													backgroundColor: (theme)=>alpha(roleAccent(theme).class.main,0.4),
 													transform: 'translateX(4px)'
 												}
 											}
@@ -3046,16 +2909,16 @@ export default function UsersPage() {
 							<IconButton
 								onClick={loadAll}
 								sx={{
-									backgroundColor: 'white',
+									backgroundColor: 'background.paper',
 									border: '1px solid #e8eaed',
 									borderRadius: '8px',
 									'&:hover': {
-										backgroundColor: '#f8f9fa',
-										borderColor: '#cbd5e0'
+										backgroundColor: (theme)=> theme.palette.mode==='light'? 'background.default':'background.paper',
+										borderColor: (theme)=>alpha(roleAccent(theme).department.main,0.25)
 									}
 								}}
 							>
-								<RefreshIcon sx={{ color: '#718096' }} />
+								<RefreshIcon sx={{ color: 'text.secondary' }} />
 							</IconButton>
 						</Box>
 					)}
@@ -3089,7 +2952,7 @@ export default function UsersPage() {
 				<DialogTitle sx={{
 					p: 3,
 					pb: 1,
-					color: '#1a202c',
+					color: 'text.primary',
 					fontWeight: 600
 				}}>
 					教师角色分配
@@ -3099,19 +2962,19 @@ export default function UsersPage() {
 						<Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 							<Box sx={{
 								p: 3,
-								backgroundColor: '#f8f9fa',
+								backgroundColor: (theme)=> theme.palette.mode==='light'? 'background.default':'background.paper',
 								borderRadius: '8px',
-								border: '1px solid #e8eaed'
+								border: (theme)=>`1px solid ${alpha(theme.palette.divider,0.6)}`
 							}}>
 								<Typography variant="subtitle1" sx={{
 									fontWeight: 600,
-									color: '#1a202c',
+									color: 'text.primary',
 									mb: 0.5
 								}}>
 									{editingTeacher.name}
 								</Typography>
 								<Typography variant="body2" sx={{
-									color: '#718096',
+									color: 'text.secondary',
 									fontFamily: 'monospace'
 								}}>
 									{editingTeacher.teacherNo}
@@ -3120,7 +2983,7 @@ export default function UsersPage() {
 
 							<Box>
 								<Typography variant="body2" sx={{
-									color: '#718096',
+									color: 'text.secondary',
 									mb: 2,
 									fontWeight: 500
 								}}>
@@ -3142,9 +3005,9 @@ export default function UsersPage() {
 														checked={isChecked}
 														onChange={() => toggleRoleDraft(roleCode)}
 													sx={{
-														color: '#cbd5e0',
+														color: (theme)=>alpha(roleAccent(theme).department.main,0.45),
 														'&.Mui-checked': {
-															color: '#4a5568'
+															color: (theme)=>roleAccent(theme).department.main
 														}
 													}}
 												/>
@@ -3152,18 +3015,18 @@ export default function UsersPage() {
 											label={
 												<Typography sx={{
 														fontWeight: 500,
-														color: isChecked ? '#1a202c' : '#718096'
+														color: isChecked ? 'text.primary' : 'text.secondary'
 												}}>
 													{r.display}
 												</Typography>
 											}
 											sx={{
-													border: '1px solid #e8eaed',
+													border: (theme)=>`1px solid ${alpha(theme.palette.divider,0.6)}`,
 													borderRadius: '8px',
 													p: 1.5,
 													m: 0,
-													backgroundColor: isChecked ? '#f0f4f8' : 'white',
-													borderColor: isChecked ? '#cbd5e0' : '#e8eaed'
+													backgroundColor: isChecked ? (theme)=>alpha(roleAccent(theme).department.main,0.06) : 'background.paper',
+													borderColor: (theme)=> isChecked ? alpha(roleAccent(theme).department.main,0.35) : theme.palette.divider
 											}}
 										/>
 										);
@@ -3173,10 +3036,10 @@ export default function UsersPage() {
 
 							{roleDraft.includes(ROLE_CODES.HOMEROOM_TEACHER) && (
 								<Box>
-									<Typography variant="subtitle2" sx={{ mb: 1, color: '#1a202c', fontWeight: 600 }}>
+									<Typography variant="subtitle2" sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}>
 										班主任班级选择
 									</Typography>
-									<div style={{ fontSize: '12px', color: '#999', marginBottom: '8px' }}>
+									<div style={{ fontSize: '12px', color: 'var(--mui-palette-text-secondary)', marginBottom: '8px' }}>
 										调试: 总班级数 {classes.length}, 当前值: {draftHomeroomClassId}, 
 										可用班级: {classes
 											.filter(c => {
@@ -3185,7 +3048,7 @@ export default function UsersPage() {
 											}).length}
 									</div>
 									<FormControl size="small" fullWidth>
-										<InputLabel sx={{ color: '#718096' }}>班主任班级</InputLabel>
+										<InputLabel sx={{ color: 'text.secondary' }}>班主任班级</InputLabel>
 										<Select
 											label="班主任班级"
 											value={draftHomeroomClassId.toString()}
@@ -3196,13 +3059,13 @@ export default function UsersPage() {
 											sx={{
 												borderRadius: '8px',
 												'& .MuiOutlinedInput-notchedOutline': {
-													borderColor: '#e8eaed'
+													borderColor: (theme)=>alpha(theme.palette.divider,0.4)
 												},
 												'&:hover .MuiOutlinedInput-notchedOutline': {
-													borderColor: '#cbd5e0'
+													borderColor: (theme)=>alpha(roleAccent(theme).department.main,0.25)
 												},
 												'&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-													borderColor: '#4a5568'
+													borderColor: (theme)=>roleAccent(theme).department.main
 												}
 											}}
 										>
@@ -3221,14 +3084,14 @@ export default function UsersPage() {
 												})}
 										</Select>
 									</FormControl>
-									<Typography variant="caption" sx={{ color: '#718096', mt: 1, display: 'block' }}>
+									<Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, display: 'block' }}>
 										可选班级数量: {classes.filter(c => {
 											const assigned = teachers.find(t => t.homeroomClassId === c.id);
 											return !assigned || assigned.id === editingTeacher?.id;
 										}).length} / 总班级数: {classes.length}
 									</Typography>
 									{classes.length === 0 && (
-										<Typography variant="caption" sx={{ color: '#e53e3e', mt: 1, display: 'block' }}>
+										<Typography variant="caption" sx={{ color: 'error.main', mt: 1, display: 'block' }}>
 											暂无可选班级数据
 										</Typography>
 									)}
@@ -3237,11 +3100,11 @@ export default function UsersPage() {
 
 							{roleDraft.includes(ROLE_CODES.GRADE_LEADER) && (
 								<Box>
-									<Typography variant="subtitle2" sx={{ mb: 1, color: '#1a202c', fontWeight: 600 }}>
+									<Typography variant="subtitle2" sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}>
 										年级主任负责年级
 									</Typography>
 									<FormControl size="small" fullWidth>
-										<InputLabel sx={{ color: '#718096' }}>负责年级</InputLabel>
+										<InputLabel sx={{ color: 'text.secondary' }}>负责年级</InputLabel>
 										<Select
 											label="负责年级"
 											value={roleScopeDraft[ROLE_CODES.GRADE_LEADER]?.grade || ''}
@@ -3250,9 +3113,9 @@ export default function UsersPage() {
 											}}
 											sx={{
 												borderRadius: '8px',
-												'& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8eaed' },
-												'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e0' },
-												'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#c05621' }
+												'& .MuiOutlinedInput-notchedOutline': { borderColor: (theme)=>alpha(theme.palette.divider,0.4) },
+												'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: (theme)=>alpha(roleAccent(theme).department.main,0.25) },
+												'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: (theme)=>alpha(theme.palette.warning.main,0.6) }
 											}}
 										>
 											<MenuItem value=""><em>请选择年级</em></MenuItem>
@@ -3263,11 +3126,11 @@ export default function UsersPage() {
 											})}
 										</Select>
 									</FormControl>
-									<Typography variant="caption" sx={{ color: '#718096', mt: 1, display: 'block' }}>
+									<Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, display: 'block' }}>
 										可选年级数量: {uniqueGrades.length} / 年级列表: {uniqueGrades.join(', ') || '无'}
 									</Typography>
 									{uniqueGrades.length === 0 && (
-										<Typography variant="caption" sx={{ color: '#e53e3e', mt: 1, display: 'block' }}>
+										<Typography variant="caption" sx={{ color: 'error.main', mt: 1, display: 'block' }}>
 											暂无可选年级数据
 										</Typography>
 									)}
@@ -3276,11 +3139,11 @@ export default function UsersPage() {
 
 							{roleDraft.includes(ROLE_CODES.DEPARTMENT_HEAD) && (
 								<Box>
-									<Typography variant="subtitle2" sx={{ mb: 1, color: '#1a202c', fontWeight: 600 }}>
+									<Typography variant="subtitle2" sx={{ mb: 1, color: 'text.primary', fontWeight: 600 }}>
 										系部主任负责系部
 									</Typography>
 									<FormControl size="small" fullWidth>
-										<InputLabel sx={{ color: '#718096' }}>负责系部</InputLabel>
+										<InputLabel sx={{ color: 'text.secondary' }}>负责系部</InputLabel>
 										<Select
 											label="负责系部"
 											value={roleScopeDraft[ROLE_CODES.DEPARTMENT_HEAD]?.departmentId ?? ''}
@@ -3291,9 +3154,9 @@ export default function UsersPage() {
 											}}
 											sx={{
 												borderRadius: '8px',
-												'& .MuiOutlinedInput-notchedOutline': { borderColor: '#e8eaed' },
-												'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e0' },
-												'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#4a5568' }
+												'& .MuiOutlinedInput-notchedOutline': { borderColor: (theme)=>alpha(theme.palette.divider,0.4) },
+												'&:hover .MuiOutlinedInput-notchedOutline': { borderColor: (theme)=>alpha(roleAccent(theme).department.main,0.25) },
+												'&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: (theme)=>roleAccent(theme).department.main }
 											}}
 										>
 											<MenuItem value=""><em>请选择系部</em></MenuItem>
@@ -3304,11 +3167,11 @@ export default function UsersPage() {
 											})}
 										</Select>
 									</FormControl>
-									<Typography variant="caption" sx={{ color: '#718096', mt: 1, display: 'block' }}>
+									<Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, display: 'block' }}>
 										可选系部数量: {departments.length} / 系部列表: {departments.map(d => d.name).join(', ') || '无'}
 									</Typography>
 									{departments.length === 0 && (
-										<Typography variant="caption" sx={{ color: '#e53e3e', mt: 1, display: 'block' }}>
+										<Typography variant="caption" sx={{ color: 'error.main', mt: 1, display: 'block' }}>
 											暂无可选系部数据
 										</Typography>
 									)}
@@ -3320,8 +3183,8 @@ export default function UsersPage() {
 								sx={{
 									borderRadius: '8px',
 									border: '1px solid #bee3f8',
-									backgroundColor: '#ebf8ff',
-									color: '#2b6cb0'
+									backgroundColor: (theme)=>alpha(theme.palette.info.main,0.12),
+									color: 'info.main'
 								}}
 							>
 								说明：这里的岗位与账号系统角色不同，仅用于组织/审批链条（如班主任、年级主任）。
@@ -3333,7 +3196,7 @@ export default function UsersPage() {
 					<Button
 						onClick={() => setEditDialog(false)}
 						sx={{
-							color: '#718096',
+							color: 'text.secondary',
 							textTransform: 'none',
 							fontWeight: 500
 						}}
@@ -3347,18 +3210,18 @@ export default function UsersPage() {
 						onClick={saveTeacherRoles}
 						sx={{
 							boxShadow: 'none',
-							backgroundColor: '#4a5568',
+							backgroundColor: (theme)=>roleAccent(theme).department.main,
 							color: 'white',
 							textTransform: 'none',
 							fontWeight: 500,
 							borderRadius: '8px',
 							'&:hover': {
-								backgroundColor: '#2d3748',
+								backgroundColor: (theme)=>alpha(roleAccent(theme).department.main,0.9),
 								boxShadow: 'none'
 							},
 							'&:disabled': {
-								backgroundColor: '#e2e8f0',
-								color: '#a0aec0'
+								backgroundColor: (theme)=>alpha(theme.palette.divider,0.2),
+								color: 'text.disabled'
 							}
 						}}
 					>
@@ -3383,7 +3246,7 @@ export default function UsersPage() {
 				<DialogTitle sx={{
 					p: 3,
 					pb: 1,
-					color: '#1a202c',
+					color: 'text.primary',
 					fontWeight: 600,
 					display: 'flex',
 					alignItems: 'center',
@@ -3394,7 +3257,7 @@ export default function UsersPage() {
 				</DialogTitle>
 				<DialogContent sx={{ p: 3 }}>
 					<Typography sx={{ 
-						color: '#4a5568', 
+						color: 'text.primary', 
 						lineHeight: 1.6,
 						whiteSpace: 'pre-line'
 					}}>
@@ -3409,7 +3272,7 @@ export default function UsersPage() {
 							setSaving(false);
 						}}
 						sx={{
-							color: '#718096',
+							color: 'text.secondary',
 							textTransform: 'none',
 							fontWeight: 500,
 							borderRadius: '8px',

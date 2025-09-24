@@ -33,6 +33,7 @@ import {
   ListItemAvatar,
   useTheme,
 } from "@mui/material";
+import { alpha } from '@mui/material/styles';
 import {
   Send as SendIcon,
   Save as SaveIcon,
@@ -190,15 +191,15 @@ export default function LeaveApplyPage() {
   }, []);
 
   // 计算请假天数
+  // 计算请假天数（包含首尾两天）。若结束日期早于开始日期返回 0。
   const calculateDays = (startDate: string, endDate: string) => {
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      return diffDays;
-    }
-    return 0;
+    if (!startDate || !endDate) return 0;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (end < start) return 0; // 不合法顺序
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // 包含首尾
+    return diffDays;
   };
 
   // 处理请假类型选择
@@ -213,17 +214,24 @@ export default function LeaveApplyPage() {
 
   // 处理日期变更
   const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
-    const updatedApplication = {
-      ...application,
-      [field]: value,
-    };
-    
-    if (field === 'startDate' || field === 'endDate') {
-      const days = calculateDays(updatedApplication.startDate, updatedApplication.endDate);
-      updatedApplication.days = days;
-    }
-    
-    setApplication(updatedApplication);
+    const updated = { ...application, [field]: value } as LeaveApplication;
+    const days = calculateDays(updated.startDate, updated.endDate);
+    updated.days = days;
+
+    // 实时校验日期顺序
+    setErrors(prev => {
+      const next = { ...prev };
+      if (updated.startDate && updated.endDate) {
+        if (new Date(updated.startDate) > new Date(updated.endDate)) {
+          next.endDate = '结束日期不能早于开始日期';
+        } else {
+          // 清理相关错误
+            delete next.endDate;
+        }
+      }
+      return next;
+    });
+    setApplication(updated);
   };
 
   // 表单验证
@@ -506,8 +514,16 @@ export default function LeaveApplyPage() {
 
                   {/* 请假天数显示 */}
                   {application.days > 0 && (
-                    <Box sx={{ p: 2, backgroundColor: '#f8f9fa', borderRadius: 2 }}>
-                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    <Box sx={(theme) => ({
+                      p: 2,
+                      borderRadius: 2,
+                      backgroundColor: theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.primary.main, 0.18)
+                        : alpha(theme.palette.primary.main, 0.08),
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.35)}`,
+                      transition: 'background-color .25s ease, border-color .25s ease'
+                    })}>
+                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         请假天数: {application.days} 天
                       </Typography>
                       {errors.days && (
@@ -570,7 +586,7 @@ export default function LeaveApplyPage() {
                   <Box sx={{ p: 2, border: '2px dashed #e0e0e0', borderRadius: 2, textAlign: 'center' }}>
                     <AttachFileIcon sx={{ fontSize: 48, color: '#6c757d', mb: 1 }} />
                     <Typography variant="body1" sx={{ color: '#6c757d', mb: 1 }}>
-                      上传相关证明文件（可选）
+                      [上传相关证明文件（可选）]
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#6c757d' }}>
                       支持 PDF, JPG, PNG 格式，单个文件不超过 5MB
@@ -690,32 +706,54 @@ export default function LeaveApplyPage() {
 
         {/* 申请预览对话框 */}
         <Dialog open={showPreview} onClose={() => setShowPreview(false)} maxWidth="md" fullWidth>
-          <DialogTitle>确认提交申请</DialogTitle>
-          <DialogContent>
-            <Paper sx={{ p: 3, backgroundColor: '#f8f9fa' }}>
+          <DialogTitle sx={{
+            fontWeight: 600,
+            pb: 1.5,
+          }}>确认提交申请</DialogTitle>
+          <DialogContent sx={{ pt: 0 }}>
+            <Paper sx={(theme) => ({
+              p: 3,
+              borderRadius: 2,
+              backgroundColor: theme.palette.mode === 'dark'
+                ? alpha(theme.palette.background.paper, 0.9)
+                : theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              position: 'relative',
+              overflow: 'hidden',
+              '&:before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 4,
+                background: theme.palette.primary.main,
+              }
+            })}>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
                 申请摘要
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#6c757d' }}>请假类型</Typography>
-                  <Typography variant="body1">{selectedLeaveType?.name}</Typography>
+                  <Typography variant="body2" color="text.secondary">请假类型</Typography>
+                  <Typography variant="body1" color="text.primary">{selectedLeaveType?.name}</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#6c757d' }}>请假天数</Typography>
-                  <Typography variant="body1">{application.days} 天</Typography>
+                  <Typography variant="body2" color="text.secondary">请假天数</Typography>
+                  <Typography variant="body1" color="text.primary">{application.days} 天</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#6c757d' }}>开始日期</Typography>
-                  <Typography variant="body1">{application.startDate}</Typography>
+                  <Typography variant="body2" color="text.secondary">开始日期</Typography>
+                  <Typography variant="body1" color="text.primary">{application.startDate}</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="body2" sx={{ color: '#6c757d' }}>结束日期</Typography>
-                  <Typography variant="body1">{application.endDate}</Typography>
+                  <Typography variant="body2" color="text.secondary">结束日期</Typography>
+                  <Typography variant="body1" color="text.primary">{application.endDate}</Typography>
                 </Box>
                 <Box sx={{ gridColumn: '1 / -1' }}>
-                  <Typography variant="body2" sx={{ color: '#6c757d' }}>请假原因</Typography>
-                  <Typography variant="body1">{application.reason}</Typography>
+                  <Typography variant="body2" color="text.secondary">请假原因</Typography>
+                  <Typography variant="body1" color="text.primary">{application.reason}</Typography>
                 </Box>
               </Box>
             </Paper>
