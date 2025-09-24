@@ -33,7 +33,6 @@ import {
   Search as SearchIcon,
   FilterList as FilterIcon,
   DownloadOutlined as ExportIcon,
-  Person as PersonIcon,
   Work as WorkIcon,
   CalendarMonth as CalendarIcon,
   TrendingUp as TrendingUpIcon,
@@ -100,6 +99,47 @@ interface StudentLeaveBalanceItem {
   leaveTypeConfig: LeaveTypeConfig;
 }
 
+// 后端扁平 DTO（/api/leave/all 返回）可能的字段集合
+interface LeaveRequestFlatDTO {
+  id: number;
+  studentId: number;
+  studentName?: string;
+  studentNo?: string;
+  classId?: number;
+  className?: string;
+  clazzName?: string; // 兼容不同命名
+  grade?: string;
+  leaveTypeId: number;
+  leaveTypeName?: string;
+  leaveTypeCode?: string;
+  leaveTypeColor?: string;
+  typeName?: string;
+  teacherId?: number;
+  teacherName?: string;
+  startDate: string;
+  endDate: string;
+  days?: number;
+  dayCount?: number;
+  status: string;
+  reason?: string;
+  comment?: string;
+  student?: Student;
+  teacher?: Teacher;
+  leaveTypeConfig?: LeaveTypeConfig;
+  approvals?: Array<{
+    id: number;
+    stepOrder?: number;
+    stepName?: string;
+    roleCode?: string;
+    roleDisplayName?: string;
+    teacherId?: number;
+    teacherName?: string;
+    status?: string;
+    comment?: string | null;
+    reviewedAt?: string | null;
+  }>;
+}
+
 // 聚合后的行数据
 interface StudentRow {
   studentId: number;
@@ -113,20 +153,87 @@ interface StudentRow {
 
 const api = {
   async fetchAllLeaveRequests(): Promise<LeaveRequest[]> {
-    const res = await fetch(`${API_BASE_URL}/leave/all`);
+    const res = await fetch(`${API_BASE_URL}/leave/all`, {
+      credentials: 'include'
+    });
     if (!res.ok) throw new Error(`获取请假列表失败：${res.status}`);
-    return res.json();
+    const raw = await res.json();
+    // 兼容后端返回的扁平 DTO (studentId, studentName, className, leaveTypeName...)，转换为前端使用的嵌套结构
+  const mapped: LeaveRequest[] = (raw as LeaveRequestFlatDTO[] || []).map((r) => {
+      // 若顶层没有 teacher 字段，从审批记录中推导：优先当前待审批，否则最后一个记录
+      let teacherId = r.teacherId;
+  let teacherName = (r as LeaveRequestFlatDTO).teacherName; // 兼容后端日后可能添加
+      if ((!teacherId || !teacherName) && Array.isArray(r.approvals) && r.approvals.length > 0) {
+        const pending = r.approvals.find(a => a.status === '待审批' || a.status === 'pending');
+        const ref = pending || r.approvals[r.approvals.length - 1];
+        if (ref) {
+          teacherId = teacherId || ref.teacherId;
+          teacherName = teacherName || ref.teacherName;
+        }
+      }
+      const student = r.student || (r.studentId ? {
+        id: r.studentId,
+        name: r.studentName || `学生${r.studentId}`,
+        studentNo: r.studentNo,
+        clazz: (r.className || r.clazzName) ? {
+          id: r.classId || 0,
+          name: r.className || r.clazzName || '',
+          grade: r.grade || undefined,
+        } : null,
+      } : undefined);
+      const leaveTypeConfig = r.leaveTypeConfig || (r.leaveTypeId ? {
+        id: r.leaveTypeId,
+        typeCode: r.leaveTypeCode || '',
+        typeName: r.leaveTypeName || r.typeName || '未知类型',
+        color: r.leaveTypeColor || '#1976d2',
+      } : undefined);
+      return {
+        id: r.id,
+        studentId: r.studentId,
+        teacherId: teacherId,
+        leaveTypeId: r.leaveTypeId,
+        reason: r.reason || r.comment || '',
+        startDate: r.startDate,
+        endDate: r.endDate,
+        days: r.days || r.dayCount || 0,
+        status: r.status,
+        student: student,
+        teacher: r.teacher || (teacherId ? { id: teacherId, name: teacherName || '—' } : undefined),
+        leaveTypeConfig: leaveTypeConfig,
+      } as LeaveRequest;
+    });
+    return mapped;
   },
   async fetchClasses(): Promise<ClassSimple[]> {
-    const res = await fetch(`${API_BASE_URL}/class/simple`);
+    const res = await fetch(`${API_BASE_URL}/class/simple`, { credentials: 'include' });
     if (!res.ok) throw new Error(`获取班级列表失败：${res.status}`);
     return res.json();
   },
   async fetchStudentBalances(studentId: number): Promise<StudentLeaveBalanceItem[]> {
-    const res = await fetch(`${API_BASE_URL}/leave/balance/student/${studentId}`);
+    const res = await fetch(`${API_BASE_URL}/leave/balance/student/${studentId}`, { credentials: 'include' });
     if (!res.ok) throw new Error(`获取学生余额失败：${res.status}`);
     return res.json();
   },
+};
+
+// 简易中文姓氏->拼音首字母映射（常见百家姓，可按需扩展）
+const surnameInitialMap: Record<string, string> = {
+  王:'W', 李:'L', 张:'Z', 刘:'L', 陈:'C', 杨:'Y', 赵:'Z', 黄:'H', 周:'Z', 吴:'W', 徐:'X', 孙:'S', 胡:'H', 朱:'Z', 高:'G', 林:'L', 何:'H', 郭:'G', 马:'M', 罗:'L', 梁:'L', 宋:'S', 郑:'Z', 谢:'X', 韩:'H', 唐:'T', 冯:'F', 于:'Y', 董:'D', 萧:'X', 程:'C', 曹:'C', 袁:'Y', 邓:'D', 许:'X', 傅:'F', 沈:'S', 曾:'Z', 彭:'P', 吕:'L', 苏:'S', 卢:'L', 蒋:'J', 蔡:'C', 贾:'J', 丁:'D', 魏:'W', 薛:'X', 叶:'Y', 阎:'Y', 余:'Y', 潘:'P', 杜:'D', 戴:'D', 夏:'X', 钟:'Z', 汪:'W', 田:'T', 任:'R', 姜:'J', 范:'F', 方:'F', 石:'S', 姚:'Y', 谭:'T', 廖:'L', 邹:'Z', 熊:'X', 金:'J', 陆:'L', 郝:'H', 孔:'K', 白:'B', 崔:'C', 康:'K', 毛:'M', 邱:'Q', 秦:'Q', 江:'J', 史:'S', 顾:'G', 侯:'H', 邵:'S', 孟:'M', 龙:'L', 万:'W', 段:'D', 钱:'Q', 汤:'T', 尹:'Y', 黎:'L', 易:'Y', 常:'C', 武:'W', 乔:'Q', 贺:'H', 赖:'L', 龚:'G', 文:'W', 庞:'P', 樊:'F', 兰:'L', 殷:'Y', 施:'S', 陶:'T', 洪:'H', 翟:'Z', 安:'A', 颜:'Y', 倪:'N', 严:'Y', 牛:'N', 温:'W', 芦:'L', 季:'J', 俞:'Y', 章:'Z', 鲁:'L', 葛:'G', 毕:'B', 井:'J', 包:'B', 左:'Z', 吉:'J'
+};
+
+const getNameInitial = (name?: string) => {
+  if (!name || !name.length) return '?';
+  const firstChar = name.trim()[0];
+  // 如果是英文/数字等，直接取大写
+  if (/^[A-Za-z]$/.test(firstChar)) return firstChar.toUpperCase();
+  // 中文姓氏映射
+  if (surnameInitialMap[firstChar]) return surnameInitialMap[firstChar];
+  // 尝试使用 localeCompare 判断是否中文（简单判断）
+  if (/[\u4e00-\u9fa5]/.test(firstChar)) {
+    // 无映射则返回该字的拼音首字母猜测：这里简化为自身首字母占位 'X'
+    return 'X';
+  }
+  return firstChar.toUpperCase();
 };
 
 const statusStyle = (status: string) => {
@@ -196,16 +303,23 @@ export default function EmployeesPage() {
   const rows: StudentRow[] = useMemo(() => {
     const map = new Map<number, StudentRow>();
     for (const r of requests) {
-      if (!r.student) continue;
-      const sid = r.student.id;
+      const sid = r.studentId;
+      // 若无 studentId 则跳过
+      if (!sid) continue;
+      const flat = r as unknown as LeaveRequestFlatDTO; // r 已被映射但保留兼容字段
+      const name = r.student?.name || flat.studentName || `学生${sid}`;
+      const clazzName = r.student?.clazz?.name || flat.className || flat.clazzName;
+      const clazzId = r.student?.clazz?.id || flat.classId;
+      const grade = r.student?.clazz?.grade || flat.grade;
+      const studentNo = r.student?.studentNo || flat.studentNo;
       const exists = map.get(sid);
       const base: StudentRow = exists ?? {
         studentId: sid,
-        name: r.student.name,
-        studentNo: r.student.studentNo,
-        clazzId: r.student.clazz?.id,
-        clazzName: r.student.clazz?.name,
-        grade: r.student.clazz?.grade,
+        name,
+        studentNo,
+        clazzId,
+        clazzName,
+        grade,
         recentLeaves: [],
       };
       base.recentLeaves.push(r);
@@ -216,8 +330,7 @@ export default function EmployeesPage() {
       ...row,
       recentLeaves: row.recentLeaves
         .slice()
-        .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
-        .slice(0, 5),
+        .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()), // 不再截断，显示全部
     }));
     // 默认按班级/姓名排序
     return list.sort((a, b) => (a.clazzName || '').localeCompare(b.clazzName || '') || a.name.localeCompare(b.name));
@@ -512,7 +625,7 @@ export default function EmployeesPage() {
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <Avatar sx={{ bgcolor: (theme) => theme.palette.primary.main }}>
-                            {row.name[0]}
+                            {getNameInitial(row.name)}
                           </Avatar>
                           <Box>
                             <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
@@ -557,8 +670,8 @@ export default function EmployeesPage() {
         >
           <DialogTitle>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: (theme) => theme.palette.primary.main, width: 50, height: 50 }}>
-                <PersonIcon />
+              <Avatar sx={{ bgcolor: (theme) => theme.palette.primary.main, width: 50, height: 50, fontSize: 24, fontWeight: 600 }}>
+                {getNameInitial(selectedRow?.name)}
               </Avatar>
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
