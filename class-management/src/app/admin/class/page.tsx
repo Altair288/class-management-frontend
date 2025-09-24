@@ -1,7 +1,22 @@
-// 待实现功能：
-// 通过Excel导入前端出现加载动画，导入完成后显示导入结果并通过弹窗展示。
-// 移除成员成功时，弹窗提示成功。
-// 单独新增成员时，也需要提示成功。
+/**
+ * 文件: page.tsx
+ * 路径: src/app/admin/class/page.tsx
+ * 功能: 班级管理页面。支持班级统计展示、班级成员查看/分页/排序/筛选、单个学生按学号添加、批量 Excel 导入、
+ *       成员移除（转入未分班池）、未分班学生列表预览，以及展开聚焦动画体验。
+ * 技术要点:
+ *   - 使用 MUI (Theme, alpha) 进行语义化配色与暗色模式适配。
+ *   - 利用 framer-motion 实现卡片展开/聚焦过渡与渐入动画。
+ *   - 分班成员分页、排序（学号/姓名，本地 localeCompare，含中文排序）、筛选（学号/姓名/手机/邮箱）。
+ *   - 多个班级的分页 / 分页大小 / 排序 / 筛选 状态分别持久在映射对象中 (pageMap / pageSizeMap / sortMap / filterMap)。
+ *   - 通过多并发请求聚合统计数据与未分班学生信息。
+ * 待办 (TODO):
+ *   1. Excel 导入时：前端显示加载动画；导入完成后展示详细结果，并弹出成功/失败结果对话框。
+ *   2. 移除成员成功后：增加成功提示（如 Snackbar / Dialog 反馈）。
+ *   3. 单独新增成员成功后：增加成功提示（如 Snackbar / Dialog 反馈）。
+ *   4. （可选）Excel 导入失败的异常捕获与用户友好错误提示。
+ *   5. （可选）将未分班学生区域支持展开/折叠及全量查看对话框。
+ * 最近更新: 2025-09-24 添加文件头部标准注释并整合待办列表。
+ */
 
 "use client";
 
@@ -31,6 +46,9 @@ import {
   MenuItem,
   Select,
   Chip,
+  Snackbar,
+  Alert,
+  CircularProgress,
   // FormControl,
   // InputLabel,
   TableSortLabel,
@@ -68,7 +86,7 @@ export default function ClassManagePage() {
     pendingRequests: 0,
   });
   const [members, setMembers] = useState<Record<number, Student[]>>({});
-  const [studentOptions, setStudentOptions] = useState<Student[]>([]);
+  // 移除 studentOptions：原先预取全部学生列表未在页面中使用，避免冗余请求与未使用变量告警。
   const [addStudent, setAddStudent] = useState<Student | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [focusClass, setFocusClass] = useState<ClassInfo | null>(null);
@@ -81,14 +99,21 @@ export default function ClassManagePage() {
   const [studentNoLoading, setStudentNoLoading] = useState(false);
   const [studentNoError, setStudentNoError] = useState("");
 
-  // 分页相关
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(15);
+  // 全局 page / pageSize 状态移除：采用按班级映射 pageMap/pageSizeMap 管理分页。
 
   // 移除成员相关
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Student | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState("");
+  // 移除成功提示
+  const [removeSuccessOpen, setRemoveSuccessOpen] = useState(false);
+  // 单独新增成员成功提示
+  const [addSuccessOpen, setAddSuccessOpen] = useState(false);
+  // Excel 导入结果提示
+  const [importSuccessOpen, setImportSuccessOpen] = useState(false);
+  const [importAdded, setImportAdded] = useState<number | null>(null);
+  const [importError, setImportError] = useState<{ open: boolean; msg: string }>({ open: false, msg: "" });
+  const [importLoading, setImportLoading] = useState(false); // Excel 导入时加载指示
 
   // 组件顶层
   const [pageMap, setPageMap] = useState<Record<number, number>>({});
@@ -100,8 +125,9 @@ export default function ClassManagePage() {
 
   // 排序/筛选/列宽
   const [sortMap, setSortMap] = useState<Record<number, { by: "studentNo" | "name"; order: "asc" | "desc" }>>({});
-  const [filterMap, setFilterMap] = useState<Record<number, string>>({});
-  const [widthMode, setWidthMode] = useState<"compact" | "normal" | "wide">("normal");
+  const [filterMap] = useState<Record<number, string>>({}); // 当前未启用筛选输入
+  // 固定列宽模式（如需 UI 控制可还原为 useState）
+  const widthMode: "compact" | "normal" | "wide" = "normal";
 
   useEffect(() => {
     if (!focusClass) return;
@@ -157,7 +183,7 @@ export default function ClassManagePage() {
         setUnassignedCount(unassignedCountRes.data);
       }
     );
-    axios.get("/api/users/student/all").then((res) => setStudentOptions(res.data));
+    // 已删除获取全部学生列表的请求（未使用）。
   }, []);
 
   const handleExpand = async (cls: ClassInfo) => {
@@ -191,22 +217,7 @@ export default function ClassManagePage() {
     }
   };
 
-  const refreshAllOpenedMembers = async () => {
-    // 总是刷新所有已加载的班级成员
-    const updates = await Promise.all(
-      Object.keys(members).map(async (cid) => {
-        const res = await axios.get(`/api/class/${cid}/members`);
-        return { cid, data: res.data };
-      })
-    );
-    setMembers((prev) => {
-      const next = { ...prev };
-      updates.forEach(({ cid, data }) => {
-        next[Number(cid)] = data;
-      });
-      return next;
-    });
-  };
+  // refreshAllOpenedMembers 函数暂未使用，如需“一键刷新所有已展开班级成员”可恢复实现。
 
   // 单独添加成员
   const handleAddStudent = async (classId: number, student?: Student | null) => {
@@ -224,6 +235,7 @@ export default function ClassManagePage() {
     setStudentNoInput("");
     setStudentNoResult(null);
     setAddStudent(null);
+  setAddSuccessOpen(true); // 显示添加成功
 
     // 刷新班级人数和学生总数
     Promise.all([
@@ -255,52 +267,74 @@ export default function ClassManagePage() {
   };
 
   // 批量导入
-  const handleExcelChange = (e: React.ChangeEvent<HTMLInputElement>, classId: number) => {
+  const handleExcelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setExcelFile(e.target.files[0]);
     }
   };
   const handleBatchImport = async (classId: number) => {
     if (!excelFile) return;
-    const formData = new FormData();
-    formData.append("file", excelFile);
-    await axios.post(`/api/class/${classId}/import-students`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    const res = await axios.get(`/api/class/${classId}/members`);
-    setMembers(prev => ({ ...prev, [classId]: res.data }));
-    const newCount = res.data.length;
-    setClassList(prev => prev.map(c => (c.id === classId ? { ...c, studentCount: newCount } : c)));
-    setFocusClass(fc => (fc && fc.id === classId ? { ...fc, studentCount: newCount } : fc));
-    setExcelFile(null);
-
-    // 刷新班级人数和学生总数
-    Promise.all([
-      axios.get("/api/class/student-count"),
-      axios.get("/api/class/count"),
-      axios.get("/api/users/student/count"),
-      axios.get("/api/users/teacher/count"),
-    ]).then(([countRes, classCount, studentCount, teacherCount]) => {
-      const studentCountMap: Record<number, number> = {};
-      countRes.data.forEach(
-        (item: { classId: number; studentCount: number }) => {
-          studentCountMap[item.classId] = item.studentCount;
-        }
-      );
-      setClassList((prev) =>
-        prev.map((cls) =>
-          studentCountMap[cls.id] !== undefined
-            ? { ...cls, studentCount: studentCountMap[cls.id] }
-            : cls
-        )
-      );
-      setStats({
-        totalClasses: classCount.data,
-        totalStudents: studentCount.data,
-        totalTeachers: teacherCount.data,
-        pendingRequests: 0,
+    try {
+      setImportLoading(true);
+      setImportError({ open: false, msg: "" });
+      const before = members[classId]?.length || 0;
+      const formData = new FormData();
+      formData.append("file", excelFile);
+      await axios.post(`/api/class/${classId}/import-students`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-    });
+      const res = await axios.get(`/api/class/${classId}/members`);
+      setMembers(prev => ({ ...prev, [classId]: res.data }));
+      const newCount = res.data.length;
+      setClassList(prev => prev.map(c => (c.id === classId ? { ...c, studentCount: newCount } : c)));
+      setFocusClass(fc => (fc && fc.id === classId ? { ...fc, studentCount: newCount } : fc));
+      setExcelFile(null);
+
+      const added = newCount - before;
+      setImportAdded(added > 0 ? added : 0);
+      setImportSuccessOpen(true);
+
+      // 刷新班级人数和学生总数
+      Promise.all([
+        axios.get("/api/class/student-count"),
+        axios.get("/api/class/count"),
+        axios.get("/api/users/student/count"),
+        axios.get("/api/users/teacher/count"),
+      ]).then(([countRes, classCount, studentCount, teacherCount]) => {
+        const studentCountMap: Record<number, number> = {};
+        countRes.data.forEach(
+          (item: { classId: number; studentCount: number }) => {
+            studentCountMap[item.classId] = item.studentCount;
+          }
+        );
+        setClassList((prev) =>
+          prev.map((cls) =>
+            studentCountMap[cls.id] !== undefined
+              ? { ...cls, studentCount: studentCountMap[cls.id] }
+              : cls
+          )
+        );
+        setStats({
+          totalClasses: classCount.data,
+          totalStudents: studentCount.data,
+          totalTeachers: teacherCount.data,
+          pendingRequests: 0,
+        });
+      });
+    } catch (e: unknown) {
+      let msg = "导入失败，请检查文件格式与数据有效性";
+      if (typeof e === 'object' && e && 'response' in e) {
+        interface AxiosLikeError { response?: { data?: { message?: string } }; }
+        const resp = (e as AxiosLikeError).response;
+        msg = resp?.data?.message || msg;
+      } else if (e instanceof Error) {
+        msg = e.message || msg;
+      }
+      setImportError({ open: true, msg });
+    }
+    finally {
+      setImportLoading(false);
+    }
   };
 
   // 查询学号
@@ -374,6 +408,9 @@ export default function ClassManagePage() {
       totalStudents: studentCount.data,
       pendingRequests: unassignedCountRes.data,
     }));
+
+    // 显示移除成功提示
+    setRemoveSuccessOpen(true);
   };
 
   // 获取当前班级分页
@@ -400,10 +437,7 @@ export default function ClassManagePage() {
       return { ...prev, [classId]: { by, order: nextOrder } };
     });
   };
-  const handleFilterChange = (classId: number, val: string) => {
-    setFilterMap(prev => ({ ...prev, [classId]: val }));
-    setPageMap(prev => ({ ...prev, [classId]: 1 })); // 变更筛选时回到第1页
-  };
+  // handleFilterChange 暂未在 UI 中启用（对应工具栏被注释），故移除以消除未使用告警。
 
   const renderClassCard = (cls: ClassInfo, isFocus: boolean) => {
     const memberList = members[cls.id] || [];
@@ -683,13 +717,14 @@ export default function ClassManagePage() {
                     variant="outlined"
                     component="label"
                     startIcon={<UploadFileIcon />}
+                    disabled={importLoading}
                   >
                     选择Excel文件
                     <input
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       hidden
-                      onChange={(e) => handleExcelChange(e, cls.id)}
+                      onChange={handleExcelChange}
                     />
                   </Button>
                   {excelFile && (
@@ -704,9 +739,11 @@ export default function ClassManagePage() {
                   <Button
                     variant="contained"
                     onClick={() => handleBatchImport(cls.id)}
-                    disabled={!excelFile}
+                    disabled={!excelFile || importLoading}
+                    sx={{ position: 'relative', minWidth: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}
                   >
-                    导入
+                    {importLoading && <CircularProgress size={18} color="inherit" />}
+                    {importLoading ? '正在导入...' : '导入'}
                   </Button>
                 </Stack>
               </Box>
@@ -747,6 +784,7 @@ export default function ClassManagePage() {
   };
 
   return (
+    <>
     <Box sx={{ 
       minHeight: "100vh", 
       bgcolor: theme.palette.background.default,
@@ -1131,24 +1169,60 @@ export default function ClassManagePage() {
           未分班学生 ({unassignedCount}人)
         </Typography>
         {unassignedCount > 0 ? (
-          <Card sx={{ borderRadius: 3, p: 2, bgcolor: "#fff3e0" }}>
-            <Typography variant="body2" color="text.secondary" mb={2}>
-              以下学生尚未分配到班级，可通过&quot;添加成员&quot;功能将其分配到对应班级：
+          <Card
+            sx={{
+              borderRadius: 3,
+              p: 2,
+              position: 'relative',
+              bgcolor: theme.palette.mode === 'dark'
+                ? alpha(theme.palette.warning.main, 0.16)
+                : alpha(theme.palette.warning.main, 0.12),
+              border: `1px solid ${alpha(theme.palette.warning.main, 0.35)}`,
+              boxShadow: 'none',
+              backdropFilter: theme.palette.mode === 'dark' ? 'blur(4px)' : 'none',
+              transition: 'background-color .25s,border-color .25s',
+              '&:hover': {
+                bgcolor: theme.palette.mode === 'dark'
+                  ? alpha(theme.palette.warning.main, 0.22)
+                  : alpha(theme.palette.warning.main, 0.18),
+              }
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{
+                mb: 2,
+                color: theme.palette.mode === 'dark' ? theme.palette.warning.light : 'text.secondary',
+                fontWeight: 500
+              }}
+            >
+              以下学生尚未分配到班级，可通过“添加成员”功能将其分配到对应班级：
             </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
               {unassignedStudents.slice(0, 10).map((stu) => (
                 <Chip
                   key={stu.id}
                   label={`${stu.name}（${stu.studentNo}）`}
-                  variant="outlined"
                   size="small"
+                  sx={{
+                    bgcolor: theme.palette.mode === 'dark'
+                      ? alpha(theme.palette.background.paper, 0.4)
+                      : theme.palette.background.paper,
+                    border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
+                    '& .MuiChip-label': { px: 1.2 }
+                  }}
                 />
               ))}
               {unassignedCount > 10 && (
                 <Chip
                   label={`还有 ${unassignedCount - 10} 人...`}
-                  variant="outlined"
                   size="small"
+                  sx={{
+                    bgcolor: theme.palette.mode === 'dark'
+                      ? alpha(theme.palette.background.paper, 0.4)
+                      : theme.palette.background.paper,
+                    border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
+                  }}
                 />
               )}
             </Box>
@@ -1160,5 +1234,70 @@ export default function ClassManagePage() {
         )}
       </Box>
     </Box>
+    <Snackbar
+      open={removeSuccessOpen}
+      autoHideDuration={3000}
+      onClose={() => setRemoveSuccessOpen(false)}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+    >
+      <Alert
+        severity="success"
+        variant="filled"
+        elevation={3}
+        onClose={() => setRemoveSuccessOpen(false)}
+        sx={{ fontWeight: 500 }}
+      >
+        成员已成功移除
+      </Alert>
+    </Snackbar>
+    <Snackbar
+      open={addSuccessOpen}
+      autoHideDuration={3000}
+      onClose={() => setAddSuccessOpen(false)}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+    >
+      <Alert
+        severity="success"
+        variant="filled"
+        elevation={3}
+        onClose={() => setAddSuccessOpen(false)}
+        sx={{ fontWeight: 500 }}
+      >
+        成员添加成功
+      </Alert>
+    </Snackbar>
+    <Snackbar
+      open={importSuccessOpen}
+      autoHideDuration={3500}
+      onClose={() => setImportSuccessOpen(false)}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+    >
+      <Alert
+        severity="success"
+        variant="filled"
+        elevation={3}
+        onClose={() => setImportSuccessOpen(false)}
+        sx={{ fontWeight: 500 }}
+      >
+        导入完成{importAdded !== null ? `，新增 ${importAdded} 人` : ''}
+      </Alert>
+    </Snackbar>
+    <Snackbar
+      open={importError.open}
+      autoHideDuration={4000}
+      onClose={() => setImportError({ open: false, msg: '' })}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+    >
+      <Alert
+        severity="error"
+        variant="filled"
+        elevation={3}
+        onClose={() => setImportError({ open: false, msg: '' })}
+        sx={{ fontWeight: 500 }}
+      >
+        {importError.msg}
+      </Alert>
+    </Snackbar>
+    </>
   );
 }

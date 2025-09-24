@@ -65,6 +65,31 @@ const typeColor = (code: string) => baseTypePalette[code] || baseTypePalette.def
 
 export default function LeaveDashboard() {
   const theme = useTheme();
+  // 人性化格式化审批平均时长（以小时为后台基准）
+  const formatApprovalDuration = (hours: number): string => {
+    if (!hours || hours <= 0) return '0h';
+    // < 1 分钟
+    if (hours < 1 / 60) {
+      const seconds = Math.round(hours * 3600);
+      return `${seconds}s`;
+    }
+    // < 1 小时 -> 分钟
+    if (hours < 1) {
+      const minutes = hours * 60;
+      // 分钟 < 10 保留 1 位小数，否则取整
+      return minutes < 10 ? `${minutes.toFixed(1)}min` : `${Math.round(minutes)}min`;
+    }
+    // < 24 小时 -> 小时
+    if (hours < 24) {
+      return hours < 10 ? `${hours.toFixed(1)}h` : `${Math.round(hours)}h`;
+    }
+    // >= 1 天 -> 显示 天 + （可选）小时
+    const days = Math.floor(hours / 24);
+    const remain = hours - days * 24;
+    if (remain < 0.5) return `${days}d`;
+    const remainDisplay = remain < 10 ? remain.toFixed(1) : Math.round(remain);
+    return `${days}d ${remainDisplay}h`;
+  };
   const [stats, setStats] = useState<LeaveStats>({
     totalRequests: 0,
     pendingRequests: 0,
@@ -161,7 +186,7 @@ export default function LeaveDashboard() {
             },
             {
               label: '审批时长',
-              value: `${stats.avgApprovalTime}h`,
+              value: formatApprovalDuration(stats.avgApprovalTime),
               icon: <TrendingUpIcon fontSize="inherit" />,
               color: theme.palette.secondary.main,
             },

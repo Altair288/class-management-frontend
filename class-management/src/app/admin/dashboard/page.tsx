@@ -167,6 +167,30 @@ export default function AdminDashboard() {
   // 使用主题
   const theme = useTheme();
 
+  // 人性化显示审批时长（输入为小时）
+  const formatApprovalDuration = (hours: number): string => {
+    if (!hours || hours <= 0) return '0秒';
+    const seconds = hours * 3600;
+    if (hours < 1 / 60) {
+      // 小于1分钟，显示秒
+      return `${Math.round(seconds)}秒`;
+    } else if (hours < 1) {
+      // 小于1小时，显示分钟（<10保留1位小数）
+      const minutes = hours * 60;
+      return minutes < 10 ? `${minutes.toFixed(1)}分钟` : `${Math.round(minutes)}分钟`;
+    } else if (hours < 24) {
+      // 小于1天，显示小时（<10保留1位小数）
+      return hours < 10 ? `${hours.toFixed(1)}小时` : `${Math.round(hours)}小时`;
+    } else {
+      // 显示 天 + 小时（剩余不足0.5小时忽略）
+      const days = Math.floor(hours / 24);
+      const remain = hours - days * 24;
+      if (remain < 0.5) return `${days}天`;
+      const remainDisplay = remain < 10 ? remain.toFixed(1) : Math.round(remain);
+      return `${days}天${remainDisplay}小时`;
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -560,7 +584,7 @@ export default function AdminDashboard() {
                         color: theme.palette.secondary.main, 
                         fontWeight: 700 
                       }}>
-                        {Math.round(leaveStats.avgApprovalTime)}h
+                        {formatApprovalDuration(leaveStats.avgApprovalTime)}
                       </Typography>
                     </Box>
                   </Box>
