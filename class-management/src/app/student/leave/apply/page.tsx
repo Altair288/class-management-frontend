@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Box,
   Card,
@@ -100,14 +100,16 @@ interface ApiLeaveType {
   enabled?: boolean;
 }
 
-// 颜色映射（与其他页面一致）
-const typeColor = (code: string) => {
+// 颜色映射改为使用主题 palette（支持深色模式）
+import type { Theme } from '@mui/material/styles';
+const buildTypeColor = (theme: Theme) => (code: string) => {
+  // 允许后端返回 color，但前端需要一个 fallback 映射到语义色
   const colors: Record<string, string> = {
-    annual: "#007AFF",
-    sick: "#34C759",
-    personal: "#FF9500",
-    emergency: "#FF3B30",
-    default: "#8E8E93",
+    annual: theme.palette.info?.main || theme.palette.primary.main,
+    sick: theme.palette.success.main,
+    personal: theme.palette.warning.main,
+    emergency: theme.palette.error.main,
+    default: theme.palette.text.secondary,
   };
   return colors[code] || colors.default;
 };
@@ -115,6 +117,8 @@ const typeColor = (code: string) => {
 export default function LeaveApplyPage() {
   const theme = useTheme();
   const [currentUser, setCurrentUser] = useState<CurrentUserInfo | null>(null);
+  // memoize 颜色映射函数，避免每次渲染产生新引用导致 useEffect 重复请求
+  const typeColor = useMemo(() => buildTypeColor(theme), [theme]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
 
   const [application, setApplication] = useState<LeaveApplication>({
@@ -183,7 +187,7 @@ export default function LeaveApplyPage() {
   }
     })();
     return () => controller.abort();
-  }, []);
+  }, [typeColor]);
 
   // 计算请假天数
   // 计算请假天数（包含首尾两天）。若结束日期早于开始日期返回 0。
@@ -414,7 +418,7 @@ export default function LeaveApplyPage() {
           </Card>        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
           {/* 左侧表单 */}
           <Box>
-            <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+            <Card sx={(theme)=>({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: theme.palette.background.paper })}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
                   申请信息
@@ -437,13 +441,13 @@ export default function LeaveApplyPage() {
                                 width: 12,
                                 height: 12,
                                 borderRadius: '50%',
-                                backgroundColor: type.color || '#8E8E93',
+                                backgroundColor: type.color || theme.palette.text.secondary,
                               }}
                             />
                             <Box sx={{ flex: 1 }}>
                               <Typography variant="body1">{type.name}</Typography>
                               {typeof type.allowancePerYear !== 'undefined' && (
-                                <Typography variant="caption" sx={{ color: '#6c757d' }}>
+                                <Typography variant="caption" sx={(theme)=>({ color: theme.palette.text.secondary })}>
                                   年额度: {type.allowancePerYear}天 {type.maxDays ? `· 单次最多 ${type.maxDays} 天` : ''}
                                 </Typography>
                               )}
@@ -579,15 +583,15 @@ export default function LeaveApplyPage() {
                   />
 
                   {/* 附件上传区域 */}
-                  <Box sx={{ p: 2, border: '2px dashed #e0e0e0', borderRadius: 2, textAlign: 'center' }}>
-                    <AttachFileIcon sx={{ fontSize: 48, color: '#6c757d', mb: 1 }} />
-                    <Typography variant="body1" sx={{ color: '#6c757d', mb: 1 }}>
+                  <Box sx={(theme)=>({ p: 2, border: `2px dashed ${theme.palette.divider}`, borderRadius: 2, textAlign: 'center', backgroundColor: theme.palette.action.hover })}>
+                    <AttachFileIcon sx={(theme)=>({ fontSize: 48, color: theme.palette.text.secondary, mb: 1 })} />
+                    <Typography variant="body1" sx={(theme)=>({ color: theme.palette.text.secondary, mb: 1 })}>
                       [上传相关证明文件（占位）]
                     </Typography>
-                    <Typography variant="body1" sx={{ color: '#6c757d', mb: 1 }}>
+                    <Typography variant="body1" sx={(theme)=>({ color: theme.palette.text.secondary, mb: 1 })}>
                       [开发中准备支持Minio]
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                    <Typography variant="body2" sx={(theme)=>({ color: theme.palette.text.secondary })}>
                       支持 PDF, JPG, PNG 格式，单个文件不超过 5MB
                     </Typography>
                     <Button variant="outlined" sx={{ mt: 2 }}>
@@ -622,7 +626,7 @@ export default function LeaveApplyPage() {
           <Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {/* 申请须知 */}
-              <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+              <Card sx={(theme)=>({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: theme.palette.background.paper })}>
                 <CardContent>
                   <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
                     申请须知
@@ -630,7 +634,7 @@ export default function LeaveApplyPage() {
                   <List dense>
                     <ListItem>
                       <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: '#1976d2', width: 32, height: 32 }}>
+                        <Avatar sx={(theme)=>({ bgcolor: theme.palette.info?.main || theme.palette.primary.main, width: 32, height: 32 })}>
                           <CalendarIcon sx={{ fontSize: 18 }} />
                         </Avatar>
                       </ListItemAvatar>
@@ -641,7 +645,7 @@ export default function LeaveApplyPage() {
                     </ListItem>
                     <ListItem>
                       <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: '#388e3c', width: 32, height: 32 }}>
+                        <Avatar sx={(theme)=>({ bgcolor: theme.palette.success.main, width: 32, height: 32 })}>
                           <ScheduleIcon sx={{ fontSize: 18 }} />
                         </Avatar>
                       </ListItemAvatar>
@@ -652,7 +656,7 @@ export default function LeaveApplyPage() {
                     </ListItem>
                     <ListItem>
                       <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: '#f57c00', width: 32, height: 32 }}>
+                        <Avatar sx={(theme)=>({ bgcolor: theme.palette.warning.main, width: 32, height: 32 })}>
                           <WarningIcon sx={{ fontSize: 18 }} />
                         </Avatar>
                       </ListItemAvatar>
@@ -666,7 +670,7 @@ export default function LeaveApplyPage() {
               </Card>
 
               {/* 假期余额 */}
-              <Card sx={{ borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+              <Card sx={(theme)=>({ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', backgroundColor: theme.palette.background.paper })}>
                 <CardContent>
                   <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
                     假期余额
@@ -680,7 +684,7 @@ export default function LeaveApplyPage() {
                               width: 8,
                               height: 8,
                               borderRadius: '50%',
-                              backgroundColor: type.color || '#8E8E93',
+                              backgroundColor: type.color || theme.palette.text.secondary,
                             }}
                           />
                           <Typography variant="body2">{type.name}</Typography>
@@ -689,7 +693,7 @@ export default function LeaveApplyPage() {
                           label={typeof type.allowancePerYear !== 'undefined' ? `年额度 ${type.allowancePerYear}` : '按配置'}
                           size="small"
                           sx={{
-                            backgroundColor: type.color || '#8E8E93',
+                            backgroundColor: type.color || theme.palette.text.secondary,
                             color: 'white',
                             fontSize: '0.75rem',
                           }}

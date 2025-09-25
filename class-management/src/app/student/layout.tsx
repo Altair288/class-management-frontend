@@ -106,7 +106,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             position: 'relative',
             zIndex: 1,
             px: { xs: 2, md: 3 },
-            minHeight: 'calc(100vh - 64px - 72px)'
+            minHeight: 'calc(100vh - 64px - 72px)',
+            display:'flex',
+            flexDirection:'column',
+            alignItems:'stretch',
+            justifyContent:'flex-start',
+            overflow:'hidden'
           }}
         >
           {children}

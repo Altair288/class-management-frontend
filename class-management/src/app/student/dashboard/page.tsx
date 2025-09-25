@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   Typography,
-  Button,
   LinearProgress,
   CircularProgress,
   useTheme,
@@ -18,15 +17,10 @@ import {
   Assignment as AssignmentIcon,
   AccessTime as AccessTimeIcon,
   CheckCircle as CheckCircleIcon,
-  Outbox as OutboxIcon,
-  MailOutline as MailIcon,
-  CalendarToday as CalendarIcon,
   Timeline as TimelineIcon,
-  Insights as InsightsIcon,
   PendingActions as PendingIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
-import Link from "next/link";
 import axios from "axios";
 import NotificationPanel from "@/components/NotificationPanel";
 import { useNotificationContext } from '@/context/NotificationContext';
@@ -324,27 +318,6 @@ export default function AdminDashboard() {
                 {user?.id && <NotificationPanel userId={user.id} variant="dashboard" limit={5} />}
               </Box>
             </Box>
-
-            {/* 快速操作 & 近期动作建议 */}
-            <Card sx={{ mt: 3, borderRadius: 2, boxShadow: theme.shadows[2], bgcolor: theme.palette.background.paper }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>快捷入口</Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 2 }}>
-                  <Button component={Link} href="/student/leave/apply" variant="outlined" startIcon={<OutboxIcon />} sx={{ textTransform: 'none', p: 1.8, justifyContent: 'flex-start', borderRadius: 2 }}>
-                    申请请假
-                  </Button>
-                  <Button component={Link} href="/student/leave/calendar" variant="outlined" startIcon={<CalendarIcon />} sx={{ textTransform: 'none', p: 1.8, justifyContent: 'flex-start', borderRadius: 2 }}>
-                    请假日历
-                  </Button>
-                  <Button component={Link} href="/student/notifications" variant="outlined" startIcon={<MailIcon />} sx={{ textTransform: 'none', p: 1.8, justifyContent: 'flex-start', borderRadius: 2 }}>
-                    消息中心
-                  </Button>
-                  <Button component={Link} href="/student/dashboard" variant="outlined" startIcon={<InsightsIcon />} sx={{ textTransform: 'none', p: 1.8, justifyContent: 'flex-start', borderRadius: 2 }}>
-                    刷新概览
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
         </motion.div>
     </Box>
   );
