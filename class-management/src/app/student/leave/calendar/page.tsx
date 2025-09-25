@@ -12,6 +12,8 @@ import {
   DialogContent,
   DialogActions,
   Avatar,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import {
@@ -26,7 +28,7 @@ const API_BASE_URL = "/api";
 
 // 后端日历事件 DTO （与后端字段保持一致）
 interface LeaveCalendarDTO {
-  requestId: number;
+  id: number; // 后端字段是 id
   studentId: number;
   studentName: string;
   studentNo: string;
@@ -37,9 +39,22 @@ interface LeaveCalendarDTO {
   endDate: string; // ISO 字符串
 }
 
+interface CurrentUserLeaveInfoDTO {
+  userId: number;
+  userType: string; // 学生 / 教师 等
+  studentId?: number;
+  studentName?: string;
+  teacherId?: number;
+  teacherName?: string;
+  phone?: string;
+  email?: string;
+  classId?: number;
+  className?: string;
+}
+
 // 前端渲染使用的事件结构
 interface LeaveEvent {
-  requestId: number;
+  requestId: number; // 映射 LeaveCalendarDTO.id
   studentId: number;
   studentName: string;
   studentNo: string;
@@ -69,21 +84,17 @@ export default function StudentLeaveCalendarPage() {
   const [detailDialog, setDetailDialog] = useState(false);
   const [events, setEvents] = useState<LeaveEvent[]>([]);
   const [direction, setDirection] = useState<1 | -1 | 0>(0);
+  const [userInfo, setUserInfo] = useState<CurrentUserLeaveInfoDTO | null>(null);
+  const [loadingUser, setLoadingUser] = useState<boolean>(true);
+  const [loadingEvents, setLoadingEvents] = useState<boolean>(false);
+  const [eventError, setEventError] = useState<string | null>(null);
+  const [userError, setUserError] = useState<string | null>(null);
 
   const ymd = (d: Date) =>
     `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(
       2,
       "0"
     )}-${`${d.getDate()}`.padStart(2, "0")}`;
-  const isoStartOfDay = (d: Date) =>
-    new Date(
-      Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0)
-    ).toISOString();
-  const isoEndOfDay = (d: Date) =>
-    new Date(
-      Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999)
-    ).toISOString();
-
   const typePaletteMap = useMemo<
     Record<
       string,
@@ -171,28 +182,58 @@ export default function StudentLeaveCalendarPage() {
     setDetailDialog(true);
   };
 
+  // 获取当前登录学生信息
   useEffect(() => {
+    let cancelled = false;
+    setLoadingUser(true);
+    fetch(`${API_BASE_URL}/leave/current-user-info`, { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) throw new Error(`获取用户信息失败(${res.status})`);
+        return res.json();
+      })
+      .then((data: CurrentUserLeaveInfoDTO) => {
+        if (!cancelled) {
+          if (data.userType !== '学生' || !data.studentId) {
+            setUserError('当前账号不是学生，无法查看学生日历');
+          }
+          setUserInfo(data);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) setUserError(err.message || '用户信息加载失败');
+      })
+      .finally(() => { if (!cancelled) setLoadingUser(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // 事件数据加载（依赖 studentId）
+  useEffect(() => {
+    if (loadingUser) return; // 等待用户信息
+    if (userError) return;
+    if (!userInfo?.studentId) return;
+    const studentId = userInfo.studentId;
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const start = new Date(year, month, 1);
     const end = new Date(year, month + 1, 0);
     const controller = new AbortController();
+    setLoadingEvents(true);
+    setEventError(null);
     (async () => {
       try {
         const params = new URLSearchParams();
-        params.set("start", isoStartOfDay(start));
-        params.set("end", isoEndOfDay(end));
-        const res = await fetch(
-          `${API_BASE_URL}/leave/calendar?${params.toString()}`,
-          { signal: controller.signal }
-        );
-        if (!res.ok) throw new Error("加载失败");
+        const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        params.set('start', fmt(start));
+        params.set('end', fmt(end));
+        const url = `${API_BASE_URL}/leave/calendar/student/${studentId}?${params.toString()}`;
+        const res = await fetch(url, { signal: controller.signal, credentials: 'include' });
+        if (!res.ok) throw new Error(`加载请假日历失败(${res.status})`);
         const list: LeaveCalendarDTO[] = await res.json();
         const mapped: LeaveEvent[] = list.map((it) => {
           const s = new Date(it.startDate);
           const e = new Date(it.endDate);
           return {
-            requestId: it.requestId,
+            requestId: it.id,
             studentId: it.studentId,
             studentName: it.studentName,
             studentNo: it.studentNo,
@@ -209,13 +250,16 @@ export default function StudentLeaveCalendarPage() {
         setEvents(mapped);
       } catch (err) {
         console.error(err);
+        const msg = err instanceof Error ? err.message : '加载失败';
+        setEventError(msg);
         setEvents([]);
+      } finally {
+        setLoadingEvents(false);
       }
     })();
     return () => controller.abort();
-  }, [currentDate, typeColor]);
+  }, [currentDate, userInfo, loadingUser, typeColor]);
 
-  // 生成用于连续条渲染的数据结构：按周分组 6 周，每周 7 天
   const buildWeeks = (days: { date: Date; isCurrentMonth: boolean }[]) => {
     const weeks: { date: Date; isCurrentMonth: boolean }[][] = [];
     for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
@@ -387,7 +431,7 @@ export default function StudentLeaveCalendarPage() {
                     );
                   })}
                 </Box>
-                {/* 连续事件条层 (多行 + 渐变提示) */}
+                {/* 连续事件条层 (多行 + 渊变提示) */}
                 {spans.length > 0 && (
                   <Box
                     sx={{
@@ -490,6 +534,27 @@ export default function StudentLeaveCalendarPage() {
     );
   };
 
+  // 在返回 JSX 前加入加载与错误处理
+  if (loadingUser) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+        <CircularProgress size={48} />
+      </Box>
+    );
+  }
+  if (userError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>{userError}</Alert>
+      </Box>
+    );
+  }
+
+  // 事件加载错误提示（不阻断用户基本界面渲染）
+  const eventErrorBanner = eventError ? (
+    <Alert severity="warning" sx={{ mb: 1 }}>{eventError}</Alert>
+  ) : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -583,6 +648,13 @@ export default function StudentLeaveCalendarPage() {
         >
           {formatDateRange()}
         </Typography>
+        {eventErrorBanner}
+        {loadingEvents && (
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CircularProgress size={18} />
+            <Typography variant="caption" color="text.secondary">正在加载本月请假数据...</Typography>
+          </Box>
+        )}
         {/* 主体：日历动画切换 */}
         <Box sx={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <AnimatePresence mode="wait" initial={false}>
