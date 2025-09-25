@@ -31,7 +31,6 @@ import {
 import { alpha } from '@mui/material/styles';
 import {
   Send as SendIcon,
-  Save as SaveIcon,
   CalendarToday as CalendarIcon,
   Person as PersonIcon,
   Assignment as AssignmentIcon,
@@ -41,6 +40,9 @@ import {
   Warning as WarningIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
+
+// 为了让 Snackbar 避开底部胶囊导航，提供一个移动端底部偏移常量（胶囊高度≈40 + 上下内边距&阴影余量）
+const SNACKBAR_MOBILE_BOTTOM_OFFSET = 64; // px
 
 // 与其他页面一致，走 Next.js 代理
 const API_BASE_URL = "/api";
@@ -343,13 +345,6 @@ export default function LeaveApplyPage() {
   }
   };
 
-  // 保存草稿
-  const handleSaveDraft = () => {
-    // 这里应该调用API保存草稿
-    console.log("保存草稿:", application);
-    alert("草稿已保存");
-  };
-
   return (
     <Box sx={{ 
       minHeight: '100vh',
@@ -602,13 +597,6 @@ export default function LeaveApplyPage() {
                   {/* 操作按钮 */}
                   <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
                     <Button
-                      variant="outlined"
-                      startIcon={<SaveIcon />}
-                      onClick={handleSaveDraft}
-                    >
-                      保存草稿
-                    </Button>
-                    <Button
                       variant="contained"
                       startIcon={<SendIcon />}
                       onClick={handleSubmit}
@@ -782,26 +770,32 @@ export default function LeaveApplyPage() {
           autoHideDuration={6000}
           onClose={() => setShowSuccess(false)}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          ContentProps={{ sx: { 
-            // 兼容底部导航高度（约 56~64px）+ 安全区域
-            mb: { xs: 'calc(env(safe-area-inset-bottom, 0px) + 72px)', sm: 0 }
-          } }}
-          sx={{ 
-            // 如果组件在未提供 ContentProps 时（MUI16+行为可能变），再兜底一个整体偏移
-            bottom: { xs: '72px', sm: 0 },
+          // 通过 sx 直接设置根元素位置，避免被底部导航遮挡
+          sx={(theme) => ({
+            zIndex: theme.zIndex.snackbar, // 确保高于底部导航 (导航 zIndex:1200, snackbar 默认 1400，此处显式声明防止主题自定义影响)
+            bottom: {
+              xs: `calc(${SNACKBAR_MOBILE_BOTTOM_OFFSET}px + env(safe-area-inset-bottom, 0px))`,
+              sm: 24,
+            },
+            right: 16,
+            left: 'auto',
             '@supports (padding: max(0px))': {
-              bottom: { xs: 'calc(56px + env(safe-area-inset-bottom, 0px))', sm: 0 }
+              bottom: {
+                xs: `calc(${SNACKBAR_MOBILE_BOTTOM_OFFSET}px + env(safe-area-inset-bottom, 0px))`,
+                sm: 24,
+              }
             }
-          }}
+          })}
         >
           <Alert 
             onClose={() => setShowSuccess(false)} 
             severity="success" 
-            sx={{ width: '100%' }}
+            sx={{ width: { xs: 'calc(100% - 32px)', sm: '360px' } }}
           >
             申请提交成功！请耐心等待审批。
           </Alert>
         </Snackbar>
+        {/* ...existing code... */}
         </Box>
       </motion.div>
     </Box>

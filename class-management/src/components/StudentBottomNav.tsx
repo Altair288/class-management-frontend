@@ -95,7 +95,7 @@ export default function StudentBottomNav() {
               display: "flex",
               gap: 0.5,
               alignItems: "center",
-              padding: "6px 8px",
+              padding: "8px 8px",
               borderRadius: 32,
               // 通过伪元素做真正玻璃层，避免内容本身被过度模糊
               "&::before": {
