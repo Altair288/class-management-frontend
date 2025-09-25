@@ -703,7 +703,7 @@ export default function StudentLeaveCalendarPage() {
           PaperProps={{ sx: { borderRadius: 4, backdropFilter: "blur(16px)" } }}
         >
           <DialogTitle
-            sx={(t) => ({ backgroundColor: t.palette.action.hover })}
+            sx={(t) => ({ backgroundColor: t.palette.background.paper, mb: 0.5 })}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               请假详情
