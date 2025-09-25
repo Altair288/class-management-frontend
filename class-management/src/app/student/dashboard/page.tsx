@@ -11,161 +11,179 @@ import {
   CircularProgress,
   useTheme,
   alpha,
+  Chip,
+  Tooltip
 } from "@mui/material";
 import {
-  Group as GroupIcon,
-  School as SchoolIcon,
   Assignment as AssignmentIcon,
-  Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
-  Schedule as ScheduleIcon,
   AccessTime as AccessTimeIcon,
+  CheckCircle as CheckCircleIcon,
+  Outbox as OutboxIcon,
+  MailOutline as MailIcon,
+  CalendarToday as CalendarIcon,
+  Timeline as TimelineIcon,
+  Insights as InsightsIcon,
+  PendingActions as PendingIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import axios from "axios";
 import NotificationPanel from "@/components/NotificationPanel";
 import { useNotificationContext } from '@/context/NotificationContext';
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
 
-// 仪表盘汇总数据类型
-type DashboardSummary = {
-  countExcellent: number;
-  countGood: number;
-  totalClasses: number;
-  countWarning: number;
-  totalStudents: number;
-  avgTi: number;
-  countDanger: number;
-  avgTotal: number;
-  avgMei: number;
-  avgZhi: number;
-  avgLao: number;
-  avgDe: number;
-};
+// 学生端所需精简类型
+interface UserInfo { id: number; username: string; userType: string; }
 
-// 请假统计数据类型
-interface LeaveStats {
-  totalRequests: number;
-  pendingRequests: number;
-  approvedRequests: number;
-  rejectedRequests: number;
-  avgApprovalTime: number;
+interface PersonalLeaveStats {
+  total: number;         // 总申请
+  pending: number;       // 待审批
+  approved: number;      // 已批准
+  rejected: number;      // 已拒绝
+  avgApprovalHours: number; // 平均审批小时（可缺省时=0）
+  lastRequestAt?: string;
 }
 
-// 请假类型统计
-interface LeaveTypeStats {
-  type: string;
-  count: number;
-  percentage: number;
-  color: string;
-}
-
-
-
-interface UserInfo {
-  id: number;
-  username: string;
-  userType: string;
-}
+interface PersonalCreditOverviewItem { category: string; score: number; }
+interface CreditEvaluation { status?: string; totalScore?: number; message?: string; }
 
 export default function AdminDashboard() {
-  const [sidebarOpen] = useState(false);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [leaveStats, setLeaveStats] = useState<LeaveStats>({
-    totalRequests: 0,
-    pendingRequests: 0,
-    approvedRequests: 0,
-    rejectedRequests: 0,
-    avgApprovalTime: 0,
-  });
-  const [leaveTypes, setLeaveTypes] = useState<LeaveTypeStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [sidebarOpen] = useState(false); // placeholder 保留布局兼容
   const [user, setUser] = useState<UserInfo | null>(null);
+  const [leaveStats, setLeaveStats] = useState<PersonalLeaveStats | null>(null);
+  const [creditOverviewRaw, setCreditOverviewRaw] = useState<PersonalCreditOverviewItem[]>([]);
+  const [evaluation, setEvaluation] = useState<CreditEvaluation | null>(null);
+  const [loadingLeave, setLoadingLeave] = useState(true);
+  const [loadingCredit, setLoadingCredit] = useState(true);
+  const [errorLeave, setErrorLeave] = useState<string | null>(null);
+  const [errorCredit, setErrorCredit] = useState<string | null>(null);
+  const [studentId, setStudentId] = useState<number | null>(null);
 
-  // 拉取用户信息
+  // 拉取当前登录用户基本信息 + 学生扩展信息（用于拿 studentId）
   useEffect(() => {
-    axios.get("/api/users/current")
-      .then(res => setUser(res.data))
-      .catch(() => setUser(null));
+    let cancelled = false;
+    (async () => {
+      try {
+        const u = await axios.get("/api/users/current");
+        if (!cancelled) setUser(u.data);
+      } catch {
+        if (!cancelled) setUser(null);
+      }
+      try {
+        const lu = await fetch('/api/leave/current-user-info', { credentials: 'include' });
+        if (lu.ok) {
+          const data = await lu.json();
+          if (!cancelled && typeof data.studentId === 'number') setStudentId(data.studentId);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  // 拉取汇总数据
+  // 仅学生个人：基于 /api/leave/student/{studentId} 列表本地聚合
   useEffect(() => {
-    const fetchSummary = async () => {
+    if (studentId == null) return; // 等待 studentId
+    let cancelled = false;
+    (async () => {
+      setLoadingLeave(true); setErrorLeave(null);
       try {
-        setLoading(true);
-        const res = await fetch("/api/credits/dashboard/summary");
-        if (!res.ok) throw new Error("加载失败");
-        const data: DashboardSummary = await res.json();
-        setSummary(data);
-      } catch (e: unknown) {
-        console.error(e);
+        const res = await fetch(`/api/leave/student/${studentId}`, { credentials: 'include' });
+        if (!res.ok) throw new Error('请求失败');
+  type LeaveItem = { status?: string; createdAt?: string; submitTime?: string; requestTime?: string; approvedAt?: string; finalApprovedAt?: string; updatedAt?: string };
+  const list: LeaveItem[] = await res.json();
+        if (cancelled) return;
+        // 预期字段：status(中文或英文), createdAt/submitTime, approvedAt/updatedAt
+        let total = 0, pending = 0, approved = 0, rejected = 0;
+  const approveDurations: number[] = [];
+        let lastRequestAt: string | undefined;
+        for (const it of list) {
+          total++;
+          const status: string = (it.status || '').toString();
+            if (/(待|pending)/.test(status)) pending++; else if (/(批|通|approved)/.test(status)) approved++; else if (/(拒|驳|reject)/.test(status)) rejected++;
+          const created = it.createdAt || it.submitTime || it.requestTime;
+          if (created && (!lastRequestAt || new Date(created).getTime() > new Date(lastRequestAt).getTime())) {
+            lastRequestAt = created;
+          }
+          const approvedAt = it.approvedAt || it.finalApprovedAt || it.updatedAt;
+          if (approvedAt && created) {
+            const diffMs = new Date(approvedAt).getTime() - new Date(created).getTime();
+            if (diffMs > 0) approveDurations.push(diffMs / 3600000); // 转小时
+          }
+        }
+        const avgApprovalHours = approveDurations.length ? approveDurations.reduce((a,b)=>a+b,0)/approveDurations.length : 0;
+        setLeaveStats({ total, pending, approved, rejected, avgApprovalHours, lastRequestAt });
+      } catch {
+        if (!cancelled) setErrorLeave('无法获取个人请假统计');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoadingLeave(false);
       }
-    };
-    fetchSummary();
-  }, []);
+    })();
+    return () => { cancelled = true; };
+  }, [studentId]);
 
-  // 拉取请假统计数据
+  // 仅学生个人：调用 /api/credits/students/{studentId}/totals + evaluation
   useEffect(() => {
-    const fetchLeaveStats = async () => {
+    if (studentId == null) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingCredit(true); setErrorCredit(null);
       try {
-        const res = await fetch("/api/leave/statistics");
-        if (!res.ok) throw new Error("请假数据加载失败");
-        const data = await res.json();
-        
-        const total = data.total || 0;
-        setLeaveStats({
-          totalRequests: total,
-          pendingRequests: data.pending || 0,
-          approvedRequests: data.approved || 0,
-          rejectedRequests: data.rejected || 0,
-          avgApprovalTime: data.approvalDuration?.avgHours ?? 0,
-        });
-
-        // 类型颜色映射
-        const typeColorMap = (code: string) => {
-          const colors: Record<string, string> = {
-            annual: "#007AFF",
-            sick: "#34C759", 
-            personal: "#FF9500",
-            emergency: "#FF3B30",
-          };
-          return colors[code] || "#8E8E93";
-        };
-
-        const mapped: LeaveTypeStats[] = (data.typeCounts || []).slice(0, 4).map((t: { typeName: string; count: number; typeCode: string }) => ({
-          type: t.typeName,
-          count: t.count,
-          percentage: total > 0 ? Number(((t.count / total) * 100).toFixed(1)) : 0,
-          color: typeColorMap(t.typeCode),
-        }));
-        setLeaveTypes(mapped);
-      } catch (e) {
-        console.error("请假数据获取失败:", e);
+        const [totalsRes, evalRes] = await Promise.all([
+          fetch(`/api/credits/students/${studentId}/totals`, { credentials: 'include' }),
+          fetch(`/api/credits/students/${studentId}/evaluation`, { credentials: 'include' })
+        ]);
+        if (!totalsRes.ok) throw new Error('totals failed');
+        const totals = await totalsRes.json();
+        let evalData: unknown = null;
+        if (evalRes && evalRes.ok) {
+          try { evalData = await evalRes.json(); } catch { /* ignore parse */ }
+        }
+        if (cancelled) return;
+        const mapped: PersonalCreditOverviewItem[] = [
+          { category: '德育', score: Number((totals.de ?? 0).toFixed?.(1) || (totals.de ?? 0)) },
+          { category: '智育', score: Number((totals.zhi ?? 0).toFixed?.(1) || (totals.zhi ?? 0)) },
+          { category: '体育', score: Number((totals.ti ?? 0).toFixed?.(1) || (totals.ti ?? 0)) },
+          { category: '美育', score: Number((totals.mei ?? 0).toFixed?.(1) || (totals.mei ?? 0)) },
+          { category: '劳育', score: Number((totals.lao ?? 0).toFixed?.(1) || (totals.lao ?? 0)) },
+        ];
+        setCreditOverviewRaw(mapped);
+        if (evalData) setEvaluation(evalData);
+      } catch {
+        if (!cancelled) setErrorCredit('无法获取个人学分');
+      } finally {
+        if (!cancelled) setLoadingCredit(false);
       }
-    };
-    fetchLeaveStats();
-  }, []);
+    })();
+    return () => { cancelled = true; };
+  }, [studentId]);
 
-  // 学分平均分概览
-  const creditOverview = useMemo(() => {
-    return [
-      { category: "德育", total: summary ? Number(summary.avgDe?.toFixed(1)) : 0 },
-      { category: "智育", total: summary ? Number(summary.avgZhi?.toFixed(1)) : 0 },
-      { category: "体育", total: summary ? Number(summary.avgTi?.toFixed(1)) : 0 },
-      { category: "美育", total: summary ? Number(summary.avgMei?.toFixed(1)) : 0 },
-      { category: "劳育", total: summary ? Number(summary.avgLao?.toFixed(1)) : 0 },
-    ];
-  }, [summary]);
+  const creditOverview = useMemo(() => creditOverviewRaw, [creditOverviewRaw]);
 
-  // 通过 context 可拿到 unreadCount，如需要可展示在标题旁
+  // 使用主题 (保持在依赖 theme 的计算之前)
+  const theme = useTheme();
+
+  // 总分（若 evaluation 返回 totalScore 则用之，否则求和）
+  const totalCreditScore = useMemo(() => {
+    if (evaluation && typeof evaluation.totalScore === 'number' && !isNaN(evaluation.totalScore)) return evaluation.totalScore;
+    return creditOverview.reduce((a, b) => a + (Number(b.score) || 0), 0);
+  }, [evaluation, creditOverview]);
+
+  // 评价展示映射
+  const evaluationDisplay = useMemo(() => {
+    if (!evaluation) return null;
+    const raw = (evaluation.status || '').toLowerCase();
+    let label = evaluation.status || '—';
+    let color: string = theme.palette.secondary.main;
+    if (/excellent|优/.test(raw)) { label = '优秀'; color = theme.palette.success.main; }
+    else if (/good|良/.test(raw)) { label = '良好'; color = theme.palette.info ? theme.palette.info.main : theme.palette.primary.main; }
+    else if (/warn|预警/.test(raw)) { label = '预警'; color = theme.palette.warning.main; }
+    else if (/danger|risk|差|不及格|警/.test(raw)) { label = '风险'; color = theme.palette.error.main; }
+    return { label, color };
+  }, [evaluation, theme]);
+
+  // 通知 Context：获取未读数
   useNotificationContext();
 
-  // 使用主题
-  const theme = useTheme();
+  // theme 已提前声明
 
   // 人性化显示审批时长（输入为小时）
   const formatApprovalDuration = (hours: number): string => {
@@ -204,687 +222,129 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-            {/* 页面标题 */}
+            {/* 标题 */}
             <Box sx={{ mb: 3 }}>
-              <Typography variant="h4" sx={{ 
-                fontWeight: 700, 
-                color: theme.palette.text.primary, 
-                mb: 1 
-              }}>
-                管理系统数据概览
+              <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.text.primary, mb: 1 }}>
+                我的学习 & 请假概览
               </Typography>
               <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-                班级管理系统核心数据监控
+                快速查看个人请假进度、学分表现与最新通知
               </Typography>
-            </Box>          {/* 主要布局：左中右三段式 */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr 0.8fr' }, gap: 3, alignItems: 'stretch' }}>
-            {/* 左侧：核心指标卡 */}
-            <Card sx={{ 
-              borderRadius: 2, 
-              boxShadow: theme.shadows[4],
-              bgcolor: theme.palette.background.paper,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ 
-                  color: theme.palette.text.primary, 
-                  fontWeight: 600, 
-                  mb: 3 
-                }}>
-                  核心指标
-                </Typography>
-                
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {/* 在校学生 */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 1.5,
-                          backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        {loading ? (
-                          <CircularProgress size={24} />
-                        ) : (
-                          <GroupIcon sx={{ fontSize: 24, color: theme.palette.primary.main }} />
-                        )}
-                      </Box>
-                      <Box>
-                        <Typography variant="body2" sx={{ 
-                          color: theme.palette.text.secondary, 
-                          fontSize: '0.875rem', 
-                          mb: 0.5 
-                        }}>
-                          👤 在校学生
-                        </Typography>
-                        <Typography variant="h3" sx={{ 
-                          color: theme.palette.primary.main, 
-                          fontWeight: 700, 
-                          fontSize: '2rem' 
-                        }}>
-                          {loading ? '--' : summary?.totalStudents ?? 0}
-                          <Typography component="span" sx={{ 
-                            fontSize: '0.875rem', 
-                            color: theme.palette.text.secondary, 
-                            ml: 0.5 
-                          }}>
-                            人
-                          </Typography>
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </motion.div>
-
-                  {/* 预警学生 - 带可视化 */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 1.5,
-                          backgroundColor: alpha(theme.palette.error.main, 0.1),
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          position: 'relative',
-                        }}
-                      >
-                        {loading ? (
-                          <CircularProgress size={24} />
-                        ) : (
-                          <>
-                            <WarningIcon sx={{ fontSize: 24, color: theme.palette.error.main }} />
-                            {/* 环形进度指示器 */}
-                            <CircularProgress
-                              variant="determinate"
-                              value={summary ? (summary.countWarning / summary.totalStudents) * 100 : 0}
-                              size={40}
-                              thickness={3}
-                              sx={{
-                                position: 'absolute',
-                                color: theme.palette.error.main,
-                                '& .MuiCircularProgress-circle': {
-                                  strokeLinecap: 'round',
-                                },
-                              }}
-                            />
-                          </>
-                        )}
-                      </Box>
-                      <Box>
-                        <Typography variant="body2" sx={{ 
-                          color: theme.palette.text.secondary, 
-                          fontSize: '0.875rem', 
-                          mb: 0.5 
-                        }}>
-                          ⚠️ 预警学生
-                        </Typography>
-                        <Typography variant="h3" sx={{ 
-                          color: theme.palette.error.main, 
-                          fontWeight: 700, 
-                          fontSize: '2rem' 
-                        }}>
-                          {loading ? '--' : summary?.countWarning ?? 0}
-                          <Typography component="span" sx={{ 
-                            fontSize: '0.875rem', 
-                            color: theme.palette.text.secondary, 
-                            ml: 0.5 
-                          }}>
-                            人
-                          </Typography>
-                        </Typography>
-                        <Typography variant="caption" sx={{ 
-                          color: theme.palette.text.secondary, 
-                          fontSize: '0.75rem' 
-                        }}>
-                          占比: {summary ? ((summary.countWarning / summary.totalStudents) * 100).toFixed(1) : 0}%
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </motion.div>
-
-                  {/* 优秀学生 - 带可视化 */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 1.5,
-                          backgroundColor: alpha(theme.palette.warning.main, 0.1),
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          position: 'relative',
-                        }}
-                      >
-                        {loading ? (
-                          <CircularProgress size={24} />
-                        ) : (
-                          <>
-                            <CheckCircleIcon sx={{ fontSize: 24, color: theme.palette.warning.main }} />
-                            {/* 环形进度指示器 */}
-                            <CircularProgress
-                              variant="determinate"
-                              value={summary ? (summary.countExcellent / summary.totalStudents) * 100 : 0}
-                              size={40}
-                              thickness={3}
-                              sx={{
-                                position: 'absolute',
-                                color: theme.palette.warning.main,
-                                '& .MuiCircularProgress-circle': {
-                                  strokeLinecap: 'round',
-                                },
-                              }}
-                            />
-                          </>
-                        )}
-                      </Box>
-                      <Box>
-                        <Typography variant="body2" sx={{ 
-                          color: theme.palette.text.secondary, 
-                          fontSize: '0.875rem', 
-                          mb: 0.5 
-                        }}>
-                          ⭐ 优秀学生
-                        </Typography>
-                        <Typography variant="h3" sx={{ 
-                          color: theme.palette.warning.main, 
-                          fontWeight: 700, 
-                          fontSize: '2rem' 
-                        }}>
-                          {loading ? '--' : summary?.countExcellent ?? 0}
-                          <Typography component="span" sx={{ 
-                            fontSize: '0.875rem', 
-                            color: theme.palette.text.secondary, 
-                            ml: 0.5 
-                          }}>
-                            人
-                          </Typography>
-                        </Typography>
-                        <Typography variant="caption" sx={{ 
-                          color: theme.palette.text.secondary, 
-                          fontSize: '0.75rem' 
-                        }}>
-                          占比: {summary ? ((summary.countExcellent / summary.totalStudents) * 100).toFixed(1) : 0}%
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </motion.div>
-                </Box>
-              </CardContent>
-            </Card>
-
-            {/* 中间：班级 & 请假合并卡 */}
-            <Card sx={{ 
-              borderRadius: 2, 
-              boxShadow: theme.shadows[3],
-              bgcolor: theme.palette.background.paper,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-              <CardContent sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
-                {/* 班级信息 */}
-                <Box>
-                  <Typography variant="h6" sx={{ 
-                    fontWeight: 600, 
-                    color: theme.palette.text.primary, 
-                    mb: 2 
-                  }}>
-                    班级信息
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box
-                      sx={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 1.5,
-                        backgroundColor: alpha(theme.palette.success.main, 0.1),
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <SchoolIcon sx={{ fontSize: 24, color: theme.palette.success.main }} />
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" sx={{ 
-                        color: theme.palette.text.secondary, 
-                        fontSize: '0.875rem' 
-                      }}>
-                        🏫 班级数量
-                      </Typography>
-                      <Typography variant="h4" sx={{ 
-                        color: theme.palette.success.main, 
-                        fontWeight: 700 
-                      }}>
-                        {loading ? '--' : summary?.totalClasses ?? 0}
-                        <Typography component="span" sx={{ 
-                          fontSize: '0.875rem', 
-                          color: theme.palette.text.secondary, 
-                          ml: 0.5 
-                        }}>
-                          个
-                        </Typography>
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-                <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 2 }}>
-                  <Typography variant="h6" sx={{ 
-                    fontWeight: 600, 
-                    color: theme.palette.text.primary, 
-                    mb: 2 
-                  }}>
-                    请假审批
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {/* 总请假数 */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ScheduleIcon sx={{ fontSize: 16, color: theme.palette.primary.main }} />
-                        <Typography variant="body2" sx={{ 
-                          color: theme.palette.text.primary, 
-                          fontWeight: 500, 
-                          fontSize: '0.875rem' 
-                        }}>
-                          📝 总请假数
-                        </Typography>
-                      </Box>
-                      <Typography variant="h6" sx={{ 
-                        color: theme.palette.primary.main, 
-                        fontWeight: 600 
-                      }}>
-                        {leaveStats.totalRequests}次
-                      </Typography>
-                    </Box>
-                    {/* 待审批 */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <AccessTimeIcon sx={{ fontSize: 16, color: theme.palette.warning.main }} />
-                        <Typography variant="body2" sx={{ 
-                          color: theme.palette.text.primary, 
-                          fontWeight: 500, 
-                          fontSize: '0.875rem' 
-                        }}>
-                          ⏳ 待审批
-                        </Typography>
-                      </Box>
-                      <Typography variant="h6" sx={{ 
-                        color: theme.palette.warning.main, 
-                        fontWeight: 600 
-                      }}>
-                        {leaveStats.pendingRequests}次
-                      </Typography>
-                    </Box>
-                    {/* 已批准 */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <CheckCircleIcon sx={{ fontSize: 16, color: theme.palette.success.main }} />
-                        <Typography variant="body2" sx={{ 
-                          color: theme.palette.text.primary, 
-                          fontWeight: 500, 
-                          fontSize: '0.875rem' 
-                        }}>
-                          ✅ 已批准
-                        </Typography>
-                      </Box>
-                      <Typography variant="h6" sx={{ 
-                        color: theme.palette.success.main, 
-                        fontWeight: 600 
-                      }}>
-                        {leaveStats.approvedRequests}次
-                      </Typography>
-                    </Box>
-                    {/* 审批时长 */}
-                    <Box 
-                      sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between',
-                        p: 1.5,
-                        backgroundColor: alpha(theme.palette.secondary.main, 0.1),
-                        borderRadius: 1,
-                        mt: 1
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <AccessTimeIcon sx={{ fontSize: 16, color: theme.palette.secondary.main }} />
-                        <Typography variant="body2" sx={{ 
-                          color: theme.palette.text.primary, 
-                          fontWeight: 600, 
-                          fontSize: '0.875rem' 
-                        }}>
-                          ⏱️ 平均审批时长
-                        </Typography>
-                      </Box>
-                      <Typography variant="h5" sx={{ 
-                        color: theme.palette.secondary.main, 
-                        fontWeight: 700 
-                      }}>
-                        {formatApprovalDuration(leaveStats.avgApprovalTime)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-
-            {/* 右侧：消息通知（等高） */}
-            <Box sx={{ height: '100%', '& > .MuiCard-root': { height: '100%', display: 'flex', flexDirection: 'column' } }}>
-              {user && user.id && (
-                <NotificationPanel userId={user.id} variant="dashboard" limit={5} />
-              )}
             </Box>
-          </Box>
 
-          {/* 底部：学分概览和请假类型 */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, mt: 3 }}>
-            {/* 学分概览 */}
-            <Card sx={{ 
-              borderRadius: 2, 
-              boxShadow: theme.shadows[2],
-              bgcolor: theme.palette.background.paper,
-            }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <Typography variant="h6" sx={{ 
-                    fontWeight: 600, 
-                    color: theme.palette.text.primary 
-                  }}>
-                    学分平均分概览
-                  </Typography>
-                  <Button
-                    component={Link}
-                    href="/admin/credits"
-                    variant="outlined"
-                    size="small"
-                    sx={{ textTransform: 'none' }}
-                  >
-                    查看详情
-                  </Button>
-                </Box>
-                
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                  {creditOverview.map((item, index) => (
-                    <Box key={index}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                        <Typography variant="body1" sx={{ 
-                          fontWeight: 500, 
-                          color: theme.palette.text.primary 
-                        }}>
-                          {item.category}
-                        </Typography>
-                        <Typography variant="h6" sx={{ 
-                          fontWeight: 600, 
-                          color: theme.palette.text.primary 
-                        }}>
-                          {loading ? '--' : `${item.total}分`}
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Number.isFinite(item.total) ? item.total : 0}
-                        sx={{
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: alpha(theme.palette.action.disabled, 0.3),
-                          '& .MuiLinearProgress-bar': {
-                            backgroundColor: item.total >= 90 ? theme.palette.success.main : 
-                                           item.total >= 80 ? theme.palette.primary.main :
-                                           item.total >= 70 ? theme.palette.warning.main : theme.palette.error.main,
-                            borderRadius: 4,
-                          },
-                        }}
-                      />
-                    </Box>
-                  ))}
-                </Box>
-              </CardContent>
-            </Card>
-
-            {/* 请假类型分布 */}
-            <Card sx={{ 
-              borderRadius: 2, 
-              boxShadow: theme.shadows[2],
-              bgcolor: theme.palette.background.paper,
-            }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <Typography variant="h6" sx={{ 
-                    fontWeight: 600, 
-                    color: theme.palette.text.primary 
-                  }}>
-                    请假类型分布
-                  </Typography>
-                  <Button
-                    component={Link}
-                    href="/admin/leave/dashboard"
-                    variant="outlined"
-                    size="small"
-                    sx={{ textTransform: 'none' }}
-                  >
-                    查看详情
-                  </Button>
-                </Box>
-
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                  {leaveTypes.length > 0 ? (
-                    leaveTypes.map((type, index) => (
-                      <Box key={index}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="body1" sx={{ 
-                            fontWeight: 500, 
-                            color: theme.palette.text.primary 
-                          }}>
-                            {type.type}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="h6" sx={{ 
-                              fontWeight: 600, 
-                              color: theme.palette.text.primary 
-                            }}>
-                              {type.count}次
-                            </Typography>
-                            <Typography variant="body2" sx={{ 
-                              color: theme.palette.text.secondary 
-                            }}>
-                              ({type.percentage}%)
-                            </Typography>
+            {/* 顶部三列：个人请假、学分、通知 */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.1fr 1fr 0.9fr' }, gap: 3, alignItems: 'stretch' }}>
+              {/* 个人请假统计 */}
+              <Card sx={{ borderRadius: 2, boxShadow: theme.shadows[3], bgcolor: theme.palette.background.paper, display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>我的请假</Typography>
+                    {loadingLeave && <CircularProgress size={20} />}
+                  </Box>
+                  {errorLeave && (
+                    <Typography variant="body2" color="error">{errorLeave}</Typography>
+                  )}
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 2 }}>
+                    {[{
+                      label: '总申请', value: leaveStats?.total ?? 0, icon: <TimelineIcon fontSize="small" />, color: theme.palette.primary.main
+                    }, {
+                      label: '待审批', value: leaveStats?.pending ?? 0, icon: <PendingIcon fontSize="small" />, color: theme.palette.warning.main
+                    }, {
+                      label: '已批准', value: leaveStats?.approved ?? 0, icon: <CheckCircleIcon fontSize="small" />, color: theme.palette.success.main
+                    }, {
+                      label: '被拒绝', value: leaveStats?.rejected ?? 0, icon: <AssignmentIcon fontSize="small" />, color: theme.palette.error.main
+                    }].map((i) => (
+                      <Box key={i.label} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.5, display: 'flex', flexDirection: 'column', gap: .5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: .5 }}>
+                          <Box sx={{ width: 22, height: 22, bgcolor: alpha(i.color, 0.15), color: i.color, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: .8 }}>
+                            {i.icon}
                           </Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>{i.label}</Typography>
                         </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={type.percentage}
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: i.color }}>{loadingLeave ? '--' : i.value}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                  <Tooltip title="从提交到最终审批平均耗时">
+                    <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 1.5, backgroundColor: alpha(theme.palette.secondary.main, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AccessTimeIcon fontSize="small" sx={{ color: theme.palette.secondary.main }} />
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>平均审批时长</Typography>
+                      </Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: theme.palette.secondary.main }}>
+                        {leaveStats ? formatApprovalDuration(leaveStats.avgApprovalHours) : '--'}
+                      </Typography>
+                    </Box>
+                  </Tooltip>
+                  {leaveStats?.lastRequestAt && (
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>最近提交：{new Date(leaveStats.lastRequestAt).toLocaleString()}</Typography>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 学分概览 */}
+              <Card sx={{ borderRadius: 2, boxShadow: theme.shadows[2], bgcolor: theme.palette.background.paper }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>学分表现</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                      {evaluationDisplay && (
+                        <Chip
+                          size="small"
+                          label={`${evaluationDisplay.label} · ${Number.isFinite(totalCreditScore) ? totalCreditScore.toFixed(1) : '--'}分`}
                           sx={{
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: alpha(theme.palette.action.disabled, 0.3),
-                            '& .MuiLinearProgress-bar': {
-                              backgroundColor: type.color,
-                              borderRadius: 4,
-                            },
+                            fontWeight: 600,
+                            bgcolor: alpha(evaluationDisplay.color, 0.15),
+                            color: evaluationDisplay.color
                           }}
                         />
-                      </Box>
-                    ))
-                  ) : (
-                    <Box sx={{ textAlign: 'center', py: 4 }}>
-                      <Typography variant="body1" sx={{ 
-                        color: theme.palette.text.secondary 
-                      }}>
-                        暂无请假数据
-                      </Typography>
+                      )}
+                      {loadingCredit && <CircularProgress size={20} />}
                     </Box>
+                  </Box>
+                  {errorCredit && (
+                    <Typography variant="body2" color="error" sx={{ mb: 1 }}>{errorCredit}</Typography>
                   )}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.8 }}>
+                    {creditOverview.map(item => (
+                      <Box key={item.category}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: .5 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.category}</Typography>
+                          <Chip size="small" label={loadingCredit ? '--' : `${item.score}分`} sx={{ fontWeight: 600 }} />
+                        </Box>
+                        <LinearProgress variant="determinate" value={Number.isFinite(item.score) ? Math.min(item.score, 100) : 0} sx={{ height: 6, borderRadius: 3, '& .MuiLinearProgress-bar': { borderRadius: 3 } }} />
+                      </Box>
+                    ))}
+                  </Box>
+                </CardContent>
+              </Card>
+
+              {/* 通知摘录 */}
+              <Box sx={{ '& > .MuiCard-root': { height: '100%', display: 'flex', flexDirection: 'column' } }}>
+                {user?.id && <NotificationPanel userId={user.id} variant="dashboard" limit={5} />}
+              </Box>
+            </Box>
+
+            {/* 快速操作 & 近期动作建议 */}
+            <Card sx={{ mt: 3, borderRadius: 2, boxShadow: theme.shadows[2], bgcolor: theme.palette.background.paper }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>快捷入口</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 2 }}>
+                  <Button component={Link} href="/student/leave/apply" variant="outlined" startIcon={<OutboxIcon />} sx={{ textTransform: 'none', p: 1.8, justifyContent: 'flex-start', borderRadius: 2 }}>
+                    申请请假
+                  </Button>
+                  <Button component={Link} href="/student/leave/calendar" variant="outlined" startIcon={<CalendarIcon />} sx={{ textTransform: 'none', p: 1.8, justifyContent: 'flex-start', borderRadius: 2 }}>
+                    请假日历
+                  </Button>
+                  <Button component={Link} href="/student/notifications" variant="outlined" startIcon={<MailIcon />} sx={{ textTransform: 'none', p: 1.8, justifyContent: 'flex-start', borderRadius: 2 }}>
+                    消息中心
+                  </Button>
+                  <Button component={Link} href="/student/dashboard" variant="outlined" startIcon={<InsightsIcon />} sx={{ textTransform: 'none', p: 1.8, justifyContent: 'flex-start', borderRadius: 2 }}>
+                    刷新概览
+                  </Button>
                 </Box>
               </CardContent>
             </Card>
-          </Box>
-
-          {/* 快速操作 */}
-          <Card sx={{ 
-            mt: 3, 
-            borderRadius: 2, 
-            boxShadow: theme.shadows[2],
-            bgcolor: theme.palette.background.paper,
-          }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 600, 
-                color: theme.palette.text.primary, 
-                mb: 3 
-              }}>
-                快速操作
-              </Typography>
-              
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
-                <Button
-                  component={Link}
-                  href="/admin/credits/config"
-                  variant="outlined"
-                  startIcon={<AssignmentIcon />}
-                  sx={{ 
-                    textTransform: 'none', 
-                    p: 2,
-                    justifyContent: 'flex-start',
-                    borderRadius: 2,
-                    '&:hover': {
-                      backgroundColor: alpha(theme.palette.action.hover, 0.04)
-                    }
-                  }}
-                >
-                  配置学分项目
-                </Button>
-                <Button
-                  component={Link}
-                  href="/admin/credits/students"
-                  variant="outlined"
-                  startIcon={<GroupIcon />}
-                  sx={{ 
-                    textTransform: 'none', 
-                    p: 2,
-                    justifyContent: 'flex-start',
-                    borderRadius: 2,
-                    '&:hover': {
-                      backgroundColor: alpha(theme.palette.action.hover, 0.04)
-                    }
-                  }}
-                >
-                  管理学生学分
-                </Button>
-                <Button
-                  component={Link}
-                  href="/admin/credits/alerts"
-                  variant="outlined"
-                  startIcon={<WarningIcon />}
-                  sx={{ 
-                    textTransform: 'none', 
-                    p: 2,
-                    justifyContent: 'flex-start',
-                    borderRadius: 2,
-                    '&:hover': {
-                      backgroundColor: alpha(theme.palette.action.hover, 0.04)
-                    }
-                  }}
-                >
-                  设置预警机制
-                </Button>
-                <Button
-                  component={Link}
-                  href="/admin/leave/students"
-                  variant="outlined"
-                  startIcon={<GroupIcon />}
-                  sx={{ 
-                    textTransform: 'none', 
-                    p: 2,
-                    justifyContent: 'flex-start',
-                    borderRadius: 2,
-                    '&:hover': {
-                      backgroundColor: alpha(theme.palette.action.hover, 0.04)
-                    }
-                  }}
-                >
-                  学生请假管理
-                </Button>
-                <Button
-                  component={Link}
-                  href="/admin/leave/approval"
-                  variant="outlined"
-                  startIcon={<AssignmentIcon />}
-                  sx={{ 
-                    textTransform: 'none', 
-                    p: 2,
-                    justifyContent: 'flex-start',
-                    borderRadius: 2,
-                    '&:hover': (theme)=> ({
-                      backgroundColor: theme.palette.mode === 'dark' 
-                        ? alpha(theme.palette.action.hover, 0.2)
-                        : alpha(theme.palette.action.hover, 0.08)
-                    })
-                  }}
-                >
-                  请假审批
-                </Button>
-                                <Button
-                  component={Link}
-                  href="/admin/leave/approve"
-                  variant="outlined"
-                  startIcon={<AssignmentIcon />}
-                  sx={{ 
-                    textTransform: 'none', 
-                    p: 2,
-                    justifyContent: 'flex-start',
-                    borderRadius: 2,
-                    '&:hover': {
-                      backgroundColor: alpha(theme.palette.action.hover, 0.04)
-                    }
-                  }}
-                >
-                  请假审批
-                </Button>
-                <Button
-                  component={Link}
-                  href="/admin/notifications"
-                  variant="outlined"
-                  startIcon={<MailOutlineIcon />}
-                  sx={{ 
-                    textTransform: 'none', 
-                    p: 2,
-                    justifyContent: 'flex-start',
-                    borderRadius: 2,
-                    '&:hover': {
-                      backgroundColor: alpha(theme.palette.action.hover, 0.04)
-                    }
-                  }}
-                >
-                  消息中心
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
         </motion.div>
     </Box>
   );

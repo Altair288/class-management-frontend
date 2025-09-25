@@ -34,6 +34,7 @@ export default function StudentBottomNav() {
 
   return (
     <Paper
+      id="student-bottom-nav"
       elevation={3}
       sx={{
         position: 'fixed',

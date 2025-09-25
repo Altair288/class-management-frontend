@@ -1,8 +1,3 @@
-// Test Page
-// This is a test page for leave application
-
-
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -587,7 +582,10 @@ export default function LeaveApplyPage() {
                   <Box sx={{ p: 2, border: '2px dashed #e0e0e0', borderRadius: 2, textAlign: 'center' }}>
                     <AttachFileIcon sx={{ fontSize: 48, color: '#6c757d', mb: 1 }} />
                     <Typography variant="body1" sx={{ color: '#6c757d', mb: 1 }}>
-                      [上传相关证明文件（可选）]
+                      [上传相关证明文件（占位）]
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: '#6c757d', mb: 1 }}>
+                      [开发中准备支持Minio]
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#6c757d' }}>
                       支持 PDF, JPG, PNG 格式，单个文件不超过 5MB
@@ -780,13 +778,24 @@ export default function LeaveApplyPage() {
           autoHideDuration={6000}
           onClose={() => setShowSuccess(false)}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          ContentProps={{ sx: { 
+            // 兼容底部导航高度（约 56~64px）+ 安全区域
+            mb: { xs: 'calc(env(safe-area-inset-bottom, 0px) + 72px)', sm: 0 }
+          } }}
+          sx={{ 
+            // 如果组件在未提供 ContentProps 时（MUI16+行为可能变），再兜底一个整体偏移
+            bottom: { xs: '72px', sm: 0 },
+            '@supports (padding: max(0px))': {
+              bottom: { xs: 'calc(56px + env(safe-area-inset-bottom, 0px))', sm: 0 }
+            }
+          }}
         >
           <Alert 
             onClose={() => setShowSuccess(false)} 
             severity="success" 
             sx={{ width: '100%' }}
           >
-            申请提交成功！您可以在审批处理页面查看申请状态。
+            申请提交成功！请耐心等待审批。
           </Alert>
         </Snackbar>
         </Box>
