@@ -9,6 +9,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import Image from "next/image";
 import axios from "axios";
 import { useRouter } from "next/navigation";
+import { useAuth } from '@/context/AuthContext';
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -23,6 +24,7 @@ type UserType = "STUDENT" | "TEACHER" | "PARENT" | "ADMIN";
 export default function AuthPage() {
   const theme = useTheme();
   const router = useRouter();
+  const { user, isStudent } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [registerTab, setRegisterTab] = useState<UserType>("STUDENT");
@@ -73,6 +75,13 @@ export default function AuthPage() {
       .catch(() => setClassList([]));
   }, []);
 
+  // 已登录时访问登录页的处理：学生跳学生仪表盘，其它跳管理仪表盘
+  useEffect(() => {
+    if (user) {
+      router.replace(isStudent ? '/student/dashboard' : '/admin/dashboard');
+    }
+  }, [user, isStudent, router]);
+
   // 登录
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,11 +93,31 @@ export default function AuthPage() {
         new URLSearchParams(loginForm),
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
-      setMessage("登录成功！");
-      // 登录成功后优先回跳来源
+      // 获取当前用户以判定角色
+      let userType: string | null = null;
+      try {
+        const res = await fetch('/api/users/current', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          userType = data?.userType || null;
+        }
+      } catch {}
+      // 角色判定：学生跳学生仪表盘，其他仍转管理仪表盘
       const params = new URLSearchParams(window.location.search);
       const from = params.get('from');
-      router.push(from || "/admin/dashboard");
+      let target = userType === 'STUDENT' ? '/student/dashboard' : '/admin/dashboard';
+      if (from) {
+        // 如果有来源且不违反简单角色限制则优先来源
+        if (userType === 'STUDENT') {
+          // 学生不允许直接跳 admin 源地址
+            if (!from.startsWith('/admin')) target = from; 
+        } else {
+          target = from;
+        }
+      }
+      try { localStorage.setItem('auth:changed', Date.now().toString()); } catch {}
+      setMessage("登录成功！即将跳转...");
+      router.push(target);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const msg = err.response?.data?.message || err.response?.data || "登录失败";

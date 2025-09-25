@@ -328,7 +328,7 @@ export default function NotificationPanel({
                     >
                       {n.content}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.6rem' }}>
+                    <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.6rem' }} suppressHydrationWarning>
                       {formatTime(n.createdAt)}
                     </Typography>
                   </Box>

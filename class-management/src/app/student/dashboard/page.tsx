@@ -839,9 +839,11 @@ export default function AdminDashboard() {
                     p: 2,
                     justifyContent: 'flex-start',
                     borderRadius: 2,
-                    '&:hover': {
-                      backgroundColor: '#f8f9fa'
-                    }
+                    '&:hover': (theme)=> ({
+                      backgroundColor: theme.palette.mode === 'dark' 
+                        ? alpha(theme.palette.action.hover, 0.2)
+                        : alpha(theme.palette.action.hover, 0.08)
+                    })
                   }}
                 >
                   请假审批

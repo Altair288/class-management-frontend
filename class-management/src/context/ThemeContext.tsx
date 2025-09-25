@@ -31,14 +31,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   // 从 localStorage 读取主题设置
   useEffect(() => {
-    const savedMode = localStorage.getItem('theme-mode') as ThemeMode;
-    if (savedMode && (savedMode === 'light' || savedMode === 'dark')) {
-      setMode(savedMode);
-    } else {
-      // 检查系统偏好
-      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setMode(systemPrefersDark ? 'dark' : 'light');
-    }
+    try {
+      const savedMode = localStorage.getItem('theme-mode') as ThemeMode;
+      if (savedMode && (savedMode === 'light' || savedMode === 'dark')) {
+        setMode(savedMode);
+      } else if (typeof window !== 'undefined') {
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setMode(systemPrefersDark ? 'dark' : 'light');
+      }
+    } catch {}
   }, []);
 
   const toggleMode = () => {
@@ -282,6 +283,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   } as typeof theme;
 
+  // 在未挂载前不渲染 children，避免 SSR 与客户端因首次检测模式不同出现 hydration 警告
   return (
     <ThemeContext.Provider value={{ mode, toggleMode }}>
       <MuiThemeProvider theme={theme}>

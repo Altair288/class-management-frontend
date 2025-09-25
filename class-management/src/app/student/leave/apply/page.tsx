@@ -353,9 +353,10 @@ export default function LeaveApplyPage() {
 
   return (
     <Box sx={{ 
-      minHeight: '100vh', 
-      bgcolor: theme.palette.background.default,
-      transition: 'background-color 0.3s ease' 
+      minHeight: '100vh',
+      // 让背景继承 layout 的统一渐变 / token
+      bgcolor: 'transparent',
+      transition: 'background-color 0.3s ease'
     }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}

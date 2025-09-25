@@ -138,20 +138,22 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             {isStudent ? '我的消息' : '消息中心'}
           </MenuItem>
           {isStudent && (
-            <>
-              <MenuItem onClick={() => { handleClose(); router.push('/student/leave/apply'); }}>
-                <OutboxIcon fontSize="small" sx={{ mr: 1 }} />
-                提交请假
-              </MenuItem>
-              <MenuItem onClick={() => { handleClose(); router.push('/student/leave/calendar'); }}>
-                <EventIcon fontSize="small" sx={{ mr: 1 }} />
-                我的日历
-              </MenuItem>
-              <MenuItem onClick={() => { handleClose(); router.push('/student/dashboard'); }}>
-                <DashboardIcon fontSize="small" sx={{ mr: 1 }} />
-                学生仪表盘
-              </MenuItem>
-            </>
+            <MenuItem onClick={() => { handleClose(); router.push('/student/leave/apply'); }}>
+              <OutboxIcon fontSize="small" sx={{ mr: 1 }} />
+              提交请假
+            </MenuItem>
+          )}
+          {isStudent && (
+            <MenuItem onClick={() => { handleClose(); router.push('/student/leave/calendar'); }}>
+              <EventIcon fontSize="small" sx={{ mr: 1 }} />
+              我的日历
+            </MenuItem>
+          )}
+          {isStudent && (
+            <MenuItem onClick={() => { handleClose(); router.push('/student/dashboard'); }}>
+              <DashboardIcon fontSize="small" sx={{ mr: 1 }} />
+              学生仪表盘
+            </MenuItem>
           )}
           {(isAdmin || isTeacher) && (
             <MenuItem onClick={() => { handleClose(); router.push('/admin/dashboard'); }}>

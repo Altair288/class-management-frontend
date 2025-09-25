@@ -50,6 +50,9 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
   const sseRef = useRef<EventSource | null>(null);
   const retryRef = useRef(0);
   const manualClosedRef = useRef(false);
+  // history 模式下避免被 snapshot 截断覆盖
+  const isHistoryRef = useRef(!!opts.history);
+  useEffect(() => { isHistoryRef.current = !!opts.history; }, [opts.history]);
 
   const fetchUnreadCount = useCallback(async () => {
     if (!userId) return;
@@ -84,24 +87,36 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
       if (res.ok) {
         const data = await res.json();
         if (opts.history) {
-          const content = Array.isArray(data.content) ? data.content : [];
+          // 兼容多种返回结构：数组 / {content: []} / {data: []}
+          const rawList = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.content)
+              ? data.content
+              : Array.isArray(data?.data)
+                ? data.data
+                : [];
           interface RawItem { [k: string]: unknown }
-          setNotifications(content.map((d: RawItem) => ({
-            notificationId: d.notificationId,
-            recipientId: d.recipientId,
-            title: d.title,
-            content: d.content,
-            type: d.type,
-            priority: d.priority,
+          const mapped = (rawList as RawItem[]).map((d) => ({
+            notificationId: Number(d.notificationId),
+            recipientId: Number(d.recipientId ?? -1),
+            title: String(d.title ?? ''),
+            content: String(d.content ?? ''),
+            type: String(d.type ?? 'SYSTEM'),
+            priority: (typeof d.priority === 'string' ? d.priority : 'NORMAL') as NotificationItem['priority'],
             channels: [],
             read: !!d.read,
-            createdAt: d.createdAt
-          })));
-          if (typeof data.totalElements === 'number') {
-            // 如果需要后续分页，可在这里保留 total/page 信息
-          }
+            createdAt: typeof d.createdAt === 'string' ? d.createdAt : new Date().toISOString(),
+          })).filter(m => m.notificationId > 0);
+          setNotifications(mapped);
         } else {
-          setNotifications(data);
+          // inbox 接口假设直接返回数组
+          if (Array.isArray(data)) {
+            setNotifications(data as NotificationItem[]);
+          } else if (Array.isArray(data?.content)) {
+            setNotifications(data.content as NotificationItem[]);
+          } else {
+            setNotifications([]);
+          }
         }
       }
     } catch (e) {
@@ -198,34 +213,37 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
           const snap = data as { unreadCount?: number; notifications?: unknown };
           if (typeof snap.unreadCount === 'number') setUnreadCount(snap.unreadCount);
           if (Array.isArray(snap.notifications)) {
-            const mapped: NotificationItem[] = snap.notifications.map((o: unknown) => {
-              if (o && typeof o === 'object') {
-                const anyObj = o as Record<string, unknown>;
+            // history 模式：不覆盖主列表，只更新未读数，等待具体 notification 事件追加；避免闪一下被截断
+            if (!isHistoryRef.current) {
+              const mapped: NotificationItem[] = snap.notifications.map((o: unknown) => {
+                if (o && typeof o === 'object') {
+                  const anyObj = o as Record<string, unknown>;
+                  return {
+                    notificationId: Number(anyObj.notificationId),
+                    recipientId: Number(anyObj.recipientId ?? -1),
+                    title: typeof anyObj.title === 'string' ? anyObj.title : '',
+                    content: typeof anyObj.content === 'string' ? anyObj.content : '',
+                    type: typeof anyObj.type === 'string' ? anyObj.type : 'SYSTEM',
+                    priority: (typeof anyObj.priority === 'string' ? anyObj.priority : 'NORMAL') as NotificationItem['priority'],
+                    channels: [],
+                    read: false,
+                    createdAt: typeof anyObj.createdAt === 'string' ? anyObj.createdAt : new Date().toISOString(),
+                  };
+                }
                 return {
-                  notificationId: Number(anyObj.notificationId),
-                  recipientId: Number(anyObj.recipientId ?? -1),
-                  title: typeof anyObj.title === 'string' ? anyObj.title : '',
-                  content: typeof anyObj.content === 'string' ? anyObj.content : '',
-                  type: typeof anyObj.type === 'string' ? anyObj.type : 'SYSTEM',
-                  priority: (typeof anyObj.priority === 'string' ? anyObj.priority : 'NORMAL') as NotificationItem['priority'],
+                  notificationId: -1,
+                  recipientId: -1,
+                  title: '',
+                  content: '',
+                  type: 'SYSTEM',
+                  priority: 'NORMAL',
                   channels: [],
                   read: false,
-                  createdAt: typeof anyObj.createdAt === 'string' ? anyObj.createdAt : new Date().toISOString(),
-                };
-              }
-              return {
-                notificationId: -1,
-                recipientId: -1,
-                title: '',
-                content: '',
-                type: 'SYSTEM',
-                priority: 'NORMAL',
-                channels: [],
-                read: false,
-                createdAt: new Date().toISOString(),
-              } as NotificationItem;
-            });
-            setNotifications(mapped.filter(m => m.notificationId !== -1).slice(0, limit));
+                  createdAt: new Date().toISOString(),
+                } as NotificationItem;
+              });
+              setNotifications(mapped.filter(m => m.notificationId !== -1).slice(0, limit));
+            }
           }
           lastEventTsRef.current = Date.now();
         }
@@ -287,7 +305,8 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
             const exists = prev.some(n => n.notificationId === incoming.notificationId);
             if (exists) return prev; // 避免重复
             const next = [incoming, ...prev];
-            return next.slice(0, limit);
+            // history 模式下不截断，保持已加载历史；否则按 limit 截断
+            return isHistoryRef.current ? next : next.slice(0, limit);
           });
           // 若服务器未提供 unreadCount，则乐观递增（后续 fetchUnreadCount 会校正）
           if (typeof obj.unreadCount !== 'number') {

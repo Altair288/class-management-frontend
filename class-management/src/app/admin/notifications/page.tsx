@@ -133,7 +133,7 @@ export default function AllNotificationsPage() {
                         }} />
                       </Box>
                       <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '.7rem', lineHeight: 1.45, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{n.content}</Typography>
-                      <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.6rem' }}>{new Date(n.createdAt).toLocaleString()}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.6rem' }} suppressHydrationWarning>{new Date(n.createdAt).toLocaleString()}</Typography>
                     </Box>
                   </Box>
                 );

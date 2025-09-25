@@ -821,7 +821,7 @@ export default function CalendarPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-  <Box sx={(theme)=>({ p: 3, backgroundColor: theme.palette.background.default, minHeight: '100vh' })}>
+  <Box sx={{ p: 3, backgroundColor: 'transparent', minHeight: '100vh' }}>
         {/* 页面标题和控制栏 - 苹果风格 */}
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
