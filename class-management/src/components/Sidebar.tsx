@@ -1,89 +1,82 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import List from "@mui/material/List";
-import ListItemButton from "@mui/material/ListItemButton";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-import Collapse from "@mui/material/Collapse";
-import { useTheme, alpha } from "@mui/material";
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import ExpandLess from "@mui/icons-material/ExpandLess";
-import ExpandMore from "@mui/icons-material/ExpandMore";
-import ClassOutlinedIcon from '@mui/icons-material/ClassOutlined';
-import AssignmentIcon from "@mui/icons-material/Assignment";
-import PersonIcon from "@mui/icons-material/Person";
-// import ScoreIcon from "@mui/icons-material/Score";
-// import NotificationsIcon from "@mui/icons-material/Notifications";
-import SupervisorAccountIcon from "@mui/icons-material/SupervisorAccount";
 import Link from "next/link";
+import { useAuth } from '@/context/AuthContext';
+import {
+  Box,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Collapse,
+  Typography
+} from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import ClassOutlinedIcon from '@mui/icons-material/ClassOutlined';
+import PersonIcon from '@mui/icons-material/Person';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import ExpandLess from '@mui/icons-material/ExpandLess';
 
-const menu = [
+// 菜单结构增加 allowedRoles 控制显示（缺省表示所有登录用户）
+type Role = 'ADMIN' | 'TEACHER' | 'STUDENT' | string;
+
+interface MenuChild {
+  text: string;
+  href: string;
+  key: string;
+  allowedRoles?: Role[];
+}
+
+interface MenuItem {
+  text: string;
+  icon?: React.ReactNode;
+  href?: string;
+  key: string;
+  allowedRoles?: Role[];
+  children?: MenuChild[];
+}
+
+interface MenuSection {
+  section: string;
+  items: MenuItem[];
+}
+
+const adminMenu: MenuSection[] = [
   {
     section: "班级事务",
     items: [
-      {
-        text: "仪表盘",
-        icon: <DashboardIcon />,
-        href: "/admin/dashboard",
-        key: "dashboard",
-      },
+      { text: "仪表盘", icon: <DashboardIcon />, href: "/admin/dashboard", key: "dashboard", allowedRoles: ['ADMIN','TEACHER'] },
       {
         text: "班级管理",
         icon: <ClassOutlinedIcon />,
         key: "class-manage",
+        allowedRoles: ['ADMIN','TEACHER'],
         children: [
-          { text: "班级列表", href: "/admin/class", key: "class-list" },
-          { text: "创建班级", href: "/admin/class/create", key: "class-create" },
+          { text: "班级列表", href: "/admin/class", key: "class-list", allowedRoles: ['ADMIN','TEACHER'] },
+          { text: "创建班级", href: "/admin/class/create", key: "class-create", allowedRoles: ['ADMIN'] },
         ],
       },
       {
         text: "请假管理",
         icon: <PersonIcon />,
         key: "leave",
+        allowedRoles: ['ADMIN','TEACHER'],
         children: [
-          { text: "申请请假", href: "/admin/leave/apply", key: "leave-apply" },
-          { text: "管理总览", href: "/admin/leave", key: "leave-overview" },
-          { text: "数据仪表板", href: "/admin/leave/dashboard", key: "leave-dashboard" },
-          { text: "审批处理", href: "/admin/leave/approval", key: "leave-approval" },
-          { text: "日历视图", href: "/admin/leave/calendar", key: "leave-calendar" },
-          { text: "学生管理", href: "/admin/leave/students", key: "leave-students" },
-          { text: "系统配置", href: "/admin/leave/config", key: "leave-config" },
+          { text: "申请请假", href: "/admin/leave/apply", key: "leave-apply", allowedRoles: ['ADMIN','TEACHER'] },
+          { text: "管理总览", href: "/admin/leave", key: "leave-overview", allowedRoles: ['ADMIN','TEACHER'] },
+          { text: "数据仪表板", href: "/admin/leave/dashboard", key: "leave-dashboard", allowedRoles: ['ADMIN','TEACHER'] },
+          { text: "审批处理", href: "/admin/leave/approval", key: "leave-approval", allowedRoles: ['ADMIN','TEACHER'] },
+          { text: "日历视图", href: "/admin/leave/calendar", key: "leave-calendar", allowedRoles: ['ADMIN','TEACHER'] },
+          { text: "学生管理", href: "/admin/leave/students", key: "leave-students", allowedRoles: ['ADMIN','TEACHER'] },
+          { text: "系统配置", href: "/admin/leave/config", key: "leave-config", allowedRoles: ['ADMIN'] },
         ],
       },
-      {
-        text: "德育学分管理",
-        icon: <AssignmentIcon />,
-        href: "/admin/credits",
-        key: "credits",
-      },
-      // {
-      //   text: "管理待定（占位）",
-      //   icon: <ScoreIcon />,
-      //   href: "/admin/grades",
-      //   key: "grades",
-      // },
-      // {
-      //   text: "管理待定（占位）",
-      //   icon: <NotificationsIcon />,
-      //   href: "/admin/notice",
-      //   key: "notice",
-      // },
-      // {
-      //   text: "管理待定（占位）",
-      //   icon: <ScoreIcon />,
-      //   href: "/admin/grades2",
-      //   key: "grades2",
-      // },
-      // {
-      //   text: "管理待定（占位）",
-      //   icon: <NotificationsIcon />,
-      //   href: "/admin/notice2",
-      //   key: "notice2",
-      // },
+      { text: "德育学分管理", icon: <AssignmentIcon />, href: "/admin/credits", key: "credits", allowedRoles: ['ADMIN','TEACHER'] },
     ],
   },
   {
@@ -93,34 +86,31 @@ const menu = [
         text: "用户管理",
         icon: <SupervisorAccountIcon />,
         key: "users",
+        allowedRoles: ['ADMIN'],
         children: [
-          { text: "角色管理", href: "/admin/users/roles", key: "user-roles" },
-          { text: "教师管理", href: "/admin/users/teachers", key: "user-teachers" },
+          { text: "角色管理", href: "/admin/users/roles", key: "user-roles", allowedRoles: ['ADMIN'] },
+          { text: "教师管理", href: "/admin/users/teachers", key: "user-teachers", allowedRoles: ['ADMIN'] },
         ],
       },
     ],
   },
 ];
 
+// 学生专属菜单（后续你创建 /student 路由后即可使用）
+const studentMenu: MenuSection[] = [
+  {
+    section: '学习与请假',
+    items: [
+      { text: '仪表盘', icon: <DashboardIcon />, href: '/student/dashboard', key: 'stu-dashboard', allowedRoles: ['STUDENT'] },
+      { text: '我的消息', icon: <PersonIcon />, href: '/student/notifications', key: 'stu-notifications', allowedRoles: ['STUDENT'] },
+      { text: '提交请假', icon: <AssignmentIcon />, href: '/student/leave/apply', key: 'stu-leave-apply', allowedRoles: ['STUDENT'] },
+      { text: '请假日历', icon: <ClassOutlinedIcon />, href: '/student/leave/calendar', key: 'stu-leave-calendar', allowedRoles: ['STUDENT'] },
+    ]
+  }
+];
+
 // 递归查找当前选中的菜单项key和父级key
-type MenuChild = {
-  text: string;
-  href: string;
-  key: string;
-};
-
-type MenuItem = {
-  text: string;
-  icon?: React.ReactNode;
-  href?: string;
-  key: string;
-  children?: MenuChild[];
-};
-
-type MenuSection = {
-  section: string;
-  items: MenuItem[];
-};
+// ---- 以上已重新定义类型 ----
 
 function findSelectedKeys(
   menu: MenuSection[],
@@ -143,14 +133,33 @@ export default function Sidebar({ open }: { open: boolean }) {
   const theme = useTheme();
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({});
   const [isClient, setIsClient] = useState(false);
+  const { user, loading, isStudent } = useAuth();
+
+  const activeMenu: MenuSection[] = useMemo(() => {
+    const base = isStudent ? studentMenu : adminMenu;
+    const role = user?.userType as Role | undefined;
+    if (!role) return [];
+    // 过滤角色不允许的项
+    return base.map(section => {
+      const items = section.items
+        .filter(it => !it.allowedRoles || it.allowedRoles.includes(role))
+        .map(it => {
+          if (!it.children) return it;
+          const children = it.children.filter(c => !c.allowedRoles || c.allowedRoles.includes(role));
+            return { ...it, children };
+        })
+        .filter(it => !it.children || it.children.length > 0);
+      return { ...section, items };
+    }).filter(sec => sec.items.length > 0);
+  }, [isStudent, user]);
 
   // 确保组件在客户端水合完成后再渲染
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // 选中项和父级项
-  const { selectedKey, parentKey } = findSelectedKeys(menu, pathname);
+  // 选中项和父级项（基于过滤后的菜单）
+  const { selectedKey, parentKey } = useMemo(() => findSelectedKeys(activeMenu, pathname), [activeMenu, pathname]);
 
   // 自动展开当前父菜单
   useEffect(() => {
@@ -161,6 +170,9 @@ export default function Sidebar({ open }: { open: boolean }) {
 
   // 如果侧边栏关闭或还未完成客户端水合则不渲染
   if (!open || !isClient) return null;
+  if (loading) return null; // 加载期间不显示，避免闪烁
+  if (!user) return null; // 未登录不显示
+  if (activeMenu.length === 0) return null; // 角色无菜单
 
   const handleToggle = (key: string) => {
     setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -185,7 +197,7 @@ export default function Sidebar({ open }: { open: boolean }) {
     >
 
       <Box sx={{ flex: 1, overflowY: "auto", pt: 1 }}>
-        {menu.map((section) => (
+        {activeMenu.map((section) => (
           <Box key={section.section} sx={{ mb: 2 }}>
                         <Typography
               variant="caption"

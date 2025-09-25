@@ -316,10 +316,10 @@ export default function AuthPage() {
               }}>
               <CardContent>
                 <Typography variant="h5" align="center" fontWeight={700} mb={2}>
-                  {isLogin ? "Sign In" : "Sign Up"}
+                  {isLogin ? "登陆" : "注册"}
                 </Typography>
                 <Typography align="center" color="text.secondary" mb={2}>
-                  {isLogin ? "Welcome back! Select the method of login." : "Create your account"}
+                  {isLogin ? "欢迎回来！请选择登录方式。" : "创建您的账户"}
                 </Typography>
                 {message && (
                   <Alert severity={message.includes("成功") ? "success" : "info"} sx={{ mb: 2 }}>
@@ -370,7 +370,7 @@ export default function AuthPage() {
                       sx={{ mb: 1 }}
                       startIcon={loading && <CircularProgress size={20} color="inherit" />}
                     >
-                      {loading ? "Signing In..." : "Sign In"}
+                      {loading ? "登陆中..." : "登录"}
                     </Button>
                     <Typography align="center" variant="body2">
                       没有账号？{" "}
@@ -732,7 +732,7 @@ export default function AuthPage() {
               </CardContent>
             </Card>
             <Typography align="center" color="text.secondary" mt={4} fontSize={13}>
-              © 2024 ClassAble &nbsp; | &nbsp; Privacy Policy &nbsp; | &nbsp; Terms & Conditions
+              © 2025 ClassAble &nbsp; | &nbsp; Privacy Policy &nbsp; | &nbsp; Terms & Conditions
             </Typography>
           </Box>
         </Box>
