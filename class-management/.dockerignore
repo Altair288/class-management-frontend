@@ -1,0 +1,25 @@
+# Node modules (host) - 让镜像自行安装
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store
+
+# Next 构建输出
+.next
+out
+
+# 源码之外的本地文件
+*.swp
+.DS_Store
+.git
+.gitignore
+.eslintcache
+
+# 编辑器 / IDE
+.idea
+.vscode
+
+# 测试与临时
+coverage
+.tmp
