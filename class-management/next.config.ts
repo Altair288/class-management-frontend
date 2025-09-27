@@ -1,12 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // 生成精简可部署的 standalone 目录，便于 Docker 只拷贝必需文件
+  output: 'standalone',
   async rewrites() {
-    // 优先使用容器环境变量 INTERNAL_API_BASE，否则回退到 docker compose 服务名 backend
-    const base = process.env.INTERNAL_API_BASE || 'http://backend:8080';
     return [
       {
         source: '/api/:path*',
-        destination: `${base}/api/:path*`, // 容器内部转发到后端
+        // 在容器网络中访问后端服务（docker-compose service 名称为 backend）
+        destination: 'http://backend:8080/api/:path*',
       },
     ];
   },
