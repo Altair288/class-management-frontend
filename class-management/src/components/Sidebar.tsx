@@ -19,6 +19,7 @@ import ClassOutlinedIcon from '@mui/icons-material/ClassOutlined';
 import PersonIcon from '@mui/icons-material/Person';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
+import CloudQueueIcon from '@mui/icons-material/CloudQueue';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 
@@ -92,6 +93,7 @@ const adminMenu: MenuSection[] = [
           { text: "教师管理", href: "/admin/users/teachers", key: "user-teachers", allowedRoles: ['ADMIN'] },
         ],
       },
+      { text: "存储配置", icon: <CloudQueueIcon />, href: "/admin/storage", key: "storage-config", allowedRoles: ['ADMIN'] },
     ],
   },
 ];
