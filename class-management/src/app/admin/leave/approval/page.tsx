@@ -41,6 +41,9 @@ import { motion } from "framer-motion";
 
 // 与其他页面一致，走 Next.js 代理
 const API_BASE_URL = "/api";
+// 新增：业务与附件存储约定常量
+const BUSINESS_REF_TYPE = 'LEAVE_REQUEST';
+const LEAVE_ATTACHMENT_BUCKET_PURPOSE = 'LEAVE_ATTACHMENT';
 
 // 审批步骤（新接口 approvals 元素）
 interface ApprovalStep {
@@ -55,6 +58,8 @@ interface ApprovalStep {
   comment?: string | null;
   reviewedAt?: string | null;
 }
+// 新增：附件文件类型
+interface AttachmentFile { id: number; originalFilename: string; sizeBytes: number; status: string; createdAt?: string; downloadUrl?: string; ext?: string; mimeType?: string; }
 
 // 后端新响应形状（最小必要字段）
 interface BackendLeaveRequest {
@@ -113,6 +118,9 @@ export default function ApprovalPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 新增：附件相关状态
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [loadingAttachments, setLoadingAttachments] = useState(false);
 
   // 角色与班级筛选
   const [userType, setUserType] = useState<string>(''); // 管理员/教师/学生
@@ -129,6 +137,147 @@ export default function ApprovalPage() {
   const [approvalRemark, setApprovalRemark] = useState('');
   // Snackbar 状态：区分单条 / 批量 与不同时长
   const [snackbar, setSnackbar] = useState<{open:boolean; message:string; severity:'success'|'error'|'warning'|'info'; duration:number}>({open:false,message:'',severity:'success',duration:4000});
+  // 预览相关新增状态
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<AttachmentFile | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // 新增：格式化工具
+  const formatSize = (bytes:number) => {
+    if(bytes < 1024) return bytes + 'B';
+    if(bytes < 1024**2) return (bytes/1024).toFixed(1)+'KB';
+    if(bytes < 1024**3) return (bytes/1024**2).toFixed(1)+'MB';
+    return (bytes/1024**3).toFixed(1)+'GB';
+  };
+  const shortName = (name:string) => name.length>32 ? name.slice(0,32)+'…' : name;
+  const formatTime = (ts?: string) => {
+    if(!ts) return '-';
+    const d = new Date(ts);
+    if(isNaN(d.getTime())) return '-';
+    const pad = (n:number)=> n.toString().padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  // 加载附件（在详情对话框打开且选中请求发生变化时）
+  useEffect(()=> {
+    const controller = new AbortController();
+    const load = async () => {
+      if(!detailDialog || !selectedRequest?.id) { setAttachments([]); return; }
+      try {
+        setLoadingAttachments(true);
+        const url = `/api/object-storage/business/${encodeURIComponent(BUSINESS_REF_TYPE)}/${selectedRequest.id}/files?bucketPurpose=${encodeURIComponent(LEAVE_ATTACHMENT_BUCKET_PURPOSE)}`;
+        const resp = await fetch(url, { credentials:'include', signal: controller.signal });
+        if(resp.ok){
+          const data = await resp.json();
+          const list = Array.isArray(data)? data as AttachmentFile[]: [];
+          setAttachments(list);
+        } else {
+          setAttachments([]);
+        }
+      } catch(e){
+        console.warn('加载附件失败', e);
+        setAttachments([]);
+      } finally {
+        setLoadingAttachments(false);
+      }
+    };
+    load();
+    return () => controller.abort();
+  }, [detailDialog, selectedRequest?.id]);
+
+  // 加载当前用户角色 + 基础数据
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // 当前用户信息（含 userType、teacherId）
+        const ures = await fetch(`${API_BASE_URL}/leave/current-user-info`, {
+          signal: controller.signal,
+          credentials: 'include',
+        });
+        if (!ures.ok) throw new Error(`获取当前用户失败 ${ures.status}`);
+  const uinfo: { userType: string; teacherId?: number } = await ures.json();
+        setUserType(uinfo.userType);
+  if (uinfo.teacherId) setTeacherId(uinfo.teacherId);
+
+        // 管理员：加载班级用于筛选
+        if (uinfo.userType === '管理员') {
+          const cres = await fetch(`${API_BASE_URL}/users/classes`, { credentials: 'include', signal: controller.signal });
+          if (cres.ok) {
+            const clist: Array<{ id: number; name: string; grade?: string }> = await cres.json();
+            setClasses(clist);
+          }
+        }
+
+        // 加载请假列表（教师取待审批列表，管理员取全部）
+        const fetchList = async (): Promise<BackendLeaveRequest[]> => {
+          if (uinfo.userType === '管理员') {
+            const res = await fetch(`${API_BASE_URL}/leave/all`, { credentials: 'include', signal: controller.signal });
+            if (!res.ok) throw new Error(`获取请假列表失败 ${res.status}`);
+            return res.json();
+          } else if (uinfo.userType === '教师' && uinfo.teacherId) {
+            const res = await fetch(`${API_BASE_URL}/leave/teacher/${uinfo.teacherId}/pending`, { credentials: 'include', signal: controller.signal });
+            if (!res.ok) throw new Error(`获取请假列表失败 ${res.status}`);
+            return res.json();
+          } else {
+            return [];
+          }
+        };
+        const rawList: BackendLeaveRequest[] = await fetchList();
+
+        // 映射为 UI 结构
+        const mapDate = (v: string | number | Date | undefined) => {
+          if (!v) return '';
+          const d = new Date(v);
+          if (Number.isNaN(d.getTime())) return '';
+          return d.toISOString().slice(0, 10);
+        };
+        const mapped: UILeaveRequest[] = rawList.map((r) => {
+          const approvals: ApprovalStep[] = (r.approvals || []).map(a => ({ ...a }));
+          return {
+            id: r.id,
+            studentName: r.studentName || '-',
+            studentNo: r.studentNo || String(r.studentId || ''),
+            className: r.className || '-',
+            typeName: r.leaveTypeName || '-',
+            startDate: mapDate(r.startDate),
+            endDate: mapDate(r.endDate),
+            days: typeof r.days === 'number' ? r.days : Number(r.days || 0),
+            reason: r.reason || '',
+            status: r.status || '-',
+            createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : undefined,
+            currentStepName: r.currentStepName || null,
+            pendingRoleDisplayName: r.pendingRoleDisplayName || null,
+            approvals,
+          };
+        });
+        setRequests(mapped);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(e);
+        setError(msg || '加载失败');
+      } finally {
+        setLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
+
+  const canInlinePreview = (file: AttachmentFile): 'image' | 'pdf' | 'none' => {
+    const ext = (file.ext || file.originalFilename.split('.').pop() || '').toLowerCase();
+    if(['png','jpg','jpeg','gif','webp','svg','bmp'].includes(ext)) return 'image';
+    if(ext === 'pdf') return 'pdf';
+    const mime = (file.mimeType || '').toLowerCase();
+    if(mime.startsWith('image/')) return 'image';
+    if(mime === 'application/pdf') return 'pdf';
+    return 'none';
+  };
 
   // 加载当前用户角色 + 基础数据
   useEffect(() => {
@@ -293,6 +442,8 @@ export default function ApprovalPage() {
 
   const handleViewDetail = (request: UILeaveRequest) => {
     setSelectedRequest(request);
+    // 重置附件列表，触发 effect 重新加载
+    setAttachments([]);
     setDetailDialog(true);
   };
 
@@ -384,6 +535,46 @@ export default function ApprovalPage() {
         }}
       />
     );
+  };
+
+  const handleDownload = async (fileId:number) => {
+    try {
+      const resp = await fetch(`/api/object-storage/files/${fileId}/download-info`, { credentials:'include' });
+      if(!resp.ok) throw new Error('获取下载信息失败');
+      const info = await resp.json();
+      if(info && info.downloadUrl){
+        window.open(info.downloadUrl, '_blank');
+      } else {
+        setSnackbar({open:true, message:'未获得下载链接', severity:'warning', duration:3000});
+      }
+    } catch(e){
+      console.error(e);
+      setSnackbar({open:true, message:'下载失败', severity:'error', duration:4000});
+    }
+  };
+
+  const handlePreview = async (fileId:number) => {
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewFile(null);
+    setPreviewUrl(null);
+    try {
+      const resp = await fetch(`/api/object-storage/files/${fileId}/download-info`, { credentials:'include' });
+      if(!resp.ok) throw new Error('获取预览信息失败');
+      const info: AttachmentFile = await resp.json();
+      setPreviewFile(info);
+      if(info.downloadUrl){
+        setPreviewUrl(info.downloadUrl);
+      } else {
+        setPreviewError('未获得预签名链接');
+      }
+    } catch(e: unknown){
+      console.error(e);
+      setPreviewError(e instanceof Error? e.message : '预览失败');
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   return (
@@ -763,6 +954,45 @@ export default function ApprovalPage() {
                     </Table>
                   </Box>
                 )}
+                {/* 新增：申请附件展示 */}
+                {attachments && detailDialog && (
+                  <Box sx={{ mt:3 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight:600, mb:1 }}>申请附件</Typography>
+                    {loadingAttachments && (
+                      <Typography variant="caption" color="text.secondary">加载中...</Typography>
+                    )}
+                    {!loadingAttachments && attachments.length === 0 && (
+                      <Typography variant="body2" color="text.secondary">暂无附件</Typography>
+                    )}
+                    {!loadingAttachments && attachments.length > 0 && (
+                      <Table size="small" sx={{ mt:1 }}>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>文件名</TableCell>
+                            <TableCell>大小</TableCell>
+                            <TableCell>状态</TableCell>
+                            <TableCell>上传时间</TableCell>
+                            <TableCell>操作</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {attachments.map(f => (
+                            <TableRow key={f.id} hover>
+                              <TableCell title={f.originalFilename}>{shortName(f.originalFilename)}</TableCell>
+                              <TableCell>{formatSize(f.sizeBytes)}</TableCell>
+                              <TableCell>{f.status}</TableCell>
+                              <TableCell>{formatTime(f.createdAt)}</TableCell>
+                              <TableCell>
+                                <Button size="small" sx={{ mr:1 }} variant="outlined" onClick={()=> handlePreview(f.id)}>预览</Button>
+                                <Button size="small" variant="contained" onClick={()=> handleDownload(f.id)}>下载</Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </Box>
+                )}
               </Box>
             )}
           </DialogContent>
@@ -806,6 +1036,52 @@ export default function ApprovalPage() {
             >
               确认{approvalAction === 'approve' ? '批准' : '拒绝'}
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* 附件预览对话框 */}
+        <Dialog open={previewOpen} onClose={()=> setPreviewOpen(false)} maxWidth="lg" fullWidth>
+          <DialogTitle>附件预览</DialogTitle>
+          <DialogContent dividers sx={{ minHeight: 300 }}>
+            {previewLoading && (
+              <Typography variant="body2" color="text.secondary">加载中...</Typography>
+            )}
+            {!previewLoading && previewError && (
+              <Alert severity="error" sx={{ mb:2 }}>{previewError}</Alert>
+            )}
+            {!previewLoading && !previewError && previewFile && previewUrl && (() => {
+              const mode = canInlinePreview(previewFile);
+              if(mode === 'image') {
+                return (
+                  <Box sx={{ display:'flex', justifyContent:'center' }}>
+                    <Box component="img" src={previewUrl} alt={previewFile.originalFilename} sx={{ maxWidth:'100%', maxHeight: '70vh', objectFit:'contain', borderRadius:1, boxShadow:1 }} />
+                  </Box>
+                );
+              }
+              if(mode === 'pdf') {
+                return (
+                  <Box sx={{ height: '70vh' }}>
+                    <iframe
+                      src={previewUrl}
+                      style={{ width:'100%', height:'100%', border:'none' }}
+                      title={previewFile.originalFilename}
+                    />
+                  </Box>
+                );
+              }
+              return (
+                <Box>
+                  <Alert severity="info" sx={{ mb:2 }}>该文件类型暂不支持内嵌预览，请点击下方下载。</Alert>
+                  <Button variant="contained" onClick={()=> window.open(previewUrl,'_blank')}>在新窗口打开</Button>
+                </Box>
+              );
+            })()}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={()=> setPreviewOpen(false)}>关闭</Button>
+            {!previewLoading && previewUrl && (
+              <Button onClick={()=> window.open(previewUrl!, '_blank')} variant="outlined">新窗口打开</Button>
+            )}
           </DialogActions>
         </Dialog>
       </Box>

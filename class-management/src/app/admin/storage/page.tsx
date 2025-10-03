@@ -72,6 +72,8 @@ interface ApiErrorBody {
   message?: string;
 }
 
+interface BusinessPurposeInfo { code:string; label:string; description?:string; module?:string; recommended?:boolean; }
+
 // 常用文件类型（扩展名 -> 对应 MIME 列表）用于快速选择
 const COMMON_FILE_TYPES: { label: string; ext: string; mimes: string[] }[] = [
   { label: "JPEG", ext: "jpg", mimes: ["image/jpeg"] },
@@ -147,6 +149,7 @@ export default function StorageConfigPage() {
   const [extInput, setExtInput] = useState("");
   const [mimeInput, setMimeInput] = useState("");
   const [deletingConfigId, setDeletingConfigId] = useState<number | null>(null);
+  const [purposeOptions, setPurposeOptions] = useState<BusinessPurposeInfo[]>([]);
 
   // 通知
   const [toast, setToast] = useState<{
@@ -198,6 +201,12 @@ export default function StorageConfigPage() {
         setConfigLoading(false);
       }
     })();
+    (async () => {
+      try {
+        const { data } = await api.get<BusinessPurposeInfo[]>("/api/object-storage/purposes");
+        setPurposeOptions(data || []);
+  } catch{ /* ignore */ }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -220,7 +229,8 @@ export default function StorageConfigPage() {
     setEditingConn(c);
     setConnForm({
       name: c.name,
-      endpointUrl: c.endpointUrl,
+      // 显示时去掉协议，用户只编辑 host[:port]
+      endpointUrl: c.endpointUrl.replace(/^https?:\/\//i, ""),
       accessKey: "",
       secretKey: "",
       pathStyleAccess: c.pathStyleAccess,
@@ -232,6 +242,10 @@ export default function StorageConfigPage() {
   };
   const saveConnection = async () => {
     if (!connForm.name || !connForm.endpointUrl) return;
+    // 统一去掉可能粘贴的协议前缀
+    const hostPort = connForm.endpointUrl.replace(/^https?:\/\//i, "").trim();
+    // 根据 secureFlag 组装最终 endpointUrl
+    const fullEndpoint = `${connForm.secureFlag ? "https" : "http"}://${hostPort}`;
     const payload: Partial<ConnectionDTO> & {
       id?: number;
       accessKeyEncrypted?: string;
@@ -241,7 +255,7 @@ export default function StorageConfigPage() {
       id: editingConn?.id,
       name: connForm.name,
       provider: "MINIO",
-      endpointUrl: connForm.endpointUrl,
+      endpointUrl: fullEndpoint,
       pathStyleAccess: connForm.pathStyleAccess,
       secureFlag: connForm.secureFlag,
       defaultPresignExpireSeconds: connForm.defaultPresignExpireSeconds,
@@ -296,8 +310,17 @@ export default function StorageConfigPage() {
   };
   const deleteConnectionLocal = (id?: number) => {
     if (!id) return;
-    setConnections((prev) => prev.filter((c) => c.id !== id));
-  }; // 若后端无删除接口，暂本地移除
+    // 调用后端删除
+    (async () => {
+      try {
+        await api.delete(`/api/object-storage/connections/${id}`);
+        setConnections((prev) => prev.filter((c) => c.id !== id));
+        openToast('连接已删除','success');
+      } catch(e){
+        openToast('删除失败: ' + parseErr(e), 'error');
+      }
+    })();
+  }; // 使用后端删除接口
 
   // ---- 存储配置操作 ----
   const openAddConfig = () => {
@@ -735,13 +758,19 @@ export default function StorageConfigPage() {
           </Box>
         </Paper>
 
-        <Paper sx={{ mb: 2, borderRadius: 3 }}>
+        <Paper sx={{ mb: 2, borderRadius: 3, overflow: 'hidden' }}>
           <Tabs
             value={tab}
             onChange={(_, v) => setTab(v)}
             variant="fullWidth"
             sx={{
               "& .MuiTab-root": { textTransform: "none", fontWeight: 600 },
+              // 让指示线在圆角容器内且带圆角
+              "& .MuiTabs-indicator": {
+                height: 3,
+                borderBottomLeftRadius: 12,
+                borderBottomRightRadius: 12,
+              },
             }}
           >
             <Tab
@@ -1022,7 +1051,7 @@ export default function StorageConfigPage() {
               文件上传/下载测试
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              选择启用的 bucketPurpose 与业务标识，添加文件后执行：CreateUpload -&gt; PUT -&gt; ConfirmUpload （功能开发中占位）。
+              选择启用的 bucketPurpose 与业务标识，添加文件后执行：CreateUpload -&gt; PUT -&gt; ConfirmUpload。
             </Typography>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }}>
               <FormControl size="small" sx={{ minWidth: 200 }}>
@@ -1054,7 +1083,7 @@ export default function StorageConfigPage() {
                 variant="outlined"
                 disabled={!testBucketPurpose || !testBusinessType || testBusinessId === ''}
                 onClick={()=>{ setListing(true); setTimeout(()=>{ setListing(false); /* future: fetch list then setFileList */}, 600); }}
-              >加载文件列表(占位)</Button>
+              >加载文件列表</Button>
             </Stack>
             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
               <Button
@@ -1186,21 +1215,20 @@ export default function StorageConfigPage() {
                 >
                   <TextField
                     label="Endpoint URL"
-                    placeholder="http://localhost:9000 或 https://minio.company.com"
+                    placeholder="例如: localhost:9000 或 minio.company.com:9000 (无需 http://)"
                     value={connForm.endpointUrl}
-                    onChange={(e) =>
-                      setConnForm((f) => ({
-                        ...f,
-                        endpointUrl: e.target.value,
-                      }))
-                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      // 自动剥离协议，保持输入只有 host[:port]
+                      const stripped = v.replace(/^https?:\/\//i, "");
+                      setConnForm((f) => ({ ...f, endpointUrl: stripped }));
+                    }}
                     size="small"
                     fullWidth
                     helperText={
-                      connForm.endpointUrl &&
-                      !/^https?:\/\//.test(connForm.endpointUrl)
-                        ? "建议以 http:// 或 https:// 开头"
-                        : "MinIO 服务访问地址"
+                      connForm.secureFlag
+                        ? "将以 https:// 前缀提交"
+                        : "将以 http:// 前缀提交"
                     }
                   />
                 </Box>
@@ -1215,7 +1243,7 @@ export default function StorageConfigPage() {
                     }
                     size="small"
                     fullWidth
-                    placeholder={editingConn ? "留空保持不变" : ""}
+                    placeholder={editingConn ? "需重新输入" : ""}
                   />
                 </Box>
                 <Box
@@ -1230,7 +1258,7 @@ export default function StorageConfigPage() {
                     }
                     size="small"
                     fullWidth
-                    placeholder={editingConn ? "留空保持不变" : ""}
+                    placeholder={editingConn ? "需重新输入" : ""}
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
@@ -1394,19 +1422,39 @@ export default function StorageConfigPage() {
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mt: 0.5 }}>
                 <TextField
-                  label="bucketPurpose"
-                  value={configForm.bucketPurpose}
-                  onChange={(e) =>
-                    setConfigForm((f) => ({
-                      ...f,
-                      bucketPurpose: e.target.value.trim(),
-                    }))
-                  }
+                  select
+                  label="用途"
+                  value={configForm.bucketPurpose || ''}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if(v === '__custom__'){
+                      // 设为空等待下一个自定义输入框填写
+                      setConfigForm(f=> ({...f, bucketPurpose: '' }));
+                    } else {
+                      setConfigForm(f=> ({...f, bucketPurpose: String(v) }));
+                    }
+                  }}
                   size="small"
                   sx={{ flexBasis: { xs: "100%", md: "33.333%" }, flexGrow: 1 }}
                   disabled={!!editingConfig}
-                  helperText={editingConfig ? "不可修改" : "用途标识，唯一"}
-                />
+                  helperText={editingConfig ? "不可修改" : "内置用途或选择自定义"}
+                >
+                  {purposeOptions.map(p => (
+                    <MenuItem key={p.code} value={p.code}>{p.label} {p.recommended? '(推荐)':''}</MenuItem>
+                  ))}
+                  <MenuItem value="__custom__">自定义...</MenuItem>
+                </TextField>
+                {(!editingConfig && !purposeOptions.find(p=> p.code === configForm.bucketPurpose)) && (
+                  <TextField
+                    label="自定义用途标识"
+                    value={configForm.bucketPurpose}
+                    onChange={(e)=> setConfigForm(f=> ({...f, bucketPurpose: e.target.value.trim().toUpperCase().replace(/[^A-Z0-9_]/g,'_')}))}
+                    size="small"
+                    sx={{ flexBasis: { xs: "100%", md: "33.333%" }, flexGrow: 1 }}
+                    placeholder="例如 LEAVE_ATTACHMENT"
+                    helperText="建议使用大写 + 下划线，具有语义且稳定不可随意修改"
+                  />
+                )}
                 <TextField
                   label="Bucket 名称"
                   value={configForm.bucketName}
