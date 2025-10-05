@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -71,12 +72,15 @@ const getTypeIcon = (type: string) => {
 
 interface NotificationCardProps {
   userId: number;
+  /** 全部消息列表页路径，默认 /admin/notifications */
+  allUrl?: string;
 }
 
-export default function NotificationCard({ userId }: NotificationCardProps) {
+export default function NotificationCard({ userId, allUrl = '/admin/notifications' }: NotificationCardProps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   // 获取通知数据
   const fetchData = async () => {
@@ -303,8 +307,11 @@ export default function NotificationCard({ userId }: NotificationCardProps) {
                 size="small"
                 endIcon={<ArrowForwardIcon fontSize="small" />}
                 onClick={() => {
-                  // TODO: 导航到完整消息页面
-                  // router.push('/admin/notifications');
+                  try {
+                    router.push(allUrl);
+                  } catch (e) {
+                    console.error('导航失败', e);
+                  }
                 }}
                 sx={{
                   color: '#2196f3',

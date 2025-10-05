@@ -195,46 +195,64 @@ export default function StudentBottomNav() {
                         },
                       })}
                     >
-                      {it.badge ? (
-                        <Badge
-                          badgeContent={it.badge}
-                          color="error"
-                          max={99}
-                          overlap="circular"
-                        >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 0.5,
+                          position: 'relative'
+                        }}
+                      >
+                        {it.badge ? (
+                          <Badge
+                            variant="dot"
+                            color="error"
+                            overlap="circular"
+                            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                            sx={{
+                              '& .MuiBadge-badge': {
+                                width: 8,
+                                height: 8,
+                                minWidth: 8,
+                                p: 0,
+                                transform: 'translate(55%, -40%)',
+                                border: theme.palette.mode==='dark'? '2px solid rgba(40,40,48,0.65)' : '2px solid #fff',
+                                boxShadow: theme.palette.mode==='dark'? '0 0 0 1px rgba(0,0,0,0.4)' : '0 0 0 1px rgba(0,0,0,0.12)'
+                              }
+                            }}
+                            invisible={!it.badge}
+                          >
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                position: 'relative',
+                                width: 20,
+                                height: 20,
+                              }}
+                            >
+                              {it.icon}
+                            </Box>
+                          </Badge>
+                        ) : (
                           <Box
                             sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 20,
+                              height: 20,
+                              position: 'relative'
                             }}
                           >
                             {it.icon}
-                            <Box
-                              component="span"
-                              sx={{ fontSize: ".74rem", mt: "1px" }}
-                            >
-                              {it.label}
-                            </Box>
                           </Box>
-                        </Badge>
-                      ) : (
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.5,
-                          }}
-                        >
-                          {it.icon}
-                          <Box
-                            component="span"
-                            sx={{ fontSize: ".74rem", mt: "1px" }}
-                          >
-                            {it.label}
-                          </Box>
+                        )}
+                        <Box component="span" sx={{ fontSize: '.74rem', mt: '1px' }}>
+                          {it.label}
                         </Box>
-                      )}
+                      </Box>
                       {active && (
                         <motion.span
                           layoutId="nav-active-indicator"
