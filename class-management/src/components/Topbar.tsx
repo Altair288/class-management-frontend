@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
@@ -10,14 +10,15 @@ import MenuItem from "@mui/material/MenuItem";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useRouter } from "next/navigation";
 import { useTheme, alpha } from "@mui/material/styles";
+import Chip from '@mui/material/Chip';
+import Skeleton from '@mui/material/Skeleton';
 import NotificationBadge from "./NotificationBadge";
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import EventIcon from '@mui/icons-material/Event';
 import OutboxIcon from '@mui/icons-material/Outbox';
-// import HomeIcon from '@mui/icons-material/Home';
-// import SchoolIcon from '@mui/icons-material/School';
+// 角色图标已移除显示，如需恢复可重新引入 School / WorkspacePremium 等
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -39,71 +40,124 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const handleLogout = async () => {
     try {
       await fetch('/api/users/logout', { method: 'POST' });
-    } catch {}
+    } catch { }
     await refresh();
-    try { localStorage.setItem('auth:changed', Date.now().toString()); } catch {}
+    try { localStorage.setItem('auth:changed', Date.now().toString()); } catch { }
     handleClose();
     router.push('/login');
   };
+
+  // 角色标题与图标
+  const roleTitle = useMemo(() => {
+    if (isStudent) return '学生中心';
+    if (isTeacher) return '教师工作台';
+    if (isAdmin) return 'ClassAble学生管理平台';
+    return '系统';
+  }, [isStudent, isTeacher, isAdmin]);
+
+  // 环境标识（非生产展示）
+  const appEnv = typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_APP_ENV : undefined;
+  const showEnv = appEnv && !['prod', 'production', ''].includes(appEnv.toLowerCase());
+
+  // 滚动阴影（如果未来需要监听 scroll，可在 layout 中传入）
+  const [elevated, setElevated] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      const sc = window.scrollY || 0;
+      setElevated(sc > 4);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
     <Box
       sx={{
         height: 64,
         px: 3,
-        bgcolor: theme.palette.background.paper,
-        borderBottom: `1px solid ${theme.palette.divider}`,
-        display: "flex",
-        alignItems: "center",
-        position: "sticky",
+        backdropFilter: 'blur(12px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(12px) saturate(160%)',
+        bgcolor: theme.palette.mode === 'dark'
+          ? alpha(theme.palette.background.paper, 0.72)
+          : alpha(theme.palette.background.paper, 0.85),
+        borderBottom: `1px solid ${alpha(theme.palette.divider, elevated ? 0.9 : 0.6)}`,
+        boxShadow: elevated ? (theme.palette.mode === 'dark'
+          ? '0 4px 12px -4px rgba(0,0,0,0.55)' : '0 6px 18px -6px rgba(31,59,88,0.18)') : 'none',
+        backdropSaturation: '180%',
+        display: 'flex',
+        alignItems: 'center',
+        position: 'sticky',
         top: 0,
         zIndex: 1201,
-        transition: 'background-color 0.3s ease, border-color 0.3s ease',
+        transition: 'background-color .35s ease, border-color .35s ease, box-shadow .35s ease',
       }}
     >
       <IconButton onClick={onMenuClick} sx={{ mr: 2 }}>
         <MenuIcon />
       </IconButton>
-      {/* <Typography variant="h6" fontWeight={700} sx={{
+      <Box sx={{
         flex: 0,
         mr: 3,
         display: 'flex',
         alignItems: 'center',
-        gap: .75,
-        color: theme.palette.text.primary
+        gap: 1,
+        whiteSpace: 'nowrap',
+        height: '100%'
       }}>
-        {isStudent ? <SchoolIcon fontSize="small" /> : <HomeIcon fontSize="small" />}
-        {isStudent ? '学生中心' : '管理后台'}
-      </Typography> */}
-      <Box sx={{ flex: 1 }}>
-        {/* <InputBase
-          placeholder="Search here"
-          sx={{
-            marginLeft: 1.5,
-            bgcolor: theme.palette.action.hover,
-            color: theme.palette.text.primary,
-            px: 1.5,
-            py: 0.5,
-            borderRadius: 2,
-            transition: 'background-color 0.3s ease, color 0.3s ease',
-            '&::placeholder': {
-              color: theme.palette.text.secondary,
-              opacity: 1,
-            },
-            height: 36,
-            width: 200,
-            fontSize: 15,
-          }}
-          startAdornment={(
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src="/React-icon.svg" alt="search" style={{ width: 16, height: 16, marginRight: 10 }} />
-          )}
-        /> */}
+        {loading ? (
+          <Skeleton variant='text' width={96} height={28} sx={{ borderRadius: 1 }} />
+        ) : (
+          <Typography
+            variant="h6"
+            fontWeight={700}
+            sx={{
+              letterSpacing: '.5px',
+              fontSize: 18,
+              lineHeight: 1.1,
+              m: 0,
+              p: 0
+            }}
+          >
+            {roleTitle}
+          </Typography>
+        )}
+        {showEnv && (
+          <Chip size="small" label={appEnv} color="warning" sx={{ ml: .5, height: 20 }} />
+        )}
       </Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', height: '100%' }}>
+        {/* <Box sx={{ display: 'flex', alignItems: 'center', height: 40 }}>
+          <InputBase
+            placeholder="Search here"
+            sx={{
+              bgcolor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+              px: 1.5,
+              py: 0.5,
+              borderRadius: 2.5,
+              transition: 'background-color 0.3s ease, color 0.3s ease',
+              '&::placeholder': {
+                color: theme.palette.text.secondary,
+                opacity: 1,
+              },
+              height: 40,
+              width: 220,
+              fontSize: 15,
+              display: 'flex',
+              alignItems: 'center'
+            }}
+            startAdornment={(
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/React-icon.svg" alt="search" style={{ width: 16, height: 16, marginRight: 10 }} />
+            )}
+          />
+        </Box> */}
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%' }}>
         {/* 主题切换 */}
         <ThemeToggle size="small" />
-        
+
         {/* 消息通知 */}
         {!loading && user && <NotificationBadge />}
         <IconButton onClick={handleAvatarClick} sx={{ p: 0 }}>
@@ -113,7 +167,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             sx={{ width: 36, height: 36 }}
           />
         </IconButton>
-        <Box sx={{ display: { xs: "none", sm: "flex" }, flexDirection: "column", justifyContent: "center" }}>
+        <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexDirection: 'column', justifyContent: 'center', height: 36, lineHeight: 1 }}>
           <Typography fontWeight={600} fontSize={15}>
             {user ? user.username : "未登录"}
           </Typography>
@@ -165,9 +219,9 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             <InfoOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
             个人信息 (占位)
           </MenuItem>
-          <MenuItem onClick={handleLogout} sx={{ 
-            mt: .5, 
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}` 
+          <MenuItem onClick={handleLogout} sx={{
+            mt: .5,
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`
           }}>
             <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
             退出登录
