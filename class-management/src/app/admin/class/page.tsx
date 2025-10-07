@@ -54,6 +54,7 @@ import {
   TableSortLabel,
   useTheme,
   alpha,
+  Tooltip
 } from "@mui/material";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import {
@@ -63,6 +64,8 @@ import {
   Warning as WarningIcon,
 } from "@mui/icons-material";
 import { motion, AnimatePresence } from "framer-motion";
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import DownloadIcon from '@mui/icons-material/Download';
 
 type ClassInfo = {
   id: number;
@@ -74,6 +77,14 @@ type ClassInfo = {
 };
 
 type Student = { id: number; name: string; studentNo: string; phone?: string | null; email?: string | null };
+
+type ImportStudentsResult = {
+  totalRows: number;
+  processed: number;
+  success: number;
+  duplicateStudentNos: string[];
+  rowErrors: { rowIndex: number; message: string }[];
+};
 
 export default function ClassManagePage() {
   const theme = useTheme();
@@ -114,6 +125,9 @@ export default function ClassManagePage() {
   const [importAdded, setImportAdded] = useState<number | null>(null);
   const [importError, setImportError] = useState<{ open: boolean; msg: string }>({ open: false, msg: "" });
   const [importLoading, setImportLoading] = useState(false); // Excel 导入时加载指示
+  // 批量导入结果详情
+  const [importResult, setImportResult] = useState<ImportStudentsResult | null>(null);
+  const [importResultOpen, setImportResultOpen] = useState(false);
 
   // 组件顶层
   const [pageMap, setPageMap] = useState<Record<number, number>>({});
@@ -235,7 +249,7 @@ export default function ClassManagePage() {
     setStudentNoInput("");
     setStudentNoResult(null);
     setAddStudent(null);
-  setAddSuccessOpen(true); // 显示添加成功
+    setAddSuccessOpen(true); // 显示添加成功
 
     // 刷新班级人数和学生总数
     Promise.all([
@@ -280,9 +294,13 @@ export default function ClassManagePage() {
       const before = members[classId]?.length || 0;
       const formData = new FormData();
       formData.append("file", excelFile);
-      await axios.post(`/api/class/${classId}/import-students`, formData, {
+      const postRes = await axios.post(`/api/class/${classId}/import-students`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      const result: ImportStudentsResult = postRes.data;
+      setImportResult(result);
+      setImportResultOpen(true);
+
       const res = await axios.get(`/api/class/${classId}/members`);
       setMembers(prev => ({ ...prev, [classId]: res.data }));
       const newCount = res.data.length;
@@ -1298,6 +1316,126 @@ export default function ClassManagePage() {
         {importError.msg}
       </Alert>
     </Snackbar>
+    <Dialog
+      open={importResultOpen}
+      onClose={() => setImportResultOpen(false)}
+      fullWidth
+      maxWidth="md"
+    >
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        导入结果详情
+        {importResult && (
+          <Tooltip title="统计口径：Processed=非空行；Success=成功写入；Duplicates=学号已存在；RowErrors=行级校验失败">
+            <InfoOutlinedIcon fontSize="small" color="action" />
+          </Tooltip>
+        )}
+      </DialogTitle>
+      <DialogContent dividers sx={{ pt: 1 }}>
+        {importResult ? (
+          <Stack spacing={2}>
+            <Box display="flex" flexWrap="wrap" gap={2}>
+              <StatChip label="扫描行数" value={importResult.totalRows} color={theme.palette.info.main} />
+              <StatChip label="有效行" value={importResult.processed} color={theme.palette.primary.main} />
+              <StatChip label="成功新增" value={importResult.success} color={theme.palette.success.main} />
+              <StatChip label="重复学号" value={importResult.duplicateStudentNos.length} color={theme.palette.warning.main} />
+              <StatChip label="错误行" value={importResult.rowErrors.length} color={theme.palette.error.main} />
+            </Box>
+            {importResult.duplicateStudentNos.length > 0 && (
+              <Box>
+                <Typography variant="subtitle2" fontWeight={600} mb={0.5}>重复学号</Typography>
+                <Box display="flex" flexWrap="wrap" gap={1}>
+                  {importResult.duplicateStudentNos.map(no => (
+                    <Chip key={no} label={no} size="small" color="warning" variant="outlined" />
+                  ))}
+                </Box>
+              </Box>
+            )}
+            {importResult.rowErrors.length > 0 && (
+              <Box>
+                <Typography variant="subtitle2" fontWeight={600} mb={0.5}>行级错误</Typography>
+                <Paper variant="outlined" sx={{ maxHeight: 240, overflow: 'auto' }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ width: 90 }}>Excel行号</TableCell>
+                        <TableCell>错误信息</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {importResult.rowErrors.map((er, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>{er.rowIndex}</TableCell>
+                          <TableCell>{er.message}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Paper>
+              </Box>
+            )}
+          </Stack>
+        ) : (
+          <Typography variant="body2" color="text.secondary">暂无数据</Typography>
+        )}
+      </DialogContent>
+      <DialogActions>
+        {importResult && (
+          <Button
+            size="small"
+            startIcon={<DownloadIcon />}
+            onClick={() => exportImportResult(importResult)}
+          >
+            导出 CSV
+          </Button>
+        )}
+        <Button onClick={() => setImportResultOpen(false)}>关闭</Button>
+      </DialogActions>
+    </Dialog>
     </>
   );
+}
+
+// 统计 Chip 组件
+function StatChip({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <Chip
+      label={`${label}: ${value}`}
+      size="small"
+      sx={{
+        bgcolor: color + '22',
+        border: `1px solid ${color}55`,
+        '& .MuiChip-label': { fontWeight: 600 }
+      }}
+    />
+  );
+}
+
+// 导出 CSV
+function exportImportResult(r: ImportStudentsResult) {
+  const lines: string[] = [];
+  lines.push('Metric,Value');
+  lines.push(`TotalRows,${r.totalRows}`);
+  lines.push(`Processed,${r.processed}`);
+  lines.push(`Success,${r.success}`);
+  lines.push(`DuplicateStudentNos,${r.duplicateStudentNos.length}`);
+  lines.push(`RowErrors,${r.rowErrors.length}`);
+  lines.push('');
+  if (r.duplicateStudentNos.length) {
+    lines.push('DuplicateStudentNos');
+    r.duplicateStudentNos.forEach(no => lines.push(no));
+    lines.push('');
+  }
+  if (r.rowErrors.length) {
+    lines.push('RowIndex,Message');
+    r.rowErrors.forEach(er => lines.push(`${er.rowIndex},"${er.message.replace(/"/g,'""')}"`));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `import-result-${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
