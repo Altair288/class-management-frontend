@@ -597,7 +597,7 @@ export default function ClassManagePage() {
                 </Select>
               </Stack> */}
 
-              <Box sx={{ maxHeight: "calc(100vh - 690px)", overflow: "auto" }}>
+              <Box sx={{ maxHeight: "calc(100vh - 565px)", overflow: "auto" }}>
                 <Table stickyHeader size="small" sx={{ tableLayout: "fixed" }}>
                   <TableHead>
                     <TableRow>
@@ -674,96 +674,105 @@ export default function ClassManagePage() {
                 />
               </Stack>
 
-              <Box
-                mt={2}
-                mb={2}
-                p={2}
-                border={`1px solid ${alpha(theme.palette.divider, 0.5)}`}
-                borderRadius={2}
-              >
-                <Typography fontWeight={600} mb={1}>
-                  单独新增成员（学号）
-                </Typography>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <TextField
-                    label="输入学号"
-                    value={studentNoInput}
-                    onChange={(e) => setStudentNoInput(e.target.value.trim())}
-                    size="small"
-                    sx={{ minWidth: 180 }}
-                    error={!!studentNoError}
-                    helperText={studentNoError}
-                    disabled={studentNoLoading}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleStudentNoSearch();
-                    }}
-                  />
-                  <Button
-                    variant="outlined"
-                    onClick={handleStudentNoSearch}
-                    disabled={!studentNoInput}
-                  >
-                    查询
-                  </Button>
-                  <TextField
-                    label="学生姓名"
-                    value={studentNoResult?.name || ""}
-                    size="small"
-                    sx={{ minWidth: 120 }}
-                    disabled
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={() => handleAddStudent(cls.id, studentNoResult)}
-                    disabled={!studentNoResult}
-                  >
-                    添加
-                  </Button>
-                </Stack>
-              </Box>
-              <Box 
-                mt={2} 
-                p={2} 
-                border={`1px solid ${alpha(theme.palette.divider, 0.5)}`} 
-                borderRadius={2}
-              >
-                <Typography fontWeight={600} mb={1}>
-                  批量添加成员（Excel导入）
-                </Typography>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Button
-                    variant="outlined"
-                    component="label"
-                    startIcon={<UploadFileIcon />}
-                    disabled={importLoading}
-                  >
-                    选择Excel文件
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      hidden
-                      onChange={handleExcelChange}
-                    />
-                  </Button>
-                  {excelFile && (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      display="inline"
+              <Box sx={{ mt: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                <Box
+                  p={2}
+                  border={`1px solid ${alpha(theme.palette.divider, 0.5)}`}
+                  borderRadius={2}
+                >
+                  <Typography fontWeight={600} mb={1}>
+                    批量添加成员 (Excel导入)
+                  </Typography>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      startIcon={<UploadFileIcon />}
+                      disabled={importLoading}
                     >
-                      {excelFile.name}
-                    </Typography>
-                  )}
-                  <Button
-                    variant="contained"
-                    onClick={() => handleBatchImport(cls.id)}
-                    disabled={!excelFile || importLoading}
-                    sx={{ position: 'relative', minWidth: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}
-                  >
-                    {importLoading && <CircularProgress size={18} color="inherit" />}
-                    {importLoading ? '正在导入...' : '导入'}
-                  </Button>
-                </Stack>
+                      选择Excel文件
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        hidden
+                        onChange={handleExcelChange}
+                      />
+                    </Button>
+                    {excelFile && (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        display="inline"
+                      >
+                        {excelFile.name}
+                      </Typography>
+                    )}
+                    <Button
+                      variant="contained"
+                      onClick={() => handleBatchImport(cls.id)}
+                      disabled={!excelFile || importLoading}
+                      sx={{ position: 'relative', minWidth: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}
+                    >
+                      {importLoading && <CircularProgress size={18} color="inherit" />}
+                      {importLoading ? '正在导入...' : '导入'}
+                    </Button>
+                    <Button
+                      variant="text"
+                      size="small"
+                      startIcon={<DownloadIcon />}
+                      onClick={() => window.open('/api/template/student-upload', '_blank')}
+                      disabled={importLoading}
+                      sx={{ minWidth: 0 }}
+                    >
+                      下载模板
+                    </Button>
+                  </Stack>
+                </Box>
+                <Box
+                  p={2}
+                  border={`1px solid ${alpha(theme.palette.divider, 0.5)}`}
+                  borderRadius={2}
+                >
+                  <Typography fontWeight={600} mb={1}>
+                    单独新增成员 (学号)
+                  </Typography>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <TextField
+                      label="输入学号"
+                      value={studentNoInput}
+                      onChange={(e) => setStudentNoInput(e.target.value.trim())}
+                      size="small"
+                      sx={{ flex: 1, minWidth: 150 }}
+                      error={!!studentNoError}
+                      helperText={studentNoError}
+                      disabled={studentNoLoading}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleStudentNoSearch();
+                      }}
+                    />
+                    <Button
+                      variant="outlined"
+                      onClick={handleStudentNoSearch}
+                      disabled={!studentNoInput}
+                    >
+                      查询
+                    </Button>
+                    <TextField
+                      label="学生姓名"
+                      value={studentNoResult?.name || ""}
+                      size="small"
+                      sx={{ flex: 1, minWidth: 100 }}
+                      InputProps={{ readOnly: true }}
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={() => handleAddStudent(cls.id, studentNoResult)}
+                      disabled={!studentNoResult}
+                    >
+                      添加
+                    </Button>
+                  </Stack>
+                </Box>
               </Box>
             </Paper>
             {/* 移除成员确认对话框 */}
