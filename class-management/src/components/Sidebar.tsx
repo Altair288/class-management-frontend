@@ -119,16 +119,47 @@ function findSelectedKeys(
   menu: MenuSection[],
   pathname: string
 ): { selectedKey: string; parentKey: string | null } {
+  let fallback: { selectedKey: string; parentKey: string | null } = { selectedKey: "dashboard", parentKey: null };
+  let bestMatch: { key: string; parentKey: string | null; hrefLength: number } | null = null;
+
+  const normalize = (p: string) => p.replace(/\/$/, "");
+  const current = normalize(pathname);
+
   for (const section of menu) {
     for (const item of section.items) {
-      if (item.href === pathname) return { selectedKey: item.key, parentKey: null };
+      if (item.href) {
+        const base = normalize(item.href);
+        if (current === base || current.startsWith(base + "/")) {
+          // candidate match
+          if (!bestMatch || base.length > bestMatch.hrefLength) {
+            bestMatch = { key: item.key, parentKey: null, hrefLength: base.length };
+          }
+        }
+        if (current === base) {
+          // exact match: early exact candidate (still allow longer child exact later)
+          fallback = { selectedKey: item.key, parentKey: null };
+        }
+      }
       if (item.children) {
-        const child = item.children.find(child => child.href === pathname);
-        if (child) return { selectedKey: child.key, parentKey: item.key };
+        for (const child of item.children) {
+          const childHrefNorm = normalize(child.href);
+          if (current === childHrefNorm) {
+            return { selectedKey: child.key, parentKey: item.key };
+          }
+          if (current.startsWith(childHrefNorm + "/")) {
+            if (!bestMatch || childHrefNorm.length > bestMatch.hrefLength) {
+              bestMatch = { key: child.key, parentKey: item.key, hrefLength: childHrefNorm.length };
+            }
+          }
+        }
       }
     }
   }
-  return { selectedKey: "dashboard", parentKey: null };
+
+  if (bestMatch) {
+    return { selectedKey: bestMatch.key, parentKey: bestMatch.parentKey };
+  }
+  return fallback;
 }
 
 export default function Sidebar({ open }: { open: boolean }) {

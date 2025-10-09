@@ -21,6 +21,7 @@ import {
   TrendingUp as TrendingUpIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
+import Link from 'next/link';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -413,7 +414,9 @@ export default function CreditsPage() {
               <Button
                 variant="contained"
                 startIcon={<SettingsIcon />}
+                component={Link}
                 href="/admin/credits/config"
+                prefetch
                 sx={{
                   textTransform: 'none',
                   fontWeight: 500,
@@ -462,7 +465,9 @@ export default function CreditsPage() {
               <Button
                 variant="contained"
                 startIcon={<TrendingUpIcon />}
+                component={Link}
                 href="/admin/credits/students"
+                prefetch
                 sx={{
                   textTransform: 'none',
                   fontWeight: 500,
