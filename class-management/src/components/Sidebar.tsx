@@ -94,6 +94,7 @@ const adminMenu: MenuSection[] = [
         ],
       },
       { text: "存储配置", icon: <CloudQueueIcon />, href: "/admin/storage", key: "storage-config", allowedRoles: ['ADMIN'] },
+      { text: "日志中心", icon: <AssignmentIcon />, href: "/admin/log", key: "log-center", allowedRoles: ['ADMIN','TEACHER'] },
     ],
   },
 ];
