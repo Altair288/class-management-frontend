@@ -72,6 +72,7 @@ type ClassInfo = {
   name: string;
   grade: string;
   teacherName: string | null;
+  teacherId?: number | null;
   createdAt: string | null;
   studentCount?: number;
 };
@@ -149,6 +150,8 @@ export default function ClassManagePage() {
   const [monitorUpdating, setMonitorUpdating] = useState(false); // 防止重复点击
   const [monitorSuccessOpen, setMonitorSuccessOpen] = useState(false);
   const [monitorMessage, setMonitorMessage] = useState("");
+  // 当前用户（用于判断是否为管理员或对应班主任）
+  const [currentUser, setCurrentUser] = useState<{ id:number; userType:string; relatedId?:number|null }|null>(null);
   // 设置 / 取消班长确认对话框状态
   const [setMonitorDialog, setSetMonitorDialog] = useState<{ open: boolean; classId?: number; student?: Student }>(() => ({ open: false }));
   const [unsetMonitorDialog, setUnsetMonitorDialog] = useState<{ open: boolean; classId?: number; student?: Student }>(() => ({ open: false }));
@@ -176,6 +179,7 @@ export default function ClassManagePage() {
       axios.get("/api/users/teacher/count"),
       axios.get("/api/class/unassigned/members"), // 新增
       axios.get("/api/class/unassigned/count"), // 新增
+      axios.get('/api/users/current'),
     ]).then(
       ([
         allRes,
@@ -185,6 +189,7 @@ export default function ClassManagePage() {
         teacherCount,
         unassignedRes,
         unassignedCountRes,
+        currentUserRes,
       ]) => {
         const studentCountMap: Record<number, number> = {};
         countRes.data.forEach(
@@ -205,6 +210,7 @@ export default function ClassManagePage() {
         });
         setUnassignedStudents(unassignedRes.data);
         setUnassignedCount(unassignedCountRes.data);
+        try { setCurrentUser({ id: currentUserRes.data.id, userType: currentUserRes.data.userType, relatedId: currentUserRes.data.relatedId }); } catch {}
       }
     );
     // 已删除获取全部学生列表的请求（未使用）。
@@ -516,6 +522,10 @@ export default function ClassManagePage() {
     } as const;
     const cw = widthMap[widthMode];
 
+    const canOperate = currentUser && (
+      currentUser.userType === 'ADMIN' ||
+      (currentUser.userType === 'TEACHER' && cls.teacherId && currentUser.relatedId && cls.teacherId === currentUser.relatedId)
+    );
     return (
       <Card
         sx={{
@@ -632,9 +642,11 @@ export default function ClassManagePage() {
                       <TableCell sx={{ width: cw.email, minWidth: cw.email }}>
                         邮箱
                       </TableCell>
-                      <TableCell sx={{ width: cw.actions, minWidth: cw.actions, textAlign: 'center' }}>
-                        操作
-                      </TableCell>
+                      {canOperate && (
+                        <TableCell sx={{ width: cw.actions, minWidth: cw.actions, textAlign: 'center' }}>
+                          操作
+                        </TableCell>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -650,10 +662,16 @@ export default function ClassManagePage() {
                         } : { transition: 'background-color .2s' }}
                       >
                         <TableCell>{stu.studentNo}</TableCell>
-                        <TableCell>{stu.name}</TableCell>
+                        <TableCell>
+                          <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+                            <span>{stu.name}</span>
+                            {isMonitor && <Chip label="班长" color="success" size="small" />}
+                          </Box>
+                        </TableCell>
                         {/* 新增：手机、邮箱数据渲染，为空时显示 - */}
                         <TableCell>{stu.phone || "-"}</TableCell>
                         <TableCell>{stu.email || "-"}</TableCell>
+                        {canOperate && (
                         <TableCell sx={{ p: 1 }}>
                           <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ width: "100%" }}>
                             {(() => {
@@ -700,7 +718,7 @@ export default function ClassManagePage() {
                               移除学生
                             </Button>
                           </Stack>
-                        </TableCell>
+                        </TableCell>) }
                       </TableRow>
                     );})}
                   </TableBody>

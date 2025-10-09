@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { alpha } from '@mui/material/styles';
 import {
   Box,
@@ -27,6 +27,12 @@ import {
   MenuItem,
   FormControl,
   CircularProgress,
+  Snackbar,
+  Alert,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  FormLabel,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -85,6 +91,37 @@ export default function StudentsCreditsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentCredit | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveReason, setSaveReason] = useState('调整');
+  const [saveMode, setSaveMode] = useState<'absolute'|'delta'>('absolute'); // absolute 使用 set-score, delta 使用 update-score
+  const [deltaValues, setDeltaValues] = useState<Record<string, number>>({}); // delta 模式下的每类增减值
+  const [snackbar, setSnackbar] = useState<{open:boolean; msg:string; severity:'success'|'error'|'info'}>({open:false,msg:'',severity:'success'});
+  const originalEditingSnapshot = useRef<StudentCredit | null>(null);
+  const [creditItemMap, setCreditItemMap] = useState<Record<string, number>>({}); // category -> creditItemId
+  const creditCategoriesKeys = useMemo(()=>['德','智','体','美','劳'] as const, []);
+  const validationErrors = useMemo(()=>{
+    const errs: Record<string,string> = {};
+    if (!editingStudent) return errs;
+    if (saveMode === 'absolute') {
+      creditCategoriesKeys.forEach(k => {
+        const v = editingStudent[k];
+        if (v < 0 || v > 100) errs[k] = '范围 0-100';
+      });
+    } else { // delta
+      creditCategoriesKeys.forEach(k => {
+        const orig = originalEditingSnapshot.current?.[k] ?? 0;
+        const delta = deltaValues[k] ?? 0;
+        const newVal = orig + delta;
+        if (newVal < 0 || newVal > 100) {
+          const min = -orig;
+          const max = 100 - orig;
+            errs[k] = `新值${newVal}超范围(0-100)，可调区间 ${min} ~ +${max}`;
+        }
+      });
+    }
+    return errs;
+  }, [editingStudent, saveMode, deltaValues, creditCategoriesKeys]);
+  const hasValidationError = Object.keys(validationErrors).length > 0;
 
   // 加载班级数据
   const fetchClasses = useCallback(async () => {
@@ -111,7 +148,29 @@ export default function StudentsCreditsPage() {
       const response = await fetch(`/api/credits/student-union-scores?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
-        setStudentCredits(data);
+        // 后端 DTO 使用 @JsonProperty("class")，这里统一映射到 className，并按最新 total 计算状态防止 evaluation 未重算导致前端状态不更新
+        interface RawStudentCreditsViewDTO {
+          id: number; studentId: string; studentName: string; class?: string; className?: string;
+          德: number; 智: number; 体: number; 美: number; 劳: number; total?: number; status?: string;
+        }
+        const normalized: StudentCredit[] = (data as RawStudentCreditsViewDTO[]).map((d) => {
+          const total = d.total ?? (d['德'] + d['智'] + d['体'] + d['美'] + d['劳']);
+          const computeStatus = (t: number) => t >= 400 ? 'excellent' : t >= 350 ? 'good' : t >= 300 ? 'warning' : 'danger';
+          return {
+            id: d.id,
+            studentId: d.studentId,
+            studentName: d.studentName,
+            className: d.class ?? d.className ?? '',
+            德: d['德'],
+            智: d['智'],
+            体: d['体'],
+            美: d['美'],
+            劳: d['劳'],
+            total,
+            status: computeStatus(total) as StudentCredit['status']
+          };
+        });
+        setStudentCredits(normalized);
       }
     } catch (error) {
       console.error('Failed to fetch student credits:', error);
@@ -124,7 +183,24 @@ export default function StudentsCreditsPage() {
   useEffect(() => {
     fetchClasses();
     fetchStudentCredits();
-  }, [fetchClasses, fetchStudentCredits]);
+    // 拉取各类别主项目 ID
+    (async () => {
+      try {
+        const results = await Promise.all(creditCategoriesKeys.map(c => fetch(`/api/credits/items?category=${encodeURIComponent(c)}`)));
+        const jsons = await Promise.all(results.map(r => r.ok ? r.json() : []));
+        const map: Record<string, number> = {};
+        jsons.forEach((arr, idx) => {
+          if (Array.isArray(arr) && arr.length>0) {
+            map[creditCategoriesKeys[idx]] = arr[0].id; // 约定一类一个主项目
+          }
+        });
+        setCreditItemMap(map);
+      } catch (e) {
+        console.error('加载主项目信息失败', e);
+        setSnackbar({open:true,msg:'加载主项目信息失败',severity:'error'});
+      }
+    })();
+  }, [fetchClasses, fetchStudentCredits, creditCategoriesKeys]);
 
   // 筛选条件变化时重新加载数据
   useEffect(() => {
@@ -140,25 +216,73 @@ export default function StudentsCreditsPage() {
 
   const handleEditStudent = (student: StudentCredit) => {
     setEditingStudent(student);
+    originalEditingSnapshot.current = JSON.parse(JSON.stringify(student));
+    setSaveReason('调整');
+    setDeltaValues({});
     setEditDialogOpen(true);
   };
 
-  const handleSaveEdit = () => {
-    if (editingStudent) {
-      const updatedStudent = {
-        ...editingStudent,
-        total: editingStudent.德 + editingStudent.智 + editingStudent.体 + editingStudent.美 + editingStudent.劳,
-      };
-      // 更新状态
-      if (updatedStudent.total >= 400) updatedStudent.status = 'excellent';
-      else if (updatedStudent.total >= 350) updatedStudent.status = 'good';
-      else if (updatedStudent.total >= 300) updatedStudent.status = 'warning';
-      else updatedStudent.status = 'danger';
-
-      setStudentCredits(students =>
-        students.map(s => s.id === updatedStudent.id ? updatedStudent : s)
-      );
+  const handleSaveEdit = async () => {
+    if (!editingStudent || !originalEditingSnapshot.current) return;
+    if (!Object.keys(creditItemMap).length) {
+      setSnackbar({open:true,msg:'主项目信息尚未加载',severity:'error'});
+      return;
+    }
+    if (hasValidationError) {
+      setSnackbar({open:true,msg:'存在超出 0-100 范围的数值，请先修正',severity:'error'});
+      return;
+    }
+    setSaveLoading(true);
+    try {
+      const orig = originalEditingSnapshot.current;
+      const requests: Promise<Response>[] = [];
+      if (saveMode === 'absolute') {
+        creditCategoriesKeys.forEach(cat => {
+          const newVal = editingStudent[cat];
+          const oldVal = orig[cat];
+          if (newVal !== oldVal) {
+            const creditItemId = creditItemMap[cat];
+            if (!creditItemId) return;
+            requests.push(fetch(`/api/credits/students/${editingStudent.id}/set-score`, {
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({ creditItemId, value:newVal, reason: saveReason || '调整' })
+            }));
+          }
+        });
+      } else {
+        creditCategoriesKeys.forEach(cat => {
+          const delta = deltaValues[cat];
+          if (delta && delta !== 0) {
+            const creditItemId = creditItemMap[cat];
+            if (!creditItemId) return;
+            requests.push(fetch(`/api/credits/students/${editingStudent.id}/update-score`, {
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({ creditItemId, delta, reason: saveReason || '调整' })
+            }));
+          }
+        });
+      }
+      if (requests.length === 0) {
+        setSnackbar({open:true,msg:'没有发生变化',severity:'info'});
+        setEditDialogOpen(false);
+        return;
+      }
+      const responses = await Promise.all(requests);
+      const failed = responses.filter(r=>!r.ok);
+      if (failed.length) {
+        const t = await failed[0].text();
+        throw new Error(t || '部分更新失败');
+      }
+      await fetchStudentCredits();
+      setSnackbar({open:true,msg:'学分已更新',severity:'success'});
       setEditDialogOpen(false);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setSnackbar({open:true,msg:`保存失败: ${msg}`,severity:'error'});
+    } finally {
+      setSaveLoading(false);
     }
   };
 
@@ -528,25 +652,95 @@ export default function StudentsCreditsPage() {
           <DialogContent>
             {editingStudent && (
               <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {creditCategories.map(category => (
+                <Box>
+                  <FormLabel component="legend" sx={{ mb: 1 }}>保存模式</FormLabel>
+                  <RadioGroup
+                    row
+                    value={saveMode}
+                    onChange={(e)=> setSaveMode(e.target.value as 'absolute'|'delta')}
+                  >
+                    <FormControlLabel value="absolute" control={<Radio size="small" />} label="绝对设置(覆盖)" />
+                    <FormControlLabel value="delta" control={<Radio size="small" />} label="增量调整(差值)" />
+                  </RadioGroup>
+                  <Typography variant="caption" sx={{ color:'text.secondary' }}>
+                    {saveMode === 'absolute' ? '将每个修改后的数值直接写入(使用 set-score)，适合直接修正错误或对齐统计。' : '根据修改前后差值发送增减(使用 update-score)，保留原始记录并生成增减日志。'}
+                  </Typography>
+                </Box>
+                {saveMode === 'absolute' && creditCategories.map(category => (
                   <TextField
                     key={category.key}
-                    label={`${category.name}类学分`}
+                    label={`${category.name}类学分 (绝对)`}
                     type="number"
                     value={editingStudent[category.key as keyof StudentCredit]}
                     onChange={(e) => setEditingStudent({
                       ...editingStudent,
                       [category.key]: Number(e.target.value)
                     })}
-                    inputProps={{ min: 0, max: 100 }}
+                    inputProps={{ min: 0 }}
                     fullWidth
+                    error={!!validationErrors[category.key]}
+                    helperText={validationErrors[category.key] || '范围 0-100'}
                   />
                 ))}
-                
+                {saveMode === 'delta' && creditCategories.map(category => {
+                  const origVal = (originalEditingSnapshot.current?.[category.key as keyof StudentCredit] as number) ?? 0;
+                  const delta = deltaValues[category.key] ?? 0;
+                  const newVal = origVal + delta;
+                  return (
+                    <Box key={category.key} sx={{ display:'flex', flexDirection:'column', gap:1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight:600 }}>
+                        {category.name}：当前 {origVal} + 调整
+                      </Typography>
+                      <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={deltaValues[category.key] ?? ''}
+                          placeholder="0"
+                          onChange={(e)=> {
+                            const v = e.target.value === '' ? undefined : Number(e.target.value);
+                            setDeltaValues(prev => ({ ...prev, [category.key]: (v===undefined || isNaN(v)) ? 0 : v }));
+                          }}
+                          sx={{ width:140 }}
+                          inputProps={{ step: 0.5 }}
+                          error={!!validationErrors[category.key]}
+                          helperText={validationErrors[category.key] || `可调范围 ${-origVal} ~ +${100-origVal}`}
+                        />
+                        <Typography variant="body2" sx={{ fontWeight:600 }}>= {newVal}</Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={Math.max(0, Math.min(100, newVal))}
+                        sx={{ height:4, borderRadius:2 }}
+                      />
+                    </Box>
+                  );
+                })}
+                {(() => {
+                  const origTotal = (originalEditingSnapshot.current?.德 ?? 0) + (originalEditingSnapshot.current?.智 ?? 0) + (originalEditingSnapshot.current?.体 ?? 0) + (originalEditingSnapshot.current?.美 ?? 0) + (originalEditingSnapshot.current?.劳 ?? 0);
+                  const deltaSum = saveMode==='delta' ? creditCategoriesKeys.reduce((sum,k)=> sum + (deltaValues[k]||0),0) : 0;
+                  const newTotal = saveMode==='delta' ? origTotal + deltaSum : (editingStudent.德 + editingStudent.智 + editingStudent.体 + editingStudent.美 + editingStudent.劳);
+                  return (
+                    <Box>
+                      <TextField
+                        label={saveMode==='absolute' ? '总分' : '新总分'}
+                        value={newTotal}
+                        disabled
+                        fullWidth
+                      />
+                      {saveMode==='delta' && (
+                        <Typography variant="caption" sx={{ color:'text.secondary' }}>
+                          原总分 {origTotal} + Δ {deltaSum >=0 ? '+'+deltaSum : deltaSum} = {newTotal}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })()}
                 <TextField
-                  label="总分"
-                  value={editingStudent.德 + editingStudent.智 + editingStudent.体 + editingStudent.美 + editingStudent.劳}
-                  disabled
+                  label="调整原因"
+                  value={saveReason}
+                  onChange={(e)=> setSaveReason(e.target.value)}
+                  placeholder="例如：期中表现、加分调整"
                   fullWidth
                 />
               </Box>
@@ -560,11 +754,22 @@ export default function StudentsCreditsPage() {
               onClick={handleSaveEdit} 
               variant="contained"
               startIcon={<SaveIcon />}
+              disabled={saveLoading || hasValidationError}
             >
-              保存
+              {saveLoading? '保存中...' : '保存'}
             </Button>
           </DialogActions>
         </Dialog>
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={3500}
+          onClose={()=> setSnackbar(s=>({...s,open:false}))}
+          anchorOrigin={{ vertical:'bottom', horizontal:'right' }}
+        >
+          <Alert severity={snackbar.severity} variant="filled" elevation={3} onClose={()=> setSnackbar(s=>({...s,open:false}))}>
+            {snackbar.msg}
+          </Alert>
+        </Snackbar>
       </Box>
     </motion.div>
   );
