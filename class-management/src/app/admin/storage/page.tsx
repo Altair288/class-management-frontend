@@ -808,8 +808,8 @@ export default function StorageConfigPage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>名称</TableCell>
-                  <TableCell>Endpoint</TableCell>
+                  <TableCell align="center">名称</TableCell>
+                  <TableCell align='center'>Endpoint</TableCell>
                   <TableCell align="center">路径风格</TableCell>
                   <TableCell align="center">HTTPS</TableCell>
                   <TableCell align="center">Presign(s)</TableCell>
@@ -821,8 +821,8 @@ export default function StorageConfigPage() {
               <TableBody>
                 {connections.map((c) => (
                   <TableRow key={c.id} hover>
-                    <TableCell>{c.name}</TableCell>
-                    <TableCell>{c.endpointUrl}</TableCell>
+                    <TableCell align='center'>{c.name}</TableCell>
+                    <TableCell align='center'>{c.endpointUrl}</TableCell>
                     <TableCell align="center">
                       <Chip
                         size="small"
@@ -961,10 +961,10 @@ export default function StorageConfigPage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Purpose</TableCell>
-                  <TableCell>Bucket</TableCell>
-                  <TableCell>BasePath</TableCell>
-                  <TableCell>关联连接</TableCell>
+                  <TableCell align='center'>Purpose</TableCell>
+                  <TableCell align='center'>Bucket</TableCell>
+                  <TableCell align='center'>BasePath</TableCell>
+                  <TableCell align='center'>关联连接</TableCell>
                   <TableCell align="center">限制Ext</TableCell>
                   <TableCell align="center">限制MIME</TableCell>
                   <TableCell align="center">Retention</TableCell>
@@ -976,12 +976,12 @@ export default function StorageConfigPage() {
               <TableBody>
                 {configs.map((cfg) => (
                   <TableRow key={cfg.id} hover>
-                    <TableCell>
+                    <TableCell align='center'>
                       <Chip size="small" label={cfg.bucketPurpose} />
                     </TableCell>
-                    <TableCell>{cfg.bucketName}</TableCell>
-                    <TableCell>{cfg.basePath || "-"}</TableCell>
-                    <TableCell>{cfg.connectionId}</TableCell>
+                    <TableCell align='center'>{cfg.bucketName}</TableCell>
+                    <TableCell align='center'>{cfg.basePath || "-"}</TableCell>
+                    <TableCell align='center'>{cfg.connectionId}</TableCell>
                     <TableCell align="center">
                       {cfg.allowedExtensions.length || "∞"}
                     </TableCell>

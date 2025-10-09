@@ -7,6 +7,10 @@ export interface AuthUser {
   id: number;
   username: string;
   userType: string; // ADMIN | TEACHER | STUDENT | others
+  // 新增：班长扩展
+  classMonitor?: boolean; // true 表示该学生是某班班长
+  monitorClassId?: number; // 所属班级ID（若为班长）
+  relatedId?: number; // 现有后端返回（可能是 studentId 或 teacherId）
 }
 
 interface AuthState {
@@ -16,6 +20,7 @@ interface AuthState {
   isStudent: boolean;
   isAdmin: boolean;
   isTeacher: boolean;
+  isClassMonitor: boolean; // 新增：是否班长
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -83,7 +88,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refresh: load,
     isStudent: user?.userType === 'STUDENT',
     isAdmin: user?.userType === 'ADMIN',
-    isTeacher: user?.userType === 'TEACHER'
+    isTeacher: user?.userType === 'TEACHER',
+    isClassMonitor: !!user?.classMonitor
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

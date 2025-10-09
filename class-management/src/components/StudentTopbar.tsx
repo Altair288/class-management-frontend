@@ -12,6 +12,7 @@ import EventIcon from '@mui/icons-material/Event';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ClassIcon from '@mui/icons-material/Class';
 
 interface StudentTopbarProps {
   showBack?: boolean;          // 在子页面时可显示返回
@@ -105,6 +106,12 @@ export default function StudentTopbar({ showBack, title, onAvatarClick }: Studen
           <MenuItem onClick={() => { handleClose(); router.push('/student/dashboard'); }}>
             <DashboardIcon fontSize="small" sx={{ mr: 1 }} /> 学生仪表盘
           </MenuItem>
+          {/* 班长专属入口 */}
+          {(typeof user === 'object' && user && 'classMonitor' in user && (user as {classMonitor?: boolean}).classMonitor) ? (
+            <MenuItem onClick={() => { handleClose(); router.push('/student/credits/manage'); }}>
+              <ClassIcon fontSize="small" sx={{ mr: 1 }} /> 班级学分
+            </MenuItem>
+          ) : null}
           <MenuItem onClick={() => { handleClose(); /* 预留个人信息 */ }}>
             <InfoOutlinedIcon fontSize="small" sx={{ mr: 1 }} /> 个人信息 (占位)
           </MenuItem>

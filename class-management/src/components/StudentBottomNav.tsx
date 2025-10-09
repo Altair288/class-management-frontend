@@ -5,9 +5,11 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import OutboxIcon from "@mui/icons-material/Outbox";
 import EventIcon from "@mui/icons-material/Event";
+import ClassIcon from '@mui/icons-material/Class';
 import { usePathname, useRouter } from "next/navigation";
 import { useNotificationContext } from "@/context/NotificationContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from '@/context/AuthContext';
 
 function useOptionalNotificationContext() {
   try {
@@ -23,6 +25,8 @@ export default function StudentBottomNav() {
   const theme = useTheme();
   const possibleCtx = useOptionalNotificationContext();
   const ctxUnread = possibleCtx ? possibleCtx.unreadCount : 0;
+  const { user } = useAuth();
+  const isMonitor = !!(user && typeof user==='object' && 'classMonitor' in user && (user as {classMonitor?:boolean}).classMonitor);
 
   const items = [
     {
@@ -50,6 +54,13 @@ export default function StudentBottomNav() {
       icon: <EventIcon fontSize="small" />,
       path: "/student/leave/calendar",
     },
+    // 班长入口
+    ...(isMonitor ? [{
+      label: "学分",
+      fullLabel: "班级学分",
+      icon: <ClassIcon fontSize="small" />,
+      path: "/student/credits/manage"
+    }] : [])
   ];
 
   // 根据实际路径高亮对应项（保持原逻辑：startsWith）
