@@ -88,7 +88,7 @@ type ImportStudentsResult = {
 
 export default function ClassManagePage() {
   const theme = useTheme();
-  
+
   const [classList, setClassList] = useState<ClassInfo[]>([]);
   const [stats, setStats] = useState({
     totalClasses: 0,
@@ -142,6 +142,16 @@ export default function ClassManagePage() {
   const [filterMap] = useState<Record<number, string>>({}); // 当前未启用筛选输入
   // 固定列宽模式（如需 UI 控制可还原为 useState）
   const widthMode: "compact" | "normal" | "wide" = "normal";
+
+  // 班长映射：classId -> { id, name } | null  (undefined 表示尚未加载)
+  const [monitorMap, setMonitorMap] = useState<Record<number, { id: number; name: string } | null>>({});
+  const [monitorLoadingMap, setMonitorLoadingMap] = useState<Record<number, boolean>>({});
+  const [monitorUpdating, setMonitorUpdating] = useState(false); // 防止重复点击
+  const [monitorSuccessOpen, setMonitorSuccessOpen] = useState(false);
+  const [monitorMessage, setMonitorMessage] = useState("");
+  // 设置 / 取消班长确认对话框状态
+  const [setMonitorDialog, setSetMonitorDialog] = useState<{ open: boolean; classId?: number; student?: Student }>(() => ({ open: false }));
+  const [unsetMonitorDialog, setUnsetMonitorDialog] = useState<{ open: boolean; classId?: number; student?: Student }>(() => ({ open: false }));
 
   useEffect(() => {
     if (!focusClass) return;
@@ -228,6 +238,19 @@ export default function ClassManagePage() {
     if (!members[cls.id]) {
       const res = await axios.get(`/api/class/${cls.id}/members`);
       setMembers((prev) => ({ ...prev, [cls.id]: res.data }));
+    }
+    // 拉取班长（若尚未拉取）
+    if (monitorMap[cls.id] === undefined && !monitorLoadingMap[cls.id]) {
+      setMonitorLoadingMap(prev => ({ ...prev, [cls.id]: true }));
+      try {
+  const mRes = await axios.get(`/api/classes/${cls.id}/monitor`);
+  const data = mRes.data; // 可能为空（204）
+  setMonitorMap(prev => ({ ...prev, [cls.id]: data?.studentId ? { id: data.studentId, name: data.studentName || '学生' } : null }));
+      } catch {
+        setMonitorMap(prev => ({ ...prev, [cls.id]: null }));
+      } finally {
+        setMonitorLoadingMap(prev => ({ ...prev, [cls.id]: false }));
+      }
     }
   };
 
@@ -458,17 +481,18 @@ export default function ClassManagePage() {
   // handleFilterChange 暂未在 UI 中启用（对应工具栏被注释），故移除以消除未使用告警。
 
   const renderClassCard = (cls: ClassInfo, isFocus: boolean) => {
-    const memberList = members[cls.id] || [];
+  const memberList = members[cls.id] || [];
+  const monitorInfo = monitorMap[cls.id];
 
     // 应用筛选（新增：支持按手机、邮箱筛选）
     const filterText = getFilter(cls.id).toLowerCase().trim();
     let visibleList = filterText
       ? memberList.filter(stu =>
-          stu.studentNo.toLowerCase().includes(filterText) ||
-          stu.name.toLowerCase().includes(filterText) ||
-          (stu.phone || "").toLowerCase().includes(filterText) ||
-          (stu.email || "").toLowerCase().includes(filterText)
-        )
+        stu.studentNo.toLowerCase().includes(filterText) ||
+        stu.name.toLowerCase().includes(filterText) ||
+        (stu.phone || "").toLowerCase().includes(filterText) ||
+        (stu.email || "").toLowerCase().includes(filterText)
+      )
       : memberList;
 
     // 应用排序
@@ -487,8 +511,8 @@ export default function ClassManagePage() {
     // 列宽（新增：为手机、邮箱增加列宽）
     const widthMap = {
       compact: { no: 120, name: 140, phone: 140, email: 200, actions: 110 },
-      normal:  { no: 160, name: 180, phone: 160, email: 240, actions: 120 },
-      wide:    { no: 220, name: 240, phone: 200, email: 300, actions: 140 },
+      normal: { no: 100, name: 140, phone: 140, email: 140, actions: 200 },
+      wide: { no: 220, name: 240, phone: 200, email: 200, actions: 140 },
     } as const;
     const cw = widthMap[widthMode];
 
@@ -520,8 +544,14 @@ export default function ClassManagePage() {
               年级：{cls.grade}
             </Typography>
           </Box>
-          <Typography variant="body1" color="text.secondary" mt={1} mb={2}>
-            班主任：{cls.teacherName || "未分配"}
+          <Typography variant="body1" color="text.secondary" mt={1} mb={2} sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+            <span>班主任：{cls.teacherName || "未分配"}</span>
+            {/* 显示班长：若已加载（monitorInfo !== undefined），显示未设置/学生姓名 */}
+            {monitorInfo !== undefined && (
+              <span>
+                班长：{monitorLoadingMap[cls.id] ? '加载中...' : (monitorInfo ? monitorInfo.name : '未设置')}
+              </span>
+            )}
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 6, mt: 2 }}>
             <Box>
@@ -563,40 +593,16 @@ export default function ClassManagePage() {
             timeout="auto"
             unmountOnExit
           >
-            <Paper sx={{ 
-              mt: 3, 
-              p: 2, 
-              borderRadius: 2, 
+            <Paper sx={{
+              mt: 3,
+              p: 2,
+              borderRadius: 2,
               bgcolor: theme.palette.background.paper,
               border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
             }}>
               <Typography variant="subtitle1" fontWeight={600} mb={1}>
                 班级成员
               </Typography>
-
-              {/* 工具栏：筛选 + 列宽模式 */}
-              {/* <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1 }}>
-                <TextField
-                  size="small"
-                  placeholder="筛选学号或姓名"
-                  value={getFilter(cls.id)}
-                  onChange={e => handleFilterChange(cls.id, e.target.value)}
-                  sx={{ width: 240 }}
-                />
-                <Box flex={1} />
-                <Typography variant="body2" color="text.secondary">列宽</Typography>
-                <Select
-                  size="small"
-                  value={widthMode}
-                  onChange={e => setWidthMode(e.target.value as "compact" | "normal" | "wide")}
-                  sx={{ width: 110 }}
-                >
-                  <MenuItem value="compact">紧凑</MenuItem>
-                  <MenuItem value="normal">标准</MenuItem>
-                  <MenuItem value="wide">宽松</MenuItem>
-                </Select>
-              </Stack> */}
-
               <Box sx={{ maxHeight: "calc(100vh - 565px)", overflow: "auto" }}>
                 <Table stickyHeader size="small" sx={{ tableLayout: "fixed" }}>
                   <TableHead>
@@ -626,26 +632,77 @@ export default function ClassManagePage() {
                       <TableCell sx={{ width: cw.email, minWidth: cw.email }}>
                         邮箱
                       </TableCell>
-                      <TableCell sx={{ width: cw.actions, minWidth: cw.actions }}>
+                      <TableCell sx={{ width: cw.actions, minWidth: cw.actions, textAlign: 'center' }}>
                         操作
                       </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {pagedMembers.map(stu => (
-                      <TableRow key={stu.id}>
+                    {pagedMembers.map(stu => {
+                      const isMonitor = monitorInfo?.id === stu.id;
+                      return (
+                      <TableRow key={stu.id}
+                        selected={isMonitor}
+                        sx={isMonitor ? {
+                          backgroundColor: alpha(theme.palette.success.light, 0.12),
+                          '&:hover': { backgroundColor: alpha(theme.palette.success.light, 0.18) },
+                          transition: 'background-color .2s'
+                        } : { transition: 'background-color .2s' }}
+                      >
                         <TableCell>{stu.studentNo}</TableCell>
                         <TableCell>{stu.name}</TableCell>
                         {/* 新增：手机、邮箱数据渲染，为空时显示 - */}
                         <TableCell>{stu.phone || "-"}</TableCell>
                         <TableCell>{stu.email || "-"}</TableCell>
-                        <TableCell>
-                          <Button color="error" size="small" onClick={() => handleRemoveStudent(stu)}>
-                            移除
-                          </Button>
+                        <TableCell sx={{ p: 1 }}>
+                          <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ width: "100%" }}>
+                            {(() => {
+                              const monitorObj = monitorInfo; // {id,name} | null | undefined
+                              const isLoading = monitorLoadingMap[cls.id];
+                              if (monitorObj?.id === stu.id) {
+                                return (
+                                  <>
+                                    <Chip label="班长" color="success" size="small" sx={{ fontWeight: 600 }} />
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      disabled={monitorUpdating}
+                                      onClick={() => setUnsetMonitorDialog({ open: true, classId: cls.id, student: stu })}
+                                    >
+                                      取消班长
+                                    </Button>
+                                  </>
+                                );
+                              }
+                              if (monitorObj === null) {
+                                return (
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    disabled={monitorUpdating || isLoading}
+                                    onClick={() => setSetMonitorDialog({ open: true, classId: cls.id, student: stu })}
+                                  >
+                                    {isLoading ? '加载中...' : '设为班长'}
+                                  </Button>
+                                );
+                              }
+                              if (monitorObj === undefined) {
+                                // 尚未加载时允许显示一个占位按钮以加载（可选简化：显示加载中）
+                                return (
+                                  <Button size="small" variant="outlined" disabled>
+                                    加载中...
+                                  </Button>
+                                );
+                              }
+                              return null;
+                            })()}
+                            <Button color="error" size="small" onClick={() => handleRemoveStudent(stu)}>
+                              移除学生
+                            </Button>
+                          </Stack>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );})}
                   </TableBody>
                 </Table>
               </Box>
@@ -810,596 +867,712 @@ export default function ClassManagePage() {
     );
   };
 
+  // ========== 班长操作相关函数 ==========
+  const handleSetMonitor = async (classId: number, studentId: number, studentName: string) => {
+    if (monitorUpdating) return;
+    setMonitorUpdating(true);
+    try {
+      await axios.post(`/api/classes/${classId}/monitor`, { studentId });
+      setMonitorMap(prev => ({ ...prev, [classId]: { id: studentId, name: studentName } }));
+      setMonitorMessage(`已将 ${studentName} 设为班长`);
+      setMonitorSuccessOpen(true);
+    } catch (err) {
+      let msg = '设置班长失败';
+      const u = err as unknown as { response?: { data?: unknown } };
+      if (u?.response?.data && typeof u.response.data === 'string') msg = u.response.data;
+      setMonitorMessage(msg);
+      setMonitorSuccessOpen(true);
+    } finally {
+      setMonitorUpdating(false);
+    }
+  };
+
+  const handleUnsetMonitor = async (classId: number) => {
+    if (monitorUpdating) return;
+    setMonitorUpdating(true);
+    try {
+      await axios.delete(`/api/classes/${classId}/monitor`);
+      setMonitorMap(prev => ({ ...prev, [classId]: null }));
+      setMonitorMessage('已取消班长');
+      setMonitorSuccessOpen(true);
+    } catch (err) {
+      let msg = '取消班长失败';
+      const u = err as unknown as { response?: { data?: unknown } };
+      if (u?.response?.data && typeof u.response.data === 'string') msg = u.response.data;
+      setMonitorMessage(msg);
+      setMonitorSuccessOpen(true);
+    } finally {
+      setMonitorUpdating(false);
+    }
+  };
+
   return (
     <>
-    <Box sx={{ 
-      minHeight: "100vh", 
-      bgcolor: theme.palette.background.default,
-      transition: 'background-color 0.3s ease'
-    }}>
-      <Typography variant="h4" fontWeight={700} mb={4} color="primary">
-        班级管理
-      </Typography>
-      
-      {/* 统计卡片 - 修改为一行显示 */}
-      <Box sx={{ 
-        display: 'flex', 
-        gap: 2, 
-        mb: 3,
-        flexWrap: { xs: 'wrap', md: 'nowrap' } // 移动端允许换行，桌面端强制一行
+      <Box sx={{
+        minHeight: "100vh",
+        bgcolor: theme.palette.background.default,
+        transition: 'background-color 0.3s ease'
       }}>
-        {/* 班级总数 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0 * 0.1 }}
-          style={{ flex: 1, minWidth: '200px' }}
-        >
-          <Card 
-            sx={{ 
-              height: '100%',
-              borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-              bgcolor: theme.palette.background.paper,
-              boxShadow: 'none',
-              '&:hover': {
-                boxShadow: theme.shadows[4],
-                transition: 'box-shadow 0.2s'
-              }
-            }}
-          >
-            <CardContent sx={{ p: 3 }}> {/* 减少内边距 */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 40, // 减小图标容器尺寸
-                    height: 40,
-                    borderRadius: 1.5,
-                    backgroundColor: alpha(theme.palette.success.main, 0.1),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <SchoolIcon sx={{ color: theme.palette.success.main, fontSize: 20 }} />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      color: theme.palette.text.secondary, 
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      mb: 0.5
-                    }}
-                  >
-                    班级总数
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                    <Typography 
-                      variant="h4" 
-                      sx={{ 
-                        color: theme.palette.text.primary, 
-                        fontWeight: 700,
-                        fontSize: '1.75rem',
-                        lineHeight: 1
-                      }}
-                    >
-                      {stats.totalClasses}
-                    </Typography>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.75rem'
-                      }}
-                    >
-                      个
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* 学生总数 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1 * 0.1 }}
-          style={{ flex: 1, minWidth: '200px' }}
-        >
-          <Card 
-            sx={{ 
-              height: '100%',
-              borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-              bgcolor: theme.palette.background.paper,
-              boxShadow: 'none',
-              '&:hover': {
-                boxShadow: theme.shadows[4],
-                transition: 'box-shadow 0.2s'
-              }
-            }}
-          >
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 1.5,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <GroupIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      color: theme.palette.text.secondary, 
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      mb: 0.5
-                    }}
-                  >
-                    学生总数
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                    <Typography 
-                      variant="h4" 
-                      sx={{ 
-                        color: theme.palette.text.primary, 
-                        fontWeight: 700,
-                        fontSize: '1.75rem',
-                        lineHeight: 1
-                      }}
-                    >
-                      {stats.totalStudents}
-                    </Typography>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.75rem'
-                      }}
-                    >
-                      人
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* 教师总数 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2 * 0.1 }}
-          style={{ flex: 1, minWidth: '200px' }}
-        >
-          <Card 
-            sx={{ 
-              height: '100%',
-              borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-              bgcolor: theme.palette.background.paper,
-              boxShadow: 'none',
-              '&:hover': {
-                boxShadow: theme.shadows[4],
-                transition: 'box-shadow 0.2s'
-              }
-            }}
-          >
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 1.5,
-                    backgroundColor: alpha(theme.palette.warning.main, 0.1),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <PersonIcon sx={{ color: theme.palette.warning.main, fontSize: 20 }} />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      color: theme.palette.text.secondary, 
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      mb: 0.5
-                    }}
-                  >
-                    教师总数
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                    <Typography 
-                      variant="h4" 
-                      sx={{ 
-                        color: theme.palette.text.primary, 
-                        fontWeight: 700,
-                        fontSize: '1.75rem',
-                        lineHeight: 1
-                      }}
-                    >
-                      {stats.totalTeachers}
-                    </Typography>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.75rem'
-                      }}
-                    >
-                      人
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* 未分班学生 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 3 * 0.1 }}
-          style={{ flex: 1, minWidth: '200px' }}
-        >
-          <Card 
-            sx={{ 
-              height: '100%',
-              borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-              boxShadow: 'none',
-              '&:hover': {
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                transition: 'box-shadow 0.2s'
-              }
-            }}
-          >
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 1.5,
-                    backgroundColor: alpha(theme.palette.error.main, 0.1),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <WarningIcon sx={{ color: theme.palette.error.main, fontSize: 20 }} />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      color: theme.palette.text.secondary, 
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      mb: 0.5
-                    }}
-                  >
-                    未分班学生
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                    <Typography 
-                      variant="h4" 
-                      sx={{ 
-                        color: theme.palette.text.primary, 
-                        fontWeight: 700,
-                        fontSize: '1.75rem',
-                        lineHeight: 1
-                      }}
-                    >
-                      {stats.pendingRequests}
-                    </Typography>
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.75rem'
-                      }}
-                    >
-                      人
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </Box>
-      
-      <Box mt={4}>
-        <Typography variant="h6" fontWeight={600} mb={3}>
-          班级列表
+        <Typography variant="h4" fontWeight={700} mb={4} color="primary">
+          班级管理
         </Typography>
-        <AnimatePresence initial={false}>
-          {focusClass ? (
-            <>
-              <motion.div
-                key="overlay"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.5 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                style={{
-                  position: "fixed",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: "100%",
-                  background: alpha(theme.palette.action.disabled, 0.3),
-                  backdropFilter: "blur(10px) saturate(180%)",
-                  WebkitBackdropFilter: "blur(10px) saturate(180%)",
-                  zIndex: 150,
-                }}
-                onClick={() => handleExpand(focusClass!)}
-              />
-              <motion.div
-                key="focus"
-                layoutId={`class-card-${focusClass.id}`}
-                initial={{ y: -20, opacity: 0, scale: 0.95 }}
-                animate={{ y: 0, opacity: 1, scale: 1 }}
-                exit={{ y: -20, opacity: 0, scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                style={{
-                  position: "fixed",
-                  top: 100, // 预留导航栏高度
-                  left: containerRect.left,
-                  width: containerRect.width,
-                  zIndex: 200,
-                }}
-              >
-                {renderClassCard(focusClass, true)}
-              </motion.div>
-            </>
-          ) : (
-            <Box
-              id="class-list-container"
-              sx={{ display: "flex", flexDirection: "column", gap: 3 }}
-            >
-              {classList.map((cls) => (
-                <motion.div
-                  key={cls.id}
-                  layoutId={`class-card-${cls.id}`}
-                  transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                >
-                  {renderClassCard(cls, false)}
-                </motion.div>
-              ))}
-            </Box>
-          )}
-        </AnimatePresence>
-      </Box>
-      {/* 新增未分班学生展示区域 */}
-      <Box mt={4} mb={4}>
-        <Typography variant="h6" fontWeight={600} mb={3}>
-          未分班学生 ({unassignedCount}人)
-        </Typography>
-        {unassignedCount > 0 ? (
-          <Card
-            sx={{
-              borderRadius: 3,
-              p: 2,
-              position: 'relative',
-              bgcolor: theme.palette.mode === 'dark'
-                ? alpha(theme.palette.warning.main, 0.16)
-                : alpha(theme.palette.warning.main, 0.12),
-              border: `1px solid ${alpha(theme.palette.warning.main, 0.35)}`,
-              boxShadow: 'none',
-              backdropFilter: theme.palette.mode === 'dark' ? 'blur(4px)' : 'none',
-              transition: 'background-color .25s,border-color .25s',
-              '&:hover': {
-                bgcolor: theme.palette.mode === 'dark'
-                  ? alpha(theme.palette.warning.main, 0.22)
-                  : alpha(theme.palette.warning.main, 0.18),
-              }
-            }}
+
+        {/* 统计卡片 - 修改为一行显示 */}
+        <Box sx={{
+          display: 'flex',
+          gap: 2,
+          mb: 3,
+          flexWrap: { xs: 'wrap', md: 'nowrap' } // 移动端允许换行，桌面端强制一行
+        }}>
+          {/* 班级总数 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0 * 0.1 }}
+            style={{ flex: 1, minWidth: '200px' }}
           >
-            <Typography
-              variant="body2"
+            <Card
               sx={{
-                mb: 2,
-                color: theme.palette.mode === 'dark' ? theme.palette.warning.light : 'text.secondary',
-                fontWeight: 500
+                height: '100%',
+                borderRadius: 1,
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                bgcolor: theme.palette.background.paper,
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: theme.shadows[4],
+                  transition: 'box-shadow 0.2s'
+                }
               }}
             >
-              以下学生尚未分配到班级，可通过“添加成员”功能将其分配到对应班级：
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {unassignedStudents.slice(0, 10).map((stu) => (
-                <Chip
-                  key={stu.id}
-                  label={`${stu.name}（${stu.studentNo}）`}
-                  size="small"
-                  sx={{
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? alpha(theme.palette.background.paper, 0.4)
-                      : theme.palette.background.paper,
-                    border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
-                    '& .MuiChip-label': { px: 1.2 }
-                  }}
-                />
-              ))}
-              {unassignedCount > 10 && (
-                <Chip
-                  label={`还有 ${unassignedCount - 10} 人...`}
-                  size="small"
-                  sx={{
-                    bgcolor: theme.palette.mode === 'dark'
-                      ? alpha(theme.palette.background.paper, 0.4)
-                      : theme.palette.background.paper,
-                    border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
-                  }}
-                />
-              )}
-            </Box>
-          </Card>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            所有学生均已分配到班级
-          </Typography>
-        )}
-      </Box>
-    </Box>
-    <Snackbar
-      open={removeSuccessOpen}
-      autoHideDuration={3000}
-      onClose={() => setRemoveSuccessOpen(false)}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-    >
-      <Alert
-        severity="success"
-        variant="filled"
-        elevation={3}
-        onClose={() => setRemoveSuccessOpen(false)}
-        sx={{ fontWeight: 500 }}
-      >
-        成员已成功移除
-      </Alert>
-    </Snackbar>
-    <Snackbar
-      open={addSuccessOpen}
-      autoHideDuration={3000}
-      onClose={() => setAddSuccessOpen(false)}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-    >
-      <Alert
-        severity="success"
-        variant="filled"
-        elevation={3}
-        onClose={() => setAddSuccessOpen(false)}
-        sx={{ fontWeight: 500 }}
-      >
-        成员添加成功
-      </Alert>
-    </Snackbar>
-    <Snackbar
-      open={importSuccessOpen}
-      autoHideDuration={3500}
-      onClose={() => setImportSuccessOpen(false)}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-    >
-      <Alert
-        severity="success"
-        variant="filled"
-        elevation={3}
-        onClose={() => setImportSuccessOpen(false)}
-        sx={{ fontWeight: 500 }}
-      >
-        导入完成{importAdded !== null ? `，新增 ${importAdded} 人` : ''}
-      </Alert>
-    </Snackbar>
-    <Snackbar
-      open={importError.open}
-      autoHideDuration={4000}
-      onClose={() => setImportError({ open: false, msg: '' })}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-    >
-      <Alert
-        severity="error"
-        variant="filled"
-        elevation={3}
-        onClose={() => setImportError({ open: false, msg: '' })}
-        sx={{ fontWeight: 500 }}
-      >
-        {importError.msg}
-      </Alert>
-    </Snackbar>
-    <Dialog
-      open={importResultOpen}
-      onClose={() => setImportResultOpen(false)}
-      fullWidth
-      maxWidth="md"
-    >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        导入结果详情
-        {importResult && (
-          <Tooltip title="统计口径：Processed=非空行；Success=成功写入；Duplicates=学号已存在；RowErrors=行级校验失败">
-            <InfoOutlinedIcon fontSize="small" color="action" />
-          </Tooltip>
-        )}
-      </DialogTitle>
-      <DialogContent dividers sx={{ pt: 1 }}>
-        {importResult ? (
-          <Stack spacing={2}>
-            <Box display="flex" flexWrap="wrap" gap={2}>
-              <StatChip label="扫描行数" value={importResult.totalRows} color={theme.palette.info.main} />
-              <StatChip label="有效行" value={importResult.processed} color={theme.palette.primary.main} />
-              <StatChip label="成功新增" value={importResult.success} color={theme.palette.success.main} />
-              <StatChip label="重复学号" value={importResult.duplicateStudentNos.length} color={theme.palette.warning.main} />
-              <StatChip label="错误行" value={importResult.rowErrors.length} color={theme.palette.error.main} />
-            </Box>
-            {importResult.duplicateStudentNos.length > 0 && (
-              <Box>
-                <Typography variant="subtitle2" fontWeight={600} mb={0.5}>重复学号</Typography>
-                <Box display="flex" flexWrap="wrap" gap={1}>
-                  {importResult.duplicateStudentNos.map(no => (
-                    <Chip key={no} label={no} size="small" color="warning" variant="outlined" />
-                  ))}
+              <CardContent sx={{ p: 3 }}> {/* 减少内边距 */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 40, // 减小图标容器尺寸
+                      height: 40,
+                      borderRadius: 1.5,
+                      backgroundColor: alpha(theme.palette.success.main, 0.1),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <SchoolIcon sx={{ color: theme.palette.success.main, fontSize: 20 }} />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        mb: 0.5
+                      }}
+                    >
+                      班级总数
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                      <Typography
+                        variant="h4"
+                        sx={{
+                          color: theme.palette.text.primary,
+                          fontWeight: 700,
+                          fontSize: '1.75rem',
+                          lineHeight: 1
+                        }}
+                      >
+                        {stats.totalClasses}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: theme.palette.text.secondary,
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        个
+                      </Typography>
+                    </Box>
+                  </Box>
                 </Box>
-              </Box>
-            )}
-            {importResult.rowErrors.length > 0 && (
-              <Box>
-                <Typography variant="subtitle2" fontWeight={600} mb={0.5}>行级错误</Typography>
-                <Paper variant="outlined" sx={{ maxHeight: 240, overflow: 'auto' }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ width: 90 }}>Excel行号</TableCell>
-                        <TableCell>错误信息</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {importResult.rowErrors.map((er, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{er.rowIndex}</TableCell>
-                          <TableCell>{er.message}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Paper>
-              </Box>
-            )}
-          </Stack>
-        ) : (
-          <Typography variant="body2" color="text.secondary">暂无数据</Typography>
-        )}
-      </DialogContent>
-      <DialogActions>
-        {importResult && (
-          <Button
-            size="small"
-            startIcon={<DownloadIcon />}
-            onClick={() => exportImportResult(importResult)}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* 学生总数 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1 * 0.1 }}
+            style={{ flex: 1, minWidth: '200px' }}
           >
-            导出 CSV
+            <Card
+              sx={{
+                height: '100%',
+                borderRadius: 1,
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                bgcolor: theme.palette.background.paper,
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: theme.shadows[4],
+                  transition: 'box-shadow 0.2s'
+                }
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 1.5,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <GroupIcon sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        mb: 0.5
+                      }}
+                    >
+                      学生总数
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                      <Typography
+                        variant="h4"
+                        sx={{
+                          color: theme.palette.text.primary,
+                          fontWeight: 700,
+                          fontSize: '1.75rem',
+                          lineHeight: 1
+                        }}
+                      >
+                        {stats.totalStudents}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: theme.palette.text.secondary,
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        人
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* 教师总数 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2 * 0.1 }}
+            style={{ flex: 1, minWidth: '200px' }}
+          >
+            <Card
+              sx={{
+                height: '100%',
+                borderRadius: 1,
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                bgcolor: theme.palette.background.paper,
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: theme.shadows[4],
+                  transition: 'box-shadow 0.2s'
+                }
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 1.5,
+                      backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <PersonIcon sx={{ color: theme.palette.warning.main, fontSize: 20 }} />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        mb: 0.5
+                      }}
+                    >
+                      教师总数
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                      <Typography
+                        variant="h4"
+                        sx={{
+                          color: theme.palette.text.primary,
+                          fontWeight: 700,
+                          fontSize: '1.75rem',
+                          lineHeight: 1
+                        }}
+                      >
+                        {stats.totalTeachers}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: theme.palette.text.secondary,
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        人
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* 未分班学生 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 3 * 0.1 }}
+            style={{ flex: 1, minWidth: '200px' }}
+          >
+            <Card
+              sx={{
+                height: '100%',
+                borderRadius: 1,
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  transition: 'box-shadow 0.2s'
+                }
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 1.5,
+                      backgroundColor: alpha(theme.palette.error.main, 0.1),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <WarningIcon sx={{ color: theme.palette.error.main, fontSize: 20 }} />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        mb: 0.5
+                      }}
+                    >
+                      未分班学生
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                      <Typography
+                        variant="h4"
+                        sx={{
+                          color: theme.palette.text.primary,
+                          fontWeight: 700,
+                          fontSize: '1.75rem',
+                          lineHeight: 1
+                        }}
+                      >
+                        {stats.pendingRequests}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: theme.palette.text.secondary,
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        人
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </Box>
+
+        <Box mt={4}>
+          <Typography variant="h6" fontWeight={600} mb={3}>
+            班级列表
+          </Typography>
+          <AnimatePresence initial={false}>
+            {focusClass ? (
+              <>
+                <motion.div
+                  key="overlay"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.5 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    background: alpha(theme.palette.action.disabled, 0.3),
+                    backdropFilter: "blur(10px) saturate(180%)",
+                    WebkitBackdropFilter: "blur(10px) saturate(180%)",
+                    zIndex: 150,
+                  }}
+                  onClick={() => handleExpand(focusClass!)}
+                />
+                <motion.div
+                  key="focus"
+                  layoutId={`class-card-${focusClass.id}`}
+                  initial={{ y: -20, opacity: 0, scale: 0.95 }}
+                  animate={{ y: 0, opacity: 1, scale: 1 }}
+                  exit={{ y: -20, opacity: 0, scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                  style={{
+                    position: "fixed",
+                    top: 100, // 预留导航栏高度
+                    left: containerRect.left,
+                    width: containerRect.width,
+                    zIndex: 200,
+                  }}
+                >
+                  {renderClassCard(focusClass, true)}
+                </motion.div>
+              </>
+            ) : (
+              <Box
+                id="class-list-container"
+                sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+              >
+                {classList.map((cls) => (
+                  <motion.div
+                    key={cls.id}
+                    layoutId={`class-card-${cls.id}`}
+                    transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                  >
+                    {renderClassCard(cls, false)}
+                  </motion.div>
+                ))}
+              </Box>
+            )}
+          </AnimatePresence>
+        </Box>
+        {/* 新增未分班学生展示区域 */}
+        <Box mt={4} mb={4}>
+          <Typography variant="h6" fontWeight={600} mb={3}>
+            未分班学生 ({unassignedCount}人)
+          </Typography>
+          {unassignedCount > 0 ? (
+            <Card
+              sx={{
+                borderRadius: 3,
+                p: 2,
+                position: 'relative',
+                bgcolor: theme.palette.mode === 'dark'
+                  ? alpha(theme.palette.warning.main, 0.16)
+                  : alpha(theme.palette.warning.main, 0.12),
+                border: `1px solid ${alpha(theme.palette.warning.main, 0.35)}`,
+                boxShadow: 'none',
+                backdropFilter: theme.palette.mode === 'dark' ? 'blur(4px)' : 'none',
+                transition: 'background-color .25s,border-color .25s',
+                '&:hover': {
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? alpha(theme.palette.warning.main, 0.22)
+                    : alpha(theme.palette.warning.main, 0.18),
+                }
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  mb: 2,
+                  color: theme.palette.mode === 'dark' ? theme.palette.warning.light : 'text.secondary',
+                  fontWeight: 500
+                }}
+              >
+                以下学生尚未分配到班级，可通过“添加成员”功能将其分配到对应班级：
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {unassignedStudents.slice(0, 10).map((stu) => (
+                  <Chip
+                    key={stu.id}
+                    label={`${stu.name}（${stu.studentNo}）`}
+                    size="small"
+                    sx={{
+                      bgcolor: theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.background.paper, 0.4)
+                        : theme.palette.background.paper,
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
+                      '& .MuiChip-label': { px: 1.2 }
+                    }}
+                  />
+                ))}
+                {unassignedCount > 10 && (
+                  <Chip
+                    label={`还有 ${unassignedCount - 10} 人...`}
+                    size="small"
+                    sx={{
+                      bgcolor: theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.background.paper, 0.4)
+                        : theme.palette.background.paper,
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
+                    }}
+                  />
+                )}
+              </Box>
+            </Card>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              所有学生均已分配到班级
+            </Typography>
+          )}
+        </Box>
+      </Box>
+      <Snackbar
+        open={removeSuccessOpen}
+        autoHideDuration={3000}
+        onClose={() => setRemoveSuccessOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          severity="success"
+          variant="filled"
+          elevation={3}
+          onClose={() => setRemoveSuccessOpen(false)}
+          sx={{ fontWeight: 500 }}
+        >
+          成员已成功移除
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={addSuccessOpen}
+        autoHideDuration={3000}
+        onClose={() => setAddSuccessOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          severity="success"
+          variant="filled"
+          elevation={3}
+          onClose={() => setAddSuccessOpen(false)}
+          sx={{ fontWeight: 500 }}
+        >
+          成员添加成功
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={importSuccessOpen}
+        autoHideDuration={3500}
+        onClose={() => setImportSuccessOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          severity="success"
+          variant="filled"
+          elevation={3}
+          onClose={() => setImportSuccessOpen(false)}
+          sx={{ fontWeight: 500 }}
+        >
+          导入完成{importAdded !== null ? `，新增 ${importAdded} 人` : ''}
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={monitorSuccessOpen}
+        autoHideDuration={3000}
+        onClose={() => setMonitorSuccessOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          severity="info"
+          variant="filled"
+          elevation={3}
+          onClose={() => setMonitorSuccessOpen(false)}
+          sx={{ fontWeight: 500 }}
+        >
+          {monitorMessage}
+        </Alert>
+      </Snackbar>
+      {/* 设置班长确认 */}
+      <Dialog
+        open={setMonitorDialog.open}
+        onClose={() => setSetMonitorDialog({ open: false })}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>设为班长确认</DialogTitle>
+        <DialogContent>
+          <Typography>
+            确认将学生 <b>{setMonitorDialog.student?.name}</b>（学号：{setMonitorDialog.student?.studentNo}）设为班长？<br/>
+            原班长（若存在）将被自动取消。
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSetMonitorDialog({ open: false })}>取消</Button>
+            <Button
+              variant="contained"
+              disabled={monitorUpdating}
+              onClick={() => {
+                if (setMonitorDialog.classId && setMonitorDialog.student) {
+                  handleSetMonitor(setMonitorDialog.classId, setMonitorDialog.student.id, setMonitorDialog.student.name);
+                }
+                setSetMonitorDialog({ open: false });
+              }}
+            >
+              确认
+            </Button>
+        </DialogActions>
+      </Dialog>
+      {/* 取消班长确认 */}
+      <Dialog
+        open={unsetMonitorDialog.open}
+        onClose={() => setUnsetMonitorDialog({ open: false })}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>取消班长确认</DialogTitle>
+        <DialogContent>
+          <Typography>
+            确认取消学生 <b>{unsetMonitorDialog.student?.name}</b> 的班长身份？<br/>
+            取消后可重新为任意学生设置。
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUnsetMonitorDialog({ open: false })}>关闭</Button>
+          <Button
+            color="warning"
+            variant="contained"
+            disabled={monitorUpdating}
+            onClick={() => {
+              if (unsetMonitorDialog.classId) {
+                handleUnsetMonitor(unsetMonitorDialog.classId);
+              }
+              setUnsetMonitorDialog({ open: false });
+            }}
+          >
+            确认取消
           </Button>
-        )}
-        <Button onClick={() => setImportResultOpen(false)}>关闭</Button>
-      </DialogActions>
-    </Dialog>
+        </DialogActions>
+      </Dialog>
+      <Snackbar
+        open={importError.open}
+        autoHideDuration={4000}
+        onClose={() => setImportError({ open: false, msg: '' })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          elevation={3}
+          onClose={() => setImportError({ open: false, msg: '' })}
+          sx={{ fontWeight: 500 }}
+        >
+          {importError.msg}
+        </Alert>
+      </Snackbar>
+      <Dialog
+        open={importResultOpen}
+        onClose={() => setImportResultOpen(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          导入结果详情
+          {importResult && (
+            <Tooltip title="统计口径：Processed=非空行；Success=成功写入；Duplicates=学号已存在；RowErrors=行级校验失败">
+              <InfoOutlinedIcon fontSize="small" color="action" />
+            </Tooltip>
+          )}
+        </DialogTitle>
+        <DialogContent dividers sx={{ pt: 1 }}>
+          {importResult ? (
+            <Stack spacing={2}>
+              <Box display="flex" flexWrap="wrap" gap={2}>
+                <StatChip label="扫描行数" value={importResult.totalRows} color={theme.palette.info.main} />
+                <StatChip label="有效行" value={importResult.processed} color={theme.palette.primary.main} />
+                <StatChip label="成功新增" value={importResult.success} color={theme.palette.success.main} />
+                <StatChip label="重复学号" value={importResult.duplicateStudentNos.length} color={theme.palette.warning.main} />
+                <StatChip label="错误行" value={importResult.rowErrors.length} color={theme.palette.error.main} />
+              </Box>
+              {importResult.duplicateStudentNos.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} mb={0.5}>重复学号</Typography>
+                  <Box display="flex" flexWrap="wrap" gap={1}>
+                    {importResult.duplicateStudentNos.map(no => (
+                      <Chip key={no} label={no} size="small" color="warning" variant="outlined" />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+              {importResult.rowErrors.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} mb={0.5}>行级错误</Typography>
+                  <Paper variant="outlined" sx={{ maxHeight: 240, overflow: 'auto' }}>
+                    <Table size="small" stickyHeader>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ width: 90 }}>Excel行号</TableCell>
+                          <TableCell>错误信息</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {importResult.rowErrors.map((er, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>{er.rowIndex}</TableCell>
+                            <TableCell>{er.message}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Paper>
+                </Box>
+              )}
+            </Stack>
+          ) : (
+            <Typography variant="body2" color="text.secondary">暂无数据</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {importResult && (
+            <Button
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={() => exportImportResult(importResult)}
+            >
+              导出 CSV
+            </Button>
+          )}
+          <Button onClick={() => setImportResultOpen(false)}>关闭</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
@@ -1436,7 +1609,7 @@ function exportImportResult(r: ImportStudentsResult) {
   }
   if (r.rowErrors.length) {
     lines.push('RowIndex,Message');
-    r.rowErrors.forEach(er => lines.push(`${er.rowIndex},"${er.message.replace(/"/g,'""')}"`));
+    r.rowErrors.forEach(er => lines.push(`${er.rowIndex},"${er.message.replace(/"/g, '""')}"`));
   }
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
