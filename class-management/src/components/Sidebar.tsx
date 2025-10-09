@@ -198,11 +198,18 @@ export default function Sidebar({ open }: { open: boolean }) {
         boxShadow: theme.shadows[3],
       }}
     >
-
-      <Box sx={{ flex: 1, overflowY: "auto", pt: 1 }}>
+      <Box
+        sx={{
+          flex: 1,
+          overflowY: "auto",
+          pt: 1,
+          scrollbarWidth: "none",
+          "&::-webkit-scrollbar": { display: "none" },
+        }}
+      >
         {activeMenu.map((section) => (
           <Box key={section.section} sx={{ mb: 2 }}>
-                        <Typography
+            <Typography
               variant="caption"
               sx={{
                 color: theme.palette.text.secondary,
@@ -221,7 +228,8 @@ export default function Sidebar({ open }: { open: boolean }) {
                 const hasChildren = !!item.children;
                 const isOpen = openMenus[item.key];
                 // 父菜单高亮：自己被选中或有子菜单被选中
-                const isSelected = selectedKey === item.key || parentKey === item.key;
+                const isSelected =
+                  selectedKey === item.key || parentKey === item.key;
                 return (
                   <Box key={item.key}>
                     {item.href ? (
@@ -236,21 +244,26 @@ export default function Sidebar({ open }: { open: boolean }) {
                             ...(selectedKey === item.key && {
                               bgcolor: alpha(theme.palette.primary.main, 0.1),
                               color: theme.palette.primary.main,
-                              boxShadow: `0 2px 4px ${alpha(theme.palette.primary.main, 0.2)}`,
+                              boxShadow: `0 2px 4px ${alpha(
+                                theme.palette.primary.main,
+                                0.2
+                              )}`,
                             }),
                             "&:hover": {
-                              bgcolor: selectedKey === item.key 
-                                ? alpha(theme.palette.primary.main, 0.1) 
-                                : theme.palette.action.hover,
+                              bgcolor:
+                                selectedKey === item.key
+                                  ? alpha(theme.palette.primary.main, 0.1)
+                                  : theme.palette.action.hover,
                             },
                           }}
                         >
                           <ListItemIcon
                             sx={{
                               minWidth: 36,
-                              color: selectedKey === item.key 
-                                ? theme.palette.primary.main 
-                                : theme.palette.text.secondary,
+                              color:
+                                selectedKey === item.key
+                                  ? theme.palette.primary.main
+                                  : theme.palette.text.secondary,
                               justifyContent: "center",
                             }}
                           >
@@ -267,9 +280,7 @@ export default function Sidebar({ open }: { open: boolean }) {
                     ) : (
                       <ListItemButton
                         onClick={() =>
-                          hasChildren
-                            ? handleToggle(item.key)
-                            : undefined
+                          hasChildren ? handleToggle(item.key) : undefined
                         }
                         selected={isSelected}
                         sx={{
@@ -280,11 +291,14 @@ export default function Sidebar({ open }: { open: boolean }) {
                           ...(isSelected && {
                             bgcolor: alpha(theme.palette.primary.main, 0.08),
                             color: theme.palette.primary.main,
-                            boxShadow: `0 2px 4px ${alpha(theme.palette.primary.main, 0.15)}`,
+                            boxShadow: `0 2px 4px ${alpha(
+                              theme.palette.primary.main,
+                              0.15
+                            )}`,
                           }),
                           "&:hover": {
-                            bgcolor: isSelected 
-                              ? alpha(theme.palette.primary.main, 0.1) 
+                            bgcolor: isSelected
+                              ? alpha(theme.palette.primary.main, 0.1)
                               : theme.palette.action.hover,
                           },
                         }}
@@ -292,8 +306,8 @@ export default function Sidebar({ open }: { open: boolean }) {
                         <ListItemIcon
                           sx={{
                             minWidth: 36,
-                            color: isSelected 
-                              ? theme.palette.primary.main 
+                            color: isSelected
+                              ? theme.palette.primary.main
                               : theme.palette.text.secondary,
                             justifyContent: "center",
                           }}
@@ -306,7 +320,8 @@ export default function Sidebar({ open }: { open: boolean }) {
                             fontWeight: isSelected ? 700 : 500,
                           }}
                         />
-                        {hasChildren && (isOpen ? <ExpandLess /> : <ExpandMore />)}
+                        {hasChildren &&
+                          (isOpen ? <ExpandLess /> : <ExpandMore />)}
                       </ListItemButton>
                     )}
                     {/* 子菜单 */}
@@ -323,21 +338,29 @@ export default function Sidebar({ open }: { open: boolean }) {
                                   borderRadius: 1.5,
                                   minHeight: 36,
                                   ...(selectedKey === child.key && {
-                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                    bgcolor: alpha(
+                                      theme.palette.primary.main,
+                                      0.1
+                                    ),
                                     color: theme.palette.primary.main,
-                                    boxShadow: `0 2px 4px ${alpha(theme.palette.primary.main, 0.2)}`,
+                                    boxShadow: `0 2px 4px ${alpha(
+                                      theme.palette.primary.main,
+                                      0.2
+                                    )}`,
                                   }),
                                   "&:hover": {
-                                    bgcolor: selectedKey === child.key 
-                                      ? alpha(theme.palette.primary.main, 0.1) 
-                                      : theme.palette.action.hover,
+                                    bgcolor:
+                                      selectedKey === child.key
+                                        ? alpha(theme.palette.primary.main, 0.1)
+                                        : theme.palette.action.hover,
                                   },
                                 }}
                               >
                                 <ListItemText
                                   primary={child.text}
                                   primaryTypographyProps={{
-                                    fontWeight: selectedKey === child.key ? 700 : 500,
+                                    fontWeight:
+                                      selectedKey === child.key ? 700 : 500,
                                     fontSize: 14,
                                   }}
                                 />
