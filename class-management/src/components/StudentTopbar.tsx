@@ -112,8 +112,8 @@ export default function StudentTopbar({ showBack, title, onAvatarClick }: Studen
               <ClassIcon fontSize="small" sx={{ mr: 1 }} /> 班级学分
             </MenuItem>
           ) : null}
-          <MenuItem onClick={() => { handleClose(); /* 预留个人信息 */ }}>
-            <InfoOutlinedIcon fontSize="small" sx={{ mr: 1 }} /> 个人信息 (占位)
+          <MenuItem onClick={() => { handleClose(); router.push('/student/profile'); }}>
+            <InfoOutlinedIcon fontSize="small" sx={{ mr: 1 }} /> 个人信息
           </MenuItem>
           <MenuItem onClick={handleLogout} sx={{ mt: .5, borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}>
             <LogoutIcon fontSize="small" sx={{ mr: 1 }} /> 退出登录

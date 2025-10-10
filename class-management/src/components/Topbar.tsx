@@ -215,9 +215,9 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
               管理仪表盘
             </MenuItem>
           )}
-          <MenuItem onClick={() => { handleClose(); /* 预留个人信息页面 */ }}>
+          <MenuItem onClick={() => { handleClose(); router.push(isStudent ? '/admin/profile' : '/admin/profile'); }}>
             <InfoOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
-            个人信息 (占位)
+            个人信息
           </MenuItem>
           <MenuItem onClick={handleLogout} sx={{
             mt: .5,

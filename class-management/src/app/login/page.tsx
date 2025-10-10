@@ -359,7 +359,7 @@ export default function AuthPage() {
                   <form onSubmit={handleLogin}>
                     <Stack spacing={2} mb={2}>
                       <TextField
-                        label="学号 / 用户名"
+                        label="学号"
                         value={loginForm.username}
                         onChange={e => setLoginForm(f => ({ ...f, username: e.target.value }))}
                         fullWidth
