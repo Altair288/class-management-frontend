@@ -17,6 +17,8 @@ interface AuthState {
   user: AuthUser | null;
   loading: boolean;
   refresh: () => Promise<void>;
+  logout: () => void; // 强制登出
+  setUserUnsafe: (u: AuthUser | null) => void; // 特殊场景（如登录成功后直接写入）
   isStudent: boolean;
   isAdmin: boolean;
   isTeacher: boolean;
@@ -82,10 +84,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener('storage', onStorage);
   }, [load]);
 
+  const logout = () => {
+    try {
+      setUser(null);
+      // 广播给其它标签页
+      localStorage.setItem('auth:changed', Date.now().toString());
+    } catch {}
+  };
+
   const value: AuthState = {
     user,
     loading: !firstTried || loadingInternal,
     refresh: load,
+    logout,
+    setUserUnsafe: (u) => setUser(u),
     isStudent: user?.userType === 'STUDENT',
     isAdmin: user?.userType === 'ADMIN',
     isTeacher: user?.userType === 'TEACHER',

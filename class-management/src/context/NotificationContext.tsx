@@ -35,6 +35,11 @@ export function NotificationProvider({ userId, children }: NotificationProviderP
     markAsRead
   } = useNotifications(userId, { poll: true, pollInterval: 30000, limit: 20, sse: true });
 
+  if (process.env.NODE_ENV !== 'production') {
+    // 只在开发模式下输出一次关键状态（可根据 userId + initialized 变化）
+    console.debug('[NotificationProvider] render', { userId, initialized, sseConnected, loading });
+  }
+
   const value: NotificationContextValue = useMemo(() => ({
     notifications,
     unreadCount,

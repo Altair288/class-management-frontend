@@ -1,25 +1,20 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Box, Typography, Card, CardContent, Chip, Button, CircularProgress, TextField, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
-import { useNotifications, getPriorityColor, getTypeLabel } from '@/hooks/useNotifications';
+import { getPriorityColor, getTypeLabel } from '@/hooks/useNotifications';
+import { useNotificationContext } from '@/context/NotificationContext';
 import CircleIcon from '@mui/icons-material/Circle';
 import { motion } from 'framer-motion';
 
-interface UserInfo { id: number; username: string; userType: string }
-
 export default function AllNotificationsPage() {
-  const [user, setUser] = useState<UserInfo | null>(null);
+  // 上层 StudentLayout 已经提供用户和 NotificationProvider
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const theme = useTheme();
 
-  useEffect(() => {
-    fetch('/api/users/current').then(r => r.json()).then(setUser).catch(() => setUser(null));
-  }, []);
-
-  const { notifications, unreadCount, loading, markAsRead, markAllRead, refresh } = useNotifications(user?.id, { limit: 100, history: true });
+  const { notifications, unreadCount, loading, markAsRead, markAllRead, refresh } = useNotificationContext();
 
   const filtered = notifications.filter(n => {
     return (!typeFilter || n.type === typeFilter) && (!priorityFilter || n.priority === priorityFilter) && (!search || n.title.includes(search) || n.content.includes(search));

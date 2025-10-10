@@ -51,7 +51,8 @@ export default function NotificationPanel({
   // 始终尝试调用（若没有 Provider 会抛错）
   const possibleCtx = useOptionalNotificationContext();
   const ctx = preferContext ? possibleCtx : null;
-  const standalone = useNotifications(userId, { limit });
+  // 始终调用一次 hook 保持 hooks 顺序稳定；若已有 Provider 则关闭其 SSE (sse:false) 并只作数据占位
+  const standalone = useNotifications(userId, { limit, sse: !ctx });
   const notifications = ctx ? ctx.notifications : standalone.notifications;
   const unreadCount = ctx ? ctx.unreadCount : standalone.unreadCount;
   const loading = ctx ? ctx.loading : standalone.loading;

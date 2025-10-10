@@ -81,8 +81,8 @@ export default function StudentBottomNav() {
         zIndex: 1200,
         border: "none",
         boxShadow: "none",
-        backdropFilter: "none",
-        background: "transparent",
+        // 不在外层使用 blur，避免全屏背景被再次模糊
+        background: 'transparent',
         px: 0,
         pt: 0,
         pb: `calc(8px + env(safe-area-inset-bottom))`,
@@ -108,22 +108,21 @@ export default function StudentBottomNav() {
               alignItems: "center",
               padding: "8px 8px",
               borderRadius: 32,
+              isolation: 'isolate', // 限制伪元素滤镜影响范围
               // 通过伪元素做真正玻璃层，避免内容本身被过度模糊
               "&::before": {
                 content: '""',
                 position: "absolute",
                 inset: 0,
                 borderRadius: 32,
-                background:
-                  theme.palette.mode === "dark"
-                    ? "rgba(40,40,48,0.45)"
-                    : "rgba(255,255,255,0.55)",
-                backdropFilter: "blur(22px) saturate(170%)",
-                WebkitBackdropFilter: "blur(22px) saturate(170%)",
-                boxShadow:
-                  theme.palette.mode === "dark"
-                    ? "0 4px 18px -4px rgba(0,0,0,0.65), inset 0 0 0 1px rgba(255,255,255,0.10)"
-                    : "0 8px 22px -6px rgba(31,59,88,0.28), inset 0 0 0 1px rgba(255,255,255,0.50)",
+                background: theme.palette.mode === 'dark'
+                  ? 'rgba(30,30,38,0.50)'
+                  : 'rgba(255,255,255,0.55)',
+                backdropFilter: 'blur(26px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(26px) saturate(180%)',
+                boxShadow: theme.palette.mode === 'dark'
+                  ? '0 4px 16px -4px rgba(0,0,0,0.55), 0 2px 4px -2px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.12)'
+                  : '0 8px 24px -8px rgba(31,59,88,0.28), 0 3px 6px -2px rgba(31,59,88,0.16), inset 0 0 0 1px rgba(255,255,255,0.55)',
                 pointerEvents: "none",
               },
               // 提供额外高光/暗角层
@@ -132,10 +131,9 @@ export default function StudentBottomNav() {
                 position: "absolute",
                 inset: 0,
                 borderRadius: 32,
-                background:
-                  theme.palette.mode === "dark"
-                    ? "linear-gradient(160deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 60%)"
-                    : "linear-gradient(160deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.35) 70%)",
+                background: theme.palette.mode === 'dark'
+                  ? 'linear-gradient(155deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 70%)'
+                  : 'linear-gradient(160deg, rgba(255,255,255,0.80) 0%, rgba(255,255,255,0.38) 60%, rgba(255,255,255,0.18) 100%)',
                 mixBlendMode:
                   theme.palette.mode === "dark" ? "normal" : "overlay",
                 pointerEvents: "none",

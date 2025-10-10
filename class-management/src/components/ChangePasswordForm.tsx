@@ -19,13 +19,8 @@ export default function ChangePasswordForm() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const router = useRouter();
-  interface AuthLike {
-    refreshUser?: () => Promise<void>; 
-  setUser?: (u: unknown) => void; // 宽松类型
-  }
-  const auth = useAuth() as unknown as AuthLike;
-  const refreshUser = auth.refreshUser;
-  const setUser = auth.setUser;
+  const auth = useAuth();
+  const refreshUser = auth.refresh;
 
   const canSubmit = oldPassword && newPassword && confirmPassword && newPassword === confirmPassword;
 
@@ -39,15 +34,13 @@ export default function ChangePasswordForm() {
       const res = await changePassword({ oldPassword, newPassword, confirmPassword });
       setSuccess(res.message || '修改成功');
       if (res.forceReLogin) {
-        // 清理本地用户并跳转登录
         try {
-          if (setUser) setUser(null);
-        } catch {
-          /* ignore */
-        }
-        setTimeout(() => router.push('/login'), 1200);
+          auth.logout();
+          // 清理可能的 token (若未来加入)：localStorage.removeItem('auth_token');
+        } catch {}
+        setTimeout(() => router.replace('/login?relogin=1'), 600);
       } else {
-        try { await refreshUser?.(); } catch {}
+        try { await refreshUser(); } catch {}
       }
       setOldPassword('');
       setNewPassword('');

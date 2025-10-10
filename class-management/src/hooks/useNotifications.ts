@@ -164,13 +164,49 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
   }, [userId]);
 
   // SSE 连接函数
+  // 全局单例：同一个窗口只允许 (userId + sse=true) 一条连接
+  // (window as any).__GLOBAL_SSE__ = { userId, es }
   const setupSse = useCallback(() => {
-    if (!userId || !sse) return;
+    if (!userId || !sse) {
+      if (process.env.NODE_ENV !== 'production') console.debug('[SSE] skip setupSse early', { userId, sse });
+      return;
+    }
     // 如果浏览器或运行环境不支持 EventSource，直接跳过
-    if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
+    if (typeof window === 'undefined' || typeof EventSource === 'undefined') {
+      if (process.env.NODE_ENV !== 'production') console.debug('[SSE] EventSource unsupported or SSR phase');
+      return;
+    }
 
     // 已存在连接则不重复创建
-    if (sseRef.current) return;
+    if (sseRef.current) {
+      if (process.env.NODE_ENV !== 'production') console.debug('[SSE] skip create (instance already exists)');
+      return;
+    }
+    try {
+      interface GlobalSseHolder { __GLOBAL_SSE__?: { userId: number; es: EventSource } }
+      const g = window as unknown as GlobalSseHolder;
+      if (g.__GLOBAL_SSE__ && g.__GLOBAL_SSE__.es && g.__GLOBAL_SSE__.userId === userId) {
+        const existing = g.__GLOBAL_SSE__.es;
+        // readyState: 0 CONNECTING, 1 OPEN, 2 CLOSED
+  interface ESWithState extends EventSource { readyState: number }
+  const withState = existing as ESWithState;
+  if (withState.readyState === 1) {
+          if (process.env.NODE_ENV !== 'production') console.debug('[SSE] reuse existing global connection (OPEN)');
+          sseRef.current = existing;
+          setSseConnected(true);
+          return;
+  } else if (withState.readyState === 0) {
+          if (process.env.NODE_ENV !== 'production') console.debug('[SSE] reuse existing global connection (CONNECTING)');
+          sseRef.current = existing;
+          // 不立刻标记 connected，等待 open 事件
+          return;
+        } else {
+          if (process.env.NODE_ENV !== 'production') console.debug('[SSE] discard stale global connection (CLOSED), recreating');
+          try { existing.close(); } catch {}
+          try { delete g.__GLOBAL_SSE__; } catch {}
+        }
+      }
+    } catch {}
 
     manualClosedRef.current = false;
     // 需要携带 Cookie -> 使用 withCredentials
@@ -184,7 +220,11 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
     const ES: any = EventSource as unknown as { new (url: string, opts?: { withCredentials?: boolean }): EventSource };
     if (process.env.NODE_ENV !== 'production') console.debug('[SSE] creating connection', { url, backendOrigin });
     const es: EventSource = new ES(url, { withCredentials: true });
-    sseRef.current = es;
+  sseRef.current = es;
+    try {
+      interface GlobalSseHolder { __GLOBAL_SSE__?: { userId: number; es: EventSource } }
+      (window as unknown as GlobalSseHolder).__GLOBAL_SSE__ = { userId, es };
+    } catch {}
     // 暴露供外部调试
   try { (window as unknown as { __sse?: EventSource }).__sse = es; } catch {}
     setSseError(null);
@@ -356,6 +396,14 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
       setSseError('SSE 连接中断');
       try { sseRef.current?.close(); } catch {}
       sseRef.current = null;
+      // 清理全局引用，避免复用到已失效的 CLOSED 实例
+      try {
+        interface GlobalSseHolder { __GLOBAL_SSE__?: { userId: number; es: EventSource } }
+        const g = window as unknown as GlobalSseHolder;
+        if (g.__GLOBAL_SSE__ && g.__GLOBAL_SSE__.es === es) {
+          delete g.__GLOBAL_SSE__;
+        }
+      } catch {}
       if (manualClosedRef.current) return; // 主动关闭不重连
 
       // 探测是否会话过期（401），避免盲目重连死循环
@@ -372,7 +420,7 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
         // 网络错误，继续按原逻辑退避重连
         if (process.env.NODE_ENV !== 'production') console.debug('[SSE] probe error (treat as transient)', probeErr);
       }
-      if (sseMaxRetries !== -1 && retryRef.current >= sseMaxRetries) return;
+  if (sseMaxRetries !== -1 && retryRef.current >= sseMaxRetries) return;
       retryRef.current += 1;
       // 指数退避 + 抖动
       const delay = Math.min(
@@ -386,13 +434,18 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
 
   // 初始化：加载一次 + 建立 SSE
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      if (process.env.NODE_ENV !== 'production') console.debug('[SSE] init effect early exit no userId');
+      return;
+    }
+    if (process.env.NODE_ENV !== 'production') console.debug('[SSE] init effect run', { userId, sse });
     fetchUnreadCount();
     fetchNotifications();
     if (sse) {
       setupSse();
     }
     return () => {
+      if (process.env.NODE_ENV !== 'production') console.debug('[SSE] cleanup effect', { userId });
       manualClosedRef.current = true;
       sseRef.current?.close();
       sseRef.current = null;

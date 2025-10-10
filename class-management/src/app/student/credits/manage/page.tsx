@@ -373,20 +373,23 @@ export default function MonitorCreditManagePage() {
               sx={{ borderRadius: 2, position: "relative" }}
             >
               <CardContent sx={{ pb: "12px!important" }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 1,
-                  }}
-                >
-                  <Typography fontSize={15} fontWeight={600}>
-                    {r.studentName}
-                  </Typography>
-                  <Typography fontSize={11} color="text.secondary">
-                    {r.studentNo}
-                  </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography fontSize={15} fontWeight={600} sx={{ lineHeight: 1.2, pr: 4 }} noWrap>
+                      {r.studentName}
+                    </Typography>
+                    <Typography fontSize={11} color="text.secondary" sx={{ mt: 0.4 }}>
+                      学号: {r.studentNo}
+                    </Typography>
+                  </Box>
+                  <IconButton
+                    size="small"
+                    onClick={() => openEditDialog(r)}
+                    sx={{ ml: 0.5, mt: 0.2 }}
+                    aria-label={`编辑 ${r.studentName}`}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
                 </Box>
                 <Stack
                   direction="row"
@@ -402,7 +405,6 @@ export default function MonitorCreditManagePage() {
                       color={scoreChipColor(r[k] as number | undefined)}
                       size="small"
                       variant="outlined"
-                      // 移除点击编辑行为
                       sx={{ cursor: "default" }}
                     />
                   ))}
@@ -413,13 +415,6 @@ export default function MonitorCreditManagePage() {
                     <Chip size="small" color="secondary" label={r.status} />
                   )}
                 </Stack>
-                <IconButton
-                  size="small"
-                  onClick={() => openEditDialog(r)}
-                  sx={{ position: "absolute", top: 6, right: 4, opacity: 0.6 }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
               </CardContent>
             </Card>
           ))}
@@ -606,6 +601,10 @@ export default function MonitorCreditManagePage() {
         autoHideDuration={3200}
         onClose={handleCloseSnack}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        // 移动端底部有 BottomNav，向上偏移避免遮挡
+        sx={{
+          bottom: isMobile ? 80 : 24, // 80 ~= 56(nav高度)+间距
+        }}
       >
         <Alert
           onClose={handleCloseSnack}
@@ -616,14 +615,6 @@ export default function MonitorCreditManagePage() {
           {snack.msg}
         </Alert>
       </Snackbar>
-
-      {/* TODO: 后续步骤：
-        1) sm 以下切换为 Card 列表视图 (mobile-first)。
-        2) 顶部添加搜索与状态过滤下拉。
-        3) 骨架加载 + 重试按钮。
-        4) Dialog 显示原值，提交中禁用按钮。
-        5) 分值 Chips 颜色根据区间 (≥80 success, ≥60 info, ≥40 warning, else error)。
-      */}
     </Box>
   );
 }
