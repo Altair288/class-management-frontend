@@ -45,6 +45,7 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
   const [sseError, setSseError] = useState<null | string>(null);
   const lastEventTsRef = useRef<number>(0);
   const HEARTBEAT_EXPECTED_MS = 65000; // 服务器 30s ping，这里 65s 判定超时
+  const SOFT_REFRESH_INTERVAL = 120000; // 2 分钟做一次软刷新（防止长时间无事件但未触发 stale）
   const prevUnreadRef = useRef<number>(0);
 
   const sseRef = useRef<EventSource | null>(null);
@@ -213,7 +214,8 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
     // Next.js rewrites 在某些环境(尤其 dev/或部署在 Vercel) 对 SSE 可能发生缓冲，改为直接指向后端根域名可规避。
     // 支持通过环境变量覆盖：NEXT_PUBLIC_BACKEND_ORIGIN，例如 http://localhost:8080
     const backendOrigin = (process.env.NEXT_PUBLIC_BACKEND_ORIGIN || '').replace(/\/$/, '');
-    const relative = `/api/notifications/stream?userId=${userId}`;
+  // 后端已能通过 principal 解析 userId，不再需要 query 参数
+  const relative = `/api/notifications/stream`;
     const url = backendOrigin ? `${backendOrigin}${relative}` : relative;
     // TS DOM lib 可能没有定义第二参数 withCredentials（不同 TS 版本差异），通过类型断言绕过
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -444,12 +446,24 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
     if (sse) {
       setupSse();
     }
+    // 页面卸载或标签隐藏时主动关闭，减少服务端心跳异常日志
+    const handlePageHide = () => {
+      manualClosedRef.current = true;
+      if (sseRef.current) {
+        try { sseRef.current.close(); } catch {}
+        sseRef.current = null;
+      }
+    };
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('beforeunload', handlePageHide);
     return () => {
       if (process.env.NODE_ENV !== 'production') console.debug('[SSE] cleanup effect', { userId });
       manualClosedRef.current = true;
       sseRef.current?.close();
       sseRef.current = null;
       setSseConnected(false);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handlePageHide);
     };
   }, [userId, fetchUnreadCount, fetchNotifications, sse, setupSse]);
 
@@ -492,6 +506,18 @@ export function useNotifications(userId: number | undefined, opts: UseNotificati
     }, 15000);
     return () => clearInterval(timer);
   }, [sse, userId, sseConnected, setupSse]);
+
+  // 定期软刷新：即使 SSE 正常，也每 2 分钟被动同步一次未读计数和最新列表头部，防止漏消息（例如首次丢失 snapshot）
+  useEffect(() => {
+    if (!userId) return;
+    const soft = setInterval(() => {
+      if (process.env.NODE_ENV !== 'production') console.debug('[SSE] soft refresh tick');
+      fetchUnreadCount();
+      // 仅在非 history 情况刷新 inbox 头部
+      if (!opts.history) fetchNotifications();
+    }, SOFT_REFRESH_INTERVAL);
+    return () => clearInterval(soft);
+  }, [userId, fetchUnreadCount, fetchNotifications, opts.history]);
 
   return {
     notifications,
