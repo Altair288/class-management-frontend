@@ -1,12 +1,12 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { Box, Card, CardContent, Typography, TextField, Button, Alert, CircularProgress, Stack } from "@mui/material";
 import axios from "axios";
 import { useSearchParams, useRouter } from "next/navigation";
 
 interface VerifyResp { valid: boolean; expiresAt?: string | number }
 
-export default function ResetPasswordPage() {
+function ResetPasswordInner() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token") || params.get("toekn") || ""; // 兼容用户可能拼写错误 toekn
@@ -243,5 +243,13 @@ export default function ResetPasswordPage() {
         </CardContent>
       </Card>
     </Box>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div style={{padding:40,textAlign:'center'}}>加载中...</div>}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }
