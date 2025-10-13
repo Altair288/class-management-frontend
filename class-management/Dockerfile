@@ -1,13 +1,13 @@
 ## Multi-stage Dockerfile for Next.js frontend
 ## 1. Dependencies install
-FROM node:24.7.0-alpine AS deps
+FROM docker.altair288.eu.org/node:24.7.0-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 # 临时使用 --legacy-peer-deps 解决 @material-ui/core 对旧版本 React 类型的 peer 依赖冲突
 RUN npm install --legacy-peer-deps --production=false
 
 ## 2. Build stage
-FROM node:24.7.0-alpine AS build
+FROM docker.altair288.eu.org/node:24.7.0-alpine AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
@@ -15,7 +15,7 @@ COPY . .
 RUN npm run build
 
 ## 3. Production runner (can use standalone output later if configured)
-FROM node:24.7.0-alpine AS runner
+FROM docker.altair288.eu.org/node:24.7.0-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

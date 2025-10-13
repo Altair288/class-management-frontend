@@ -1,12 +1,15 @@
 "use client";
 import React, { useEffect, useState, Suspense } from "react";
 import { Box, Card, CardContent, Typography, TextField, Button, Alert, CircularProgress, Stack } from "@mui/material";
+import { useTheme as useMuiTheme } from "@mui/material/styles";
 import axios from "axios";
 import { useSearchParams, useRouter } from "next/navigation";
 
 interface VerifyResp { valid: boolean; expiresAt?: string | number }
 
 function ResetPasswordInner() {
+  const muiTheme = useMuiTheme();
+  const isDark = muiTheme.palette.mode === 'dark';
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token") || params.get("toekn") || ""; // 兼容用户可能拼写错误 toekn
@@ -85,12 +88,12 @@ function ResetPasswordInner() {
   };
 
   return (
-    <Box 
+    <Box
       sx={{
-        minHeight:"100vh", 
-        display:"flex", 
-        alignItems:"center", 
-        justifyContent:"center", 
+        minHeight:"100vh",
+        display:"flex",
+        alignItems:"center",
+        justifyContent:"center",
         p:2,
         backgroundImage: 'url(https://arch.altair288.eu.org:3001/i/fec3573f-80ef-473f-9afb-e4401dc64e5a.jpg)',
         backgroundSize: 'cover',
@@ -100,26 +103,24 @@ function ResetPasswordInner() {
         '&::before': {
           content: '""',
           position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(2px)',
+          inset: 0,
+          // 固定统一遮罩，不随明暗模式变化
+          // backgroundColor: 'rgba(0,0,0,0.50)',
+          backdropFilter: 'blur(0px)',
         }
       }}
     >
       <Card 
         sx={{
-          width:440, 
+          width:440,
           maxWidth:"100%",
           minHeight: 480,
-          borderRadius:3, 
-          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1)',
-          backgroundColor: 'rgba(255, 255, 255, 0.75)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          border: '1px solid rgba(255, 255, 255, 0.5)',
+          borderRadius:3,
+          boxShadow: isDark ? '0 8px 32px 0 rgba(0,0,0,0.6)' : '0 8px 28px -6px rgba(0,0,0,0.18)',
+          backgroundColor: isDark ? 'rgba(26,31,46,0.5)' : 'rgba(255,255,255,0.60)', // 降低透明度
+          backdropFilter: 'blur(24px) saturate(180%)', // 增强模糊和饱和度
+          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.10)'}`, // 边框更淡
           position: 'relative',
           zIndex: 1,
         }}
@@ -130,7 +131,7 @@ function ResetPasswordInner() {
             fontWeight={600} 
             mb={3}
             sx={{
-              color: '#1976d2',
+              color: muiTheme.palette.primary.main,
               textAlign: 'center',
             }}
           >
@@ -145,20 +146,34 @@ function ResetPasswordInner() {
           {status !== "checking" && status !== "invalid" && (
             <>
               {message && (
-                <Alert severity={status === "done" ? "success":"info"} sx={{mb:2, borderRadius: 2}}>{message}</Alert>
+                <Alert
+                  severity={status === "done" ? "success":"info"}
+                  sx={{
+                    mb:2,
+                    borderRadius: 2,
+                    color: status === 'done'
+                      ? muiTheme.palette.success.contrastText
+                      : muiTheme.palette.mode === 'dark'
+                        ? muiTheme.palette.text.primary
+                        : muiTheme.palette.text.primary,
+                    '& .MuiAlert-icon': {
+                      color: status === 'done' ? muiTheme.palette.success.light : muiTheme.palette.info.light
+                    }
+                  }}
+                >{message}</Alert>
               )}
               {status !== "done" && (
                 <Stack spacing={2.5}>
                   {expiresAt && (
-                    <Typography 
-                      variant="body2" 
-                      color="text.secondary"
-                      sx={{ 
+                    <Typography
+                      variant="body2"
+                      sx={{
                         textAlign: 'center',
-                        backgroundColor: 'rgba(25, 118, 210, 0.08)',
-                        padding: 1.5,
+                        backgroundColor: isDark ? 'rgba(100,181,246,0.12)' : 'rgba(25,118,210,0.08)',
+                        padding: 1.25,
                         borderRadius: 2,
-                        borderLeft: '3px solid #1976d2',
+                        borderLeft: `3px solid ${muiTheme.palette.primary.main}`,
+                        color: muiTheme.palette.text.secondary,
                       }}
                     >
                       链接有效期至：{formatExpireTime(expiresAt)}
@@ -183,14 +198,17 @@ function ResetPasswordInner() {
                       },
                     }}
                   />
-                  <Alert 
-                    severity="info" 
+                  <Alert
+                    severity="info"
                     sx={{
-                      fontSize:12, 
+                      fontSize:12,
                       borderRadius: 2,
+                      backgroundColor: isDark ? 'rgba(99,179,237,0.10)' : 'rgba(23,162,184,0.08)',
+                      color: muiTheme.palette.mode === 'dark' ? muiTheme.palette.info.light : muiTheme.palette.info.dark,
+                      '& .MuiAlert-icon': { color: muiTheme.palette.info.main }
                     }}
                   >
-                    密码需至少8位，包含大小写字母、数字与特殊字符。
+                    密码需至少 8 位，建议包含大小写字母、数字与特殊字符。
                   </Alert>
                   <TextField
                     label="确认新密码"
@@ -220,18 +238,24 @@ function ResetPasswordInner() {
                       mt: 1,
                       py: 1.5,
                       borderRadius: 2,
-                      backgroundColor: '#1976d2',
                       fontSize: '1rem',
                       fontWeight: 500,
                       textTransform: 'none',
-                      boxShadow: '0 4px 12px 0 rgba(25, 118, 210, 0.3)',
+                      background: `linear-gradient(135deg, ${muiTheme.palette.primary.main} 0%, ${muiTheme.palette.primary.dark} 90%)`,
+                      boxShadow: isDark
+                        ? '0 4px 14px rgba(0,0,0,0.55)'
+                        : '0 4px 12px rgba(25,118,210,0.35)',
                       '&:hover': {
-                        backgroundColor: '#1565c0',
-                        boxShadow: '0 6px 16px 0 rgba(25, 118, 210, 0.4)',
+                        background: `linear-gradient(135deg, ${muiTheme.palette.primary.dark} 0%, ${muiTheme.palette.primary.main} 90%)`,
+                        boxShadow: isDark
+                          ? '0 6px 18px rgba(0,0,0,0.65)'
+                          : '0 6px 16px rgba(25,118,210,0.45)'
                       },
                       '&:disabled': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.12)',
-                      },
+                        background: muiTheme.palette.action.disabledBackground,
+                        color: muiTheme.palette.action.disabled,
+                        boxShadow: 'none'
+                      }
                     }}
                   >
                     {status==="submitting"?"提交中...":"提交"}
