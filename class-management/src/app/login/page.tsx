@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import {
   Box, Button, Card, CardContent, Typography, TextField, Tabs, Tab,
-  CircularProgress, Alert, Stack, useTheme, alpha
+  CircularProgress, Alert, Stack, useTheme, alpha, Dialog, DialogTitle,
+  DialogContent, DialogActions
 } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import Image from "next/image";
@@ -57,6 +58,11 @@ export default function AuthPage() {
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const [classList, setClassList] = useState<{ id: number; name: string }[]>([]);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  // 忘记密码弹窗
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotIdentifier, setForgotIdentifier] = useState("");
+  const [forgotStatus, setForgotStatus] = useState<"idle"|"sending"|"done"|"error">("idle");
+  const [forgotMsg, setForgotMsg] = useState("");
   const [showStudentPassword, setShowStudentPassword] = useState(false);
   const [showStudentConfirmPassword, setShowStudentConfirmPassword] = useState(false);
   const [studentConfirmPassword, setStudentConfirmPassword] = useState("");
@@ -401,12 +407,14 @@ export default function AuthPage() {
                     >
                       {loading ? "登陆中..." : "登录"}
                     </Button>
-                    <Typography align="center" variant="body2">
-                      没有账号？{" "}
-                      <Button variant="text" size="small" onClick={() => { resetForms(); setIsLogin(false)}} sx={{ color: "primary.main", textTransform: "none" }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                      <Button variant="text" size="small" onClick={() => { resetForms(); setIsLogin(false)}} sx={{ textTransform: "none" }}>
                         去注册
                       </Button>
-                    </Typography>
+                      <Button variant="text" size="small" color="secondary" onClick={() => setForgotOpen(true)} sx={{ textTransform: "none" }}>
+                        忘记密码?
+                      </Button>
+                    </Stack>
                   </form>
                 ) : (
                   <>
@@ -799,6 +807,45 @@ export default function AuthPage() {
           </Box>
         </Box>
       </Box>
+      {/* 忘记密码弹窗 */}
+      <Dialog open={forgotOpen} onClose={() => { if(forgotStatus!=="sending") { setForgotOpen(false); setForgotStatus("idle"); setForgotMsg(""); } }}>
+        <DialogTitle>找回密码</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <Typography variant="body2" sx={{ mb: 1 }}>请输入您的学号 / 工号 / 用户名（存在则会发送一封重置邮件）。</Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            label="标识 (identifier)"
+            size="small"
+            value={forgotIdentifier}
+            onChange={e => setForgotIdentifier(e.target.value)}
+            disabled={forgotStatus === "sending" || forgotStatus === "done"}
+            sx={{ mt: 1 }}
+          />
+          {forgotMsg && <Alert severity={forgotStatus === "error" ? "error" : "success"} sx={{ mt: 2 }}>{forgotMsg}</Alert>}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { if(forgotStatus!=="sending") { setForgotOpen(false); setForgotStatus("idle"); setForgotMsg(""); } }}>关闭</Button>
+          <Button
+            variant="contained"
+            disabled={!forgotIdentifier.trim() || forgotStatus === "sending" || forgotStatus === "done"}
+            onClick={async () => {
+              if(!forgotIdentifier.trim()) return;
+              setForgotStatus("sending");
+              setForgotMsg("");
+              try {
+                await axios.post("/api/auth/forgot", { identifier: forgotIdentifier.trim() });
+                setForgotStatus("done");
+                setForgotMsg("如果账户存在，将发送一封包含重置链接的邮件，请检查邮箱。");
+              } catch {
+                setForgotStatus("error");
+                // 为防用户枚举，即使失败也不暴露具体账户状态
+                setForgotMsg("请求已受理，请稍后检查邮箱（如未收到可稍后再试）。");
+              }
+            }}
+          >{forgotStatus === "sending" ? <CircularProgress size={18} color="inherit" /> : (forgotStatus === "done" ? "已发送" : "发送")}</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
